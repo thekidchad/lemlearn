@@ -1,0 +1,25 @@
+{
+  "name": "@lemlearn/infra",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "infra": "bin/lemlearn.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy",
+    "diff": "cdk diff"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "aws-cdk": "^2.1029.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.230.0",
+    "constructs": "^10.4.2"
+  }
+}

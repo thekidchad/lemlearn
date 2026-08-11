@@ -1,0 +1,36 @@
+node_modules/
+.pnpm-store/
+.turbo/
+.next/
+out/
+dist/
+build/
+
+# Go
+services/api/bin/
+services/api/tmp/
+*.test
+coverage.out
+
+# CDK
+infra/cdk.out/
+infra/.cdk.staging/
+
+# Env & secrets — jamais commités : clés KMS, tokens Resend, certificats
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+
+# Artefacts de rendu documentaire (contiennent des données personnelles)
+/outputs/
+*.pdf
+!services/api/internal/platform/doc/testdata/*.pdf
+
+.DS_Store
+*.log
+
+# Artefacts de build Go
+services/api/dist/

@@ -10,9 +10,12 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "api": "cd services/api && go run ./cmd/api",
-    "api:test": "cd services/api && go test ./...",
-    "doc": "cd services/api && go run ./cmd/doc-preview"
+    "api": "cd services/api && DDB_ENDPOINT=http://localhost:8100 AWS_REGION=eu-west-3 go run ./cmd/api",
+    "api:test": "cd services/api && DDB_ENDPOINT=http://localhost:8100 AWS_REGION=eu-west-3 go test ./...",
+    "doc": "cd services/api && go run ./cmd/doc-preview",
+    "db:up": "docker run -d --name lemlearn-ddb -p 8100:8000 amazon/dynamodb-local -jar DynamoDBLocal.jar -inMemory -sharedDb || docker start lemlearn-ddb",
+    "db:down": "docker rm -f lemlearn-ddb",
+    "db:setup": "cd services/api && DDB_ENDPOINT=http://localhost:8100 AWS_REGION=eu-west-3 go run ./cmd/devsetup"
   },
   "devDependencies": {
     "turbo": "^2.5.6",

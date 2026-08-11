@@ -3,8 +3,9 @@ import { Logo } from "@/components/brand/logo";
 import { ButtonLink } from "@/components/ui/button";
 
 const nav = [
-  { href: "#produit", label: "Produit" },
-  { href: "#preuve", label: "Chaîne de preuve" },
+  { href: "#crm", label: "CRM" },
+  { href: "#formations", label: "Formations" },
+  { href: "#preuve", label: "Preuve" },
   { href: "#conformite", label: "Conformité" },
   { href: "#tarifs", label: "Tarifs" },
 ];

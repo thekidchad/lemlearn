@@ -37,7 +37,7 @@ export function Features() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="max-w-2xl">
           <p className="text-2xs font-medium tracking-widest text-accent-ink uppercase">
-            Produit
+            Récapitulatif
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
             Un seul outil, du premier appel à l&apos;attestation.

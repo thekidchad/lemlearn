@@ -19,7 +19,10 @@ import (
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 
 	"github.com/lemlearn/api/internal/config"
+	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/httpapi"
+	"github.com/lemlearn/api/internal/identity"
+	"github.com/lemlearn/api/internal/platform/ddb"
 	"github.com/lemlearn/api/internal/platform/doc"
 )
 
@@ -48,6 +51,21 @@ func main() {
 	if compiler != nil {
 		deps.Compiler = compiler
 	}
+
+	// La base est elle aussi optionnelle en local : `pnpm doc` et la
+	// prévisualisation des gabarits doivent fonctionner sans DynamoDB.
+	db, err := ddb.New(context.Background(), cfg.Table, cfg.AuditTable)
+	if err != nil {
+		if cfg.Env != config.EnvLocal {
+			log.Error("dynamodb indisponible", "err", err)
+			os.Exit(1)
+		}
+		log.Warn("dynamodb indisponible, routes métier désactivées", "err", err)
+	} else {
+		deps.Identity = identity.NewService(db, nil)
+		deps.CRM = crm.NewService(db, nil)
+	}
+
 	handler := httpapi.NewRouter(deps)
 
 	if config.IsLambda() {

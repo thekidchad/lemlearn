@@ -7,6 +7,9 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -15,6 +18,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/lemlearn/api/internal/config"
+	"github.com/lemlearn/api/internal/crm"
+	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/platform/doc"
 )
 
@@ -24,6 +29,17 @@ type Deps struct {
 	Config   config.Config
 	Log      *slog.Logger
 	Compiler doc.Compiler
+	Identity *identity.Service
+	CRM      *crm.Service
+	Clock    func() time.Time
+}
+
+// Now renvoie l'heure courante, injectable pour les tests.
+func (d Deps) Now() time.Time {
+	if d.Clock != nil {
+		return d.Clock()
+	}
+	return time.Now().UTC()
 }
 
 // NewRouter construit le routeur complet.
@@ -40,10 +56,41 @@ func NewRouter(deps Deps) http.Handler {
 	r.Get("/health", handleHealth(deps))
 
 	r.Route("/v1", func(r chi.Router) {
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/register", handleRegister(deps))
+			r.Post("/login", handleLogin(deps))
+			r.Post("/logout", handleLogout(deps))
+		})
+
+		// Tout le reste exige une session.
+		r.Group(func(r chi.Router) {
+			r.Use(requireAuth(deps))
+
+			r.Get("/me", handleMe(deps))
+
+			r.Group(func(r chi.Router) {
+				r.Use(requireRole(identity.Role.CanManageCRM, "réservé aux administrateurs"))
+
+				r.Route("/contacts", func(r chi.Router) {
+					r.Get("/", handleListContacts(deps))
+					r.Post("/", handleCreateContact(deps))
+					r.Get("/{contactID}", handleGetContact(deps))
+				})
+
+				r.Route("/files", func(r chi.Router) {
+					r.Get("/", handlePipeline(deps))
+					r.Post("/", handleCreateFile(deps))
+					r.Get("/{fileID}", handleGetFile(deps))
+					r.Patch("/{fileID}/stage", handleMoveFile(deps))
+					r.Get("/{fileID}/timeline", handleFileTimeline(deps))
+				})
+			})
+		})
+
 		r.Route("/documents", func(r chi.Router) {
 			// Prévisualisation d'un gabarit avec un jeu de données de
 			// démonstration. Utile pour itérer sur la mise en page sans
-			// créer de dossier réel ; jamais exposée hors développement.
+			// créer de dossier réel ; indisponible en production.
 			r.Get("/preview/{template}", handleDocumentPreview(deps))
 		})
 	})
@@ -57,6 +104,7 @@ func handleHealth(deps Deps) http.HandlerFunc {
 			"status":   "ok",
 			"env":      deps.Config.Env,
 			"typst":    deps.Compiler != nil,
+			"database": deps.Identity != nil,
 			"checked":  time.Now().UTC().Format(time.RFC3339),
 			"service":  "lemlearn-api",
 			"revision": revision(),
@@ -70,6 +118,9 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("X-Frame-Options", "DENY")
+		// L'API ne sert que du JSON et des PDF : aucune de ses réponses n'a
+		// de raison d'être mise en cache par un intermédiaire.
+		h.Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -91,6 +142,30 @@ func requestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 			)
 		})
 	}
+}
+
+// maxBodyBytes borne les corps de requête. Les téléversements de vidéos et de
+// pièces d'identité passent par des URL présignées S3, jamais par l'API : un
+// mégaoctet suffit largement au JSON, et refuser au-delà évite qu'une requête
+// malformée n'épuise la mémoire de la Lambda.
+const maxBodyBytes = 1 << 20
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
+	decoder := json.NewDecoder(io.LimitReader(r.Body, maxBodyBytes))
+	// Un champ inconnu est une erreur, pas un silence : c'est ce qui rattrape
+	// les fautes de frappe côté client avant qu'elles ne deviennent des
+	// données manquantes en base.
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(target); err != nil {
+		if errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "corps de requête vide")
+			return false
+		}
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("corps de requête invalide: %v", err))
+		return false
+	}
+	return true
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

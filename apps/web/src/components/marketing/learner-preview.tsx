@@ -21,20 +21,20 @@ const answers = [
 
 export function LearnerPreview() {
   return (
-    <section className="py-20">
+    <section id="formations" className="border-y border-line bg-surface-1/40 py-20">
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.15fr]">
           <div>
             <p className="text-2xs font-medium tracking-widest text-accent-ink uppercase">
-              Espace apprenant
+              Formations et espace apprenant
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
-              L&apos;assiduité mesurée, pas déclarée.
+              Vos modules, vos quiz, votre suivi.
             </h2>
             <p className="mt-4 text-ink-2">
-              Le lecteur envoie un signal toutes les cinq secondes. Le serveur
-              reconstruit la couverture réelle du module et refuse les progressions
-              impossibles : accélération, lecture en arrière-plan, sauts.
+              Découpez une formation en modules vidéo, ajoutez un questionnaire après
+              chacun, publiez la session. L&apos;apprenant retrouve tout dans son
+              espace : progression, ressources, résultats, attestation.
             </p>
             <p className="mt-4 text-ink-2">
               À la fin de la vidéo, le questionnaire se déplie sans changer de page.

@@ -19,11 +19,13 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 
+	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/docflow"
 	"github.com/lemlearn/api/internal/httpapi"
 	"github.com/lemlearn/api/internal/identity"
+	"github.com/lemlearn/api/internal/learning"
 	"github.com/lemlearn/api/internal/platform/blob"
 	"github.com/lemlearn/api/internal/platform/ddb"
 	"github.com/lemlearn/api/internal/platform/doc"
@@ -71,6 +73,8 @@ func main() {
 	} else {
 		deps.Identity = identity.NewService(db, nil)
 		deps.CRM = crm.NewService(db, nil)
+		deps.Catalog = catalog.NewService(db, nil)
+		deps.Learning = learning.NewService(db, deps.Catalog, nil)
 
 		if compiler != nil {
 			// En local, les courriels sont journalisés plutôt qu'envoyés et

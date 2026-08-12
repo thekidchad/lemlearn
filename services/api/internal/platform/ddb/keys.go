@@ -48,6 +48,12 @@ func WatchSK(enrollmentID, moduleID string) string {
 }
 func SignatureSK(requestID string) string { return "SIG#" + requestID }
 
+// QuizSKFor est la clé de tri d'une version de questionnaire. La largeur fixe
+// fait coïncider le tri lexicographique de DynamoDB avec l'ordre des versions.
+func QuizSKFor(quizID string, version int) string {
+	return fmt.Sprintf("QUIZ#%s#V%06d", quizID, version)
+}
+
 // --- Éléments globaux (hors partition d'organisation) ---------------------
 
 // EmailPointerPK indexe un e-mail vers son organisation et son utilisateur.

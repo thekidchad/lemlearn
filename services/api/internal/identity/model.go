@@ -102,6 +102,11 @@ type User struct {
 	FirstName string `dynamodbav:"firstName"`
 	LastName  string `dynamodbav:"lastName"`
 	Role      Role   `dynamodbav:"role"`
+	// ContactID relie un compte apprenant à sa fiche du CRM. Sans lui,
+	// l'espace apprenant ne saurait pas de quelles inscriptions il parle :
+	// l'apprenant est un contact côté gestion, un utilisateur côté connexion,
+	// et les deux doivent se rejoindre quelque part.
+	ContactID string `dynamodbav:"contactId,omitempty"`
 	// PasswordHash est au format PHC ($argon2id$…). Il n'est jamais renvoyé
 	// par l'API : voir Public().
 	PasswordHash string     `dynamodbav:"passwordHash"`
@@ -123,6 +128,7 @@ func (u User) FullName() string {
 type PublicUser struct {
 	ID        string `json:"id"`
 	OrgID     string `json:"orgId"`
+	ContactID string `json:"contactId,omitempty"`
 	Email     string `json:"email"`
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`
@@ -132,7 +138,7 @@ type PublicUser struct {
 // Public projette l'utilisateur pour l'API.
 func (u User) Public() PublicUser {
 	return PublicUser{
-		ID: u.ID, OrgID: u.OrgID, Email: u.Email,
+		ID: u.ID, OrgID: u.OrgID, ContactID: u.ContactID, Email: u.Email,
 		FirstName: u.FirstName, LastName: u.LastName, Role: u.Role,
 	}
 }

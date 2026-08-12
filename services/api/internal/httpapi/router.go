@@ -17,9 +17,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/identity"
+	"github.com/lemlearn/api/internal/learning"
 	"github.com/lemlearn/api/internal/platform/doc"
 	"github.com/lemlearn/api/internal/signature"
 )
@@ -33,6 +35,8 @@ type Deps struct {
 	Identity  *identity.Service
 	CRM       *crm.Service
 	Signature *signature.Service
+	Catalog   *catalog.Service
+	Learning  *learning.Service
 	Clock     func() time.Time
 }
 
@@ -70,6 +74,20 @@ func NewRouter(deps Deps) http.Handler {
 
 			r.Get("/me", handleMe(deps))
 
+			// Espace apprenant. Ces routes ne sont pas réservées aux
+			// administrateurs : c'est l'apprenant lui-même qui les appelle,
+			// et l'identifiant de sa fiche vient de son compte, jamais de
+			// l'URL.
+			r.Route("/learn", func(r chi.Router) {
+				r.Get("/", handleLearnerDashboard(deps))
+				r.Route("/{sessionID}/courses/{courseID}", func(r chi.Router) {
+					r.Get("/modules/{moduleID}/progress", handleModuleProgress(deps))
+					r.Post("/modules/{moduleID}/beat", handleHeartbeat(deps))
+					r.Get("/quizzes/{quizID}", handleGetQuiz(deps))
+					r.Post("/quizzes/{quizID}/submit", handleSubmitQuiz(deps))
+				})
+			})
+
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(identity.Role.CanManageCRM, "réservé aux administrateurs"))
 
@@ -77,6 +95,25 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/", handleListContacts(deps))
 					r.Post("/", handleCreateContact(deps))
 					r.Get("/{contactID}", handleGetContact(deps))
+				})
+
+				r.Route("/courses", func(r chi.Router) {
+					r.Get("/", handleListCourses(deps))
+					r.Post("/", handleCreateCourse(deps))
+					r.Get("/{courseID}", handleGetCourse(deps))
+					r.Post("/{courseID}/modules", handleAddModule(deps))
+				})
+
+				r.Route("/sessions", func(r chi.Router) {
+					r.Get("/", handleListSessions(deps))
+					r.Post("/", handleCreateSession(deps))
+					r.Get("/{sessionID}/enrollments", handleListEnrollments(deps))
+					r.Post("/{sessionID}/enrollments", handleEnroll(deps))
+				})
+
+				r.Route("/quizzes", func(r chi.Router) {
+					r.Post("/", handleSaveQuiz(deps))
+					r.Post("/{quizID}/versions/{version}/publish", handlePublishQuiz(deps))
 				})
 
 				r.Route("/files", func(r chi.Router) {

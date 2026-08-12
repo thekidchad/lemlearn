@@ -77,6 +77,20 @@ curl localhost:8787/v1/sign/<token>/document     # le PDF à signer
 curl -X POST localhost:8787/v1/sign/<token>/otp  # envoi du code
 curl -X POST localhost:8787/v1/sign/<token>/confirm -d @signature.json
 curl localhost:8787/v1/sign/<token>/sealed       # le document signé
+
+# Catalogue et espace apprenant
+curl -b /tmp/lem.txt -X POST localhost:8787/v1/courses -d '{...}'
+curl -b /tmp/lem.txt -X POST localhost:8787/v1/courses/<id>/modules -d '{...}'
+curl -b /tmp/lem.txt -X POST localhost:8787/v1/quizzes -d '{...}'
+curl -b /tmp/lem.txt -X POST localhost:8787/v1/quizzes/<id>/versions/1/publish
+curl -b /tmp/lem.txt -X POST localhost:8787/v1/sessions/<id>/enrollments -d '{"contactId":"…"}'
+
+# Le lecteur vidéo émet un signal toutes les cinq secondes
+curl -b /tmp/lem.txt -X POST \
+  "localhost:8787/v1/learn/<session>/courses/<course>/modules/<module>/beat" \
+  -d '{"fromMs":0,"toMs":5000,"rate":1,"focused":true}'
+
+curl -b /tmp/lem.txt "localhost:8787/v1/learn"   # tableau de bord apprenant
 ```
 
 ## Tests

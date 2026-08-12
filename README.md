@@ -109,6 +109,16 @@ code n'apparaît nulle part, que trois essais épuisent la tentative, qu'un
 tracé de deux dixièmes de seconde est refusé, et qu'un octet modifié dans le
 document archivé fait échouer la vérification d'intégrité.
 
+Les tests d'assiduité vérifient qu'un apprenant qui rejoue trois fois la même
+minute reste à une minute de couverture, qu'une progression impossible (cinq
+minutes jouées en dix secondes réelles) est refusée, que la lecture en
+arrière-plan ne compte pas, et qu'un saut ne colorie pas l'intervalle sauté.
+
+Les tests de questionnaire vérifient que cocher toutes les options ne rapporte
+rien, qu'une passation reste attachée à sa version même après publication
+d'une nouvelle, que le corrigé ne part jamais vers l'apprenant avant sa
+soumission, et que le mélange des questions est reproductible pour un auditeur.
+
 Les tests du CRM couvrent l'isolation entre organisations, l'unicité d'une
 adresse e-mail entre organisations, et le fait que quatre déplacements
 concurrents du même dossier laissent une chaîne d'audit intègre.

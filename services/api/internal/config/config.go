@@ -46,6 +46,12 @@ type Config struct {
 	// Autorité d'horodatage RFC 3161. FreeTSA en développement, une autorité
 	// qualifiée eIDAS en production.
 	TSAURL string
+
+	// Certificat de cachet d'organisation, au format PEM, et sa clé privée.
+	// Ils viennent de Secrets Manager : jamais du dépôt, jamais d'un fichier
+	// posé à côté du binaire.
+	SealCertPEM string
+	SealKeyPEM  string
 }
 
 // Load lit la configuration et refuse de démarrer si l'essentiel manque.
@@ -62,6 +68,8 @@ func Load() (Config, error) {
 		ResendAPIKey:    os.Getenv("RESEND_API_KEY"),
 		MailFrom:        orDefault("LEMLEARN_MAIL_FROM", "lemlearn <ne-pas-repondre@lemlearn.fr>"),
 		TSAURL:          orDefault("LEMLEARN_TSA_URL", "https://freetsa.org/tsr"),
+		SealCertPEM:     os.Getenv("LEMLEARN_SEAL_CERT"),
+		SealKeyPEM:      os.Getenv("LEMLEARN_SEAL_KEY"),
 	}
 
 	switch cfg.Env {

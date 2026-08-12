@@ -150,6 +150,11 @@ Geist statiques ; il est monté en lecture seule sous `/opt` par la Lambda.
   celle-ci vient de la session, jamais de l'URL. Un bug de filtre ne peut pas
   exposer les données d'un autre organisme, parce que la requête n'atteint
   jamais leur partition.
+- **Le scellement est écrit sur la bibliothèque standard.** CMS et PAdES sont
+  spécifiés et stables depuis vingt ans ; les écrire ici évite une dépendance
+  de plus dans une Lambda et rend visible ce qui compose exactement la
+  signature apposée à un document contractuel. La contrepartie est assumée :
+  le résultat est validé par OpenSSL, pas par nous-mêmes.
 - **La signature est rendue *dans* sa zone**, pas tamponnée après coup sur un
   PDF existant : le document signé est un rendu de plein droit, reproductible
   à l'octet près, et il n'y a aucun post-traitement dont il faudrait démontrer
@@ -160,16 +165,40 @@ Geist statiques ; il est monté en lecture seule sous `/opt` par la Lambda.
   développement local où aucun courriel ne part.
 - **Les données restent en France** (`eu-west-3`).
 
-## Limite connue : niveau de la signature
+## Scellement PAdES
 
-L'intégrité du document signé repose aujourd'hui sur une **empreinte SHA-256
-inscrite au journal d'audit chaîné**, recalculée à chaque relecture. Cela
-couvre l'exigence de non-altération, mais pas le **scellement PAdES** — la
-signature cryptographique incorporée au PDF, vérifiable dans Adobe Reader.
+Le document signé porte une **signature PAdES-B-T incorporée** : signature
+CAdES détachée (RFC 5652) apposée par mise à jour incrémentale du PDF, avec un
+jeton d'horodatage RFC 3161 obtenu auprès d'une autorité tierce.
 
-Y passer demande deux choses : un certificat de cachet d'organisation
-(≈300 €/an chez Certigna ou ChamberSign) et une bibliothèque de signature PDF.
-L'interface `signature.Timestamper` et le champ `Proof.TimestampToken` sont en
-place pour l'accueillir sans rien changer d'autre. Tant que ce n'est pas fait,
-le champ d'horodatage reste **vide** plutôt que d'afficher une heure serveur
-présentée comme opposable.
+Tout est écrit sur la bibliothèque standard de Go — `encoding/asn1`,
+`crypto/x509` — dans trois paquets lisibles :
+
+| Paquet | Rôle |
+|---|---|
+| [`platform/cms`](services/api/internal/platform/cms) | SignedData CMS détaché, attributs CAdES-BES (contentType, messageDigest, signingTime, signing-certificate-v2) |
+| [`platform/pdfsig`](services/api/internal/platform/pdfsig) | révision incrémentale : dictionnaire `/Sig`, champ AcroForm, `/ByteRange`, xref chaînée par `/Prev` |
+| [`platform/tsa`](services/api/internal/platform/tsa) | client RFC 3161, avec nonce contre le rejeu |
+
+Les octets de la révision d'origine ne sont **jamais réécrits** : un
+vérificateur peut prouver que le document présenté au signataire est
+exactement celui que contient le fichier signé. `/ByteRange` couvre tout le
+fichier sauf la chaîne hexadécimale de la signature elle-même.
+
+Les tests ne se contentent pas de vérifier notre propre travail : ils
+extraient la signature du PDF produit et la font valider par **`openssl cms
+-verify`**, puis contrôlent qu'un octet modifié dans le corps du document la
+fait échouer.
+
+**Certificat.** En production, `LEMLEARN_SEAL_CERT` et `LEMLEARN_SEAL_KEY`
+portent un cachet d'organisation (≈300 €/an chez Certigna ou ChamberSign),
+injectés par Secrets Manager ; sans eux, le service refuse de démarrer hors
+local. En développement, un certificat auto-signé est généré, dont le nom
+porte explicitement la mention « certificat de développement — sans valeur »
+pour qu'un document de test ne puisse pas passer pour un document contractuel.
+
+**Horodatage.** FreeTSA par défaut ; une autorité qualifiée eIDAS est
+recommandée en production. Si l'autorité est injoignable, le document est
+scellé sans jeton — signature valide, date non opposable — plutôt que de
+refuser une signature déjà consentie, et le dossier de preuve laisse le champ
+**vide** au lieu d'afficher une heure serveur.

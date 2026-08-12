@@ -14,6 +14,7 @@ import (
 	"github.com/lemlearn/api/internal/platform/audit"
 	"github.com/lemlearn/api/internal/platform/ddb"
 	"github.com/lemlearn/api/internal/platform/doc"
+	"github.com/lemlearn/api/internal/platform/seal"
 )
 
 // Renderer produit le PDF d'une demande. `applied` vide rend le document
@@ -39,13 +40,14 @@ type Mailer interface {
 	Send(ctx context.Context, to, subject, html string) error
 }
 
-// Timestamper obtient un jeton d'horodatage RFC 3161 sur une empreinte.
+// Sealer appose la signature cryptographique sur le PDF.
 //
-// Facultatif : sans autorité configurée, le champ d'horodatage du dossier de
-// preuve reste vide. Un horodatage serveur ne serait pas opposable, et le
-// présenter comme tel serait pire que de ne rien afficher.
-type Timestamper interface {
-	Stamp(ctx context.Context, sha256sum []byte) (token []byte, authority string, err error)
+// Facultatif : sans certificat configuré, le document est archivé tel quel et
+// son intégrité repose sur l'empreinte journalisée. Avec, il porte une
+// signature PAdES vérifiable dans n'importe quel lecteur, et l'altération
+// devient non seulement détectable mais visible par le destinataire.
+type Sealer interface {
+	Seal(ctx context.Context, pdf []byte, meta seal.Meta) (sealed []byte, authority string, err error)
 }
 
 // Service porte le parcours de signature.
@@ -54,7 +56,7 @@ type Service struct {
 	renderer Renderer
 	blobs    BlobStore
 	mailer   Mailer
-	stamper  Timestamper
+	sealer   Sealer
 	appURL   string
 	now      func() time.Time
 }
@@ -65,7 +67,7 @@ type Deps struct {
 	Renderer Renderer
 	Blobs    BlobStore
 	Mailer   Mailer
-	Stamper  Timestamper
+	Sealer   Sealer
 	AppURL   string
 	Now      func() time.Time
 }
@@ -78,7 +80,7 @@ func NewService(deps Deps) *Service {
 	}
 	return &Service{
 		db: deps.DB, renderer: deps.Renderer, blobs: deps.Blobs,
-		mailer: deps.Mailer, stamper: deps.Stamper,
+		mailer: deps.Mailer, sealer: deps.Sealer,
 		appURL: strings.TrimRight(deps.AppURL, "/"), now: now,
 	}
 }
@@ -333,6 +335,23 @@ func (s *Service) Confirm(ctx context.Context, token string, in ConfirmInput) (R
 		return req, fmt.Errorf("rendu du document signé: %w", err)
 	}
 
+	// Scellement cryptographique : le PDF porte alors une signature PAdES
+	// détachée, et son altération devient visible dans le lecteur du
+	// destinataire, pas seulement détectable de notre côté.
+	authority := ""
+	if s.sealer != nil {
+		stamped, tsaURL, err := s.sealer.Seal(ctx, sealed, seal.Meta{
+			SignerName: req.SignerName,
+			Reason:     "Signature de " + req.Reference,
+			Location:   in.IP,
+			SignedAt:   now,
+		})
+		if err != nil {
+			return req, fmt.Errorf("scellement du document: %w", err)
+		}
+		sealed, authority = stamped, tsaURL
+	}
+
 	sealedSum := sha256.Sum256(sealed)
 	sealedKey := fmt.Sprintf("orgs/%s/files/%s/documents/%s-signe.pdf", req.OrgID, req.FileID, req.Reference)
 	if s.blobs != nil {
@@ -353,17 +372,10 @@ func (s *Service) Confirm(ctx context.Context, token string, in ConfirmInput) (R
 		OTPChannel:    "email",
 		SealedSHA256:  hex.EncodeToString(sealedSum[:]),
 		SealedKey:     sealedKey,
-	}
-
-	// L'horodatage vient d'un tiers ou n'existe pas. Son échec n'annule pas
-	// la signature : le document reste scellé et son empreinte journalisée,
-	// et le dossier de preuve indiquera l'absence d'horodatage qualifié
-	// plutôt que d'en inventer un.
-	if s.stamper != nil {
-		if stamp, authority, err := s.stamper.Stamp(ctx, sealedSum[:]); err == nil {
-			proof.TimestampToken = string(stamp)
-			proof.TimestampTSA = authority
-		}
+		// Vide si l'autorité était injoignable : le dossier de preuve montre
+		// alors l'absence d'horodatage qualifié plutôt que d'en inventer un.
+		TimestampTSA: authority,
+		Sealed:       s.sealer != nil,
 	}
 
 	req.Proof = proof

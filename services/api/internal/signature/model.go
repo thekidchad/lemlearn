@@ -8,11 +8,12 @@
 //  3. dossier de preuve complet (IP, appareil, adresse certifiée, tracé) ;
 //  4. intégrité du document scellé, vérifiable après coup.
 //
-// Le point 4 est ici assuré par une empreinte SHA-256 inscrite au journal
-// d'audit chaîné. Le passage au scellement PAdES — signature cryptographique
-// incorporée au PDF, vérifiable dans un lecteur — demande un certificat de
-// cachet d'organisation et une bibliothèque de signature ; l'interface Sealer
-// est prévue pour, sans que rien d'autre n'ait à changer.
+// Le point 4 est assuré deux fois : par une empreinte SHA-256 inscrite au
+// journal d'audit chaîné, qui rend une altération *détectable* de notre côté,
+// et par une signature PAdES incorporée au PDF, qui la rend *visible* dans le
+// lecteur du destinataire. La seconde exige un certificat de cachet
+// d'organisation ; à défaut, un certificat de développement explicitement
+// nommé comme tel permet d'exercer tout le mécanisme.
 package signature
 
 import (
@@ -126,11 +127,16 @@ type Proof struct {
 	SealedSHA256 string `dynamodbav:"sealedSha256" json:"sealedSha256"`
 	SealedKey    string `dynamodbav:"sealedKey" json:"-"`
 
-	// TimestampToken est le jeton d'horodatage RFC 3161, encodé en base64,
-	// lorsqu'une autorité est configurée. Vide sinon : mieux vaut un champ
-	// vide qu'un horodatage serveur présenté comme opposable.
-	TimestampToken string `dynamodbav:"timestampToken,omitempty" json:"-"`
-	TimestampTSA   string `dynamodbav:"timestampTsa,omitempty" json:"timestampTsa,omitempty"`
+	// TimestampTSA nomme l'autorité qui a horodaté la signature. Vide si
+	// aucune n'était configurée ou joignable : mieux vaut un champ vide qu'un
+	// horodatage serveur présenté comme opposable.
+	TimestampTSA string `dynamodbav:"timestampTsa,omitempty" json:"timestampTsa,omitempty"`
+
+	// Sealed indique que le PDF porte une signature PAdES incorporée, et pas
+	// seulement une empreinte journalisée. C'est la différence entre une
+	// altération détectable par nous et une altération visible par le
+	// destinataire dans son lecteur.
+	Sealed bool `dynamodbav:"sealed" json:"sealed"`
 }
 
 // NewRequest construit une demande prête à écrire.

@@ -23,6 +23,7 @@ import (
 	"github.com/lemlearn/api/internal/platform/ddb"
 	"github.com/lemlearn/api/internal/platform/doc"
 	"github.com/lemlearn/api/internal/platform/mail"
+	"github.com/lemlearn/api/internal/platform/seal"
 	"github.com/lemlearn/api/internal/signature"
 )
 
@@ -85,6 +86,13 @@ func newStack(t *testing.T) stack {
 	blobs := blob.NewMemory()
 	mailer := mail.NewLog(nil)
 
+	// Scelleur auto-signé, sans horodatage : le test doit pouvoir tourner
+	// hors ligne, et l'autorité RFC 3161 est un tiers réseau.
+	sealer, err := seal.Development("Institut Vulcain", nil)
+	if err != nil {
+		t.Fatalf("scelleur: %v", err)
+	}
+
 	return stack{
 		db: db, crm: crmService, blobs: blobs, mailer: mailer,
 		org: org, file: file, actor: actor, learner: learner,
@@ -93,6 +101,7 @@ func newStack(t *testing.T) stack {
 			Renderer: docflow.NewRenderer(ident, crmService, compiler),
 			Blobs:    blobs,
 			Mailer:   mailer,
+			Sealer:   sealer,
 			AppURL:   "https://app.lemlearn.fr",
 		}),
 	}
@@ -207,6 +216,17 @@ func TestSignatureHappyPath(t *testing.T) {
 	sum := sha256.Sum256(sealed)
 	if hex.EncodeToString(sum[:]) != signed.Proof.SealedSHA256 {
 		t.Fatal("l'empreinte du document scellé ne correspond pas à celle journalisée")
+	}
+
+	// Le document archivé doit porter une signature PAdES incorporée, pas
+	// seulement une empreinte journalisée.
+	if !signed.Proof.Sealed {
+		t.Error("le document n'est pas marqué comme scellé")
+	}
+	for _, marker := range []string{"/SubFilter /ETSI.CAdES.detached", "/ByteRange", "/SigFlags 3"} {
+		if !bytes.Contains(sealed, []byte(marker)) {
+			t.Errorf("le document scellé ne porte pas %s", marker)
+		}
 	}
 
 	// Le dossier de preuve doit être complet : c'est ce qui est opposable.

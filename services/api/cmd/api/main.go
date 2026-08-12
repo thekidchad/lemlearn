@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -27,6 +28,8 @@ import (
 	"github.com/lemlearn/api/internal/platform/ddb"
 	"github.com/lemlearn/api/internal/platform/doc"
 	"github.com/lemlearn/api/internal/platform/mail"
+	"github.com/lemlearn/api/internal/platform/seal"
+	"github.com/lemlearn/api/internal/platform/tsa"
 	"github.com/lemlearn/api/internal/signature"
 )
 
@@ -77,11 +80,20 @@ func main() {
 			if cfg.ResendAPIKey != "" {
 				mailer = mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom)
 			}
+			// Le scelleur : certificat de l'organisme en production, certificat
+			// auto-signé et explicitement nommé « sans valeur » en local.
+			sealer, err := buildSealer(cfg)
+			if err != nil {
+				log.Error("scellement indisponible", "err", err)
+				os.Exit(1)
+			}
+
 			deps.Signature = signature.NewService(signature.Deps{
 				DB:       db,
 				Renderer: docflow.NewRenderer(deps.Identity, deps.CRM, compiler),
 				Blobs:    blob.NewMemory(),
 				Mailer:   mailer,
+				Sealer:   sealer,
 				AppURL:   cfg.AppURL,
 			})
 		}
@@ -120,4 +132,24 @@ func main() {
 		log.Error("arrêt forcé", "err", err)
 	}
 	log.Info("api arrêtée")
+}
+
+// buildSealer construit le scelleur PAdES à partir de la configuration.
+func buildSealer(cfg config.Config) (*seal.PAdES, error) {
+	timestamper := tsa.New(cfg.TSAURL)
+
+	if cfg.SealCertPEM == "" || cfg.SealKeyPEM == "" {
+		if cfg.Env != config.EnvLocal {
+			return nil, fmt.Errorf(
+				"LEMLEARN_SEAL_CERT et LEMLEARN_SEAL_KEY sont requis en %s : "+
+					"un document contractuel ne peut pas être scellé avec un certificat de développement", cfg.Env)
+		}
+		return seal.Development("Organisme de développement", timestamper)
+	}
+
+	cert, key, chain, err := seal.LoadKeyPair([]byte(cfg.SealCertPEM), []byte(cfg.SealKeyPEM))
+	if err != nil {
+		return nil, err
+	}
+	return seal.New(cert, key, chain, timestamper), nil
 }

@@ -20,10 +20,13 @@ type Write struct {
 	Item any
 	// Condition est une expression DynamoDB optionnelle, par exemple
 	// "attribute_not_exists(PK)" pour une création, ou
-	// "updatedAt = :expected" pour un verrouillage optimiste.
+	// "#s <> :signed" pour un verrouillage sur l'état courant.
 	Condition string
 	// Values complète Condition si elle référence des valeurs.
 	Values map[string]types.AttributeValue
+	// Names substitue les noms d'attributs réservés par DynamoDB — `status`
+	// en est un, et une condition qui l'utilise directement échoue.
+	Names map[string]string
 }
 
 // maxAuditAttempts borne les reprises en cas de course sur le rang d'un sujet.
@@ -69,6 +72,7 @@ func (c *Client) WriteWithAudit(
 			if write.Condition != "" {
 				put.ConditionExpression = aws.String(write.Condition)
 				put.ExpressionAttributeValues = write.Values
+				put.ExpressionAttributeNames = write.Names
 			}
 			items = append(items, types.TransactWriteItem{Put: put})
 		}

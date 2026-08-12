@@ -21,17 +21,19 @@ import (
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/platform/doc"
+	"github.com/lemlearn/api/internal/signature"
 )
 
 // Deps regroupe les dépendances injectées au routeur. Aucun handler ne
 // construit ses propres clients : c'est ce qui rend les tests possibles.
 type Deps struct {
-	Config   config.Config
-	Log      *slog.Logger
-	Compiler doc.Compiler
-	Identity *identity.Service
-	CRM      *crm.Service
-	Clock    func() time.Time
+	Config    config.Config
+	Log       *slog.Logger
+	Compiler  doc.Compiler
+	Identity  *identity.Service
+	CRM       *crm.Service
+	Signature *signature.Service
+	Clock     func() time.Time
 }
 
 // Now renvoie l'heure courante, injectable pour les tests.
@@ -83,8 +85,21 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/{fileID}", handleGetFile(deps))
 					r.Patch("/{fileID}/stage", handleMoveFile(deps))
 					r.Get("/{fileID}/timeline", handleFileTimeline(deps))
+					r.Get("/{fileID}/signatures", handleListSignatures(deps))
+					r.Post("/{fileID}/signatures", handleIssueSignature(deps))
 				})
 			})
+		})
+
+		// Parcours du signataire : délibérément hors de tout groupe
+		// authentifié. Le signataire n'a pas de compte ; sa légitimité vient
+		// du jeton du lien, puis du code envoyé à son adresse vérifiée.
+		r.Route("/sign/{token}", func(r chi.Router) {
+			r.Get("/", handleSignOpen(deps))
+			r.Get("/document", handleSignDocument(deps))
+			r.Post("/otp", handleSignOTP(deps))
+			r.Post("/confirm", handleSignConfirm(deps))
+			r.Get("/sealed", handleSignSealed(deps))
 		})
 
 		r.Route("/documents", func(r chi.Router) {
@@ -151,7 +166,13 @@ func requestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 const maxBodyBytes = 1 << 20
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	decoder := json.NewDecoder(io.LimitReader(r.Body, maxBodyBytes))
+	return decodeJSONLimit(w, r, target, maxBodyBytes)
+}
+
+// decodeJSONLimit décode avec une borne explicite, pour les rares corps
+// légitimement plus gros — l'image d'un tracé de signature.
+func decodeJSONLimit(w http.ResponseWriter, r *http.Request, target any, limit int64) bool {
+	decoder := json.NewDecoder(io.LimitReader(r.Body, limit))
 	// Un champ inconnu est une erreur, pas un silence : c'est ce qui rattrape
 	// les fautes de frappe côté client avant qu'elles ne deviennent des
 	// données manquantes en base.

@@ -20,10 +20,14 @@ import (
 
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
+	"github.com/lemlearn/api/internal/docflow"
 	"github.com/lemlearn/api/internal/httpapi"
 	"github.com/lemlearn/api/internal/identity"
+	"github.com/lemlearn/api/internal/platform/blob"
 	"github.com/lemlearn/api/internal/platform/ddb"
 	"github.com/lemlearn/api/internal/platform/doc"
+	"github.com/lemlearn/api/internal/platform/mail"
+	"github.com/lemlearn/api/internal/signature"
 )
 
 func main() {
@@ -64,6 +68,23 @@ func main() {
 	} else {
 		deps.Identity = identity.NewService(db, nil)
 		deps.CRM = crm.NewService(db, nil)
+
+		if compiler != nil {
+			// En local, les courriels sont journalisés plutôt qu'envoyés et
+			// les fichiers restent en mémoire : le parcours de signature est
+			// exerçable de bout en bout sans compte Resend ni compartiment S3.
+			var mailer mail.Sender = mail.NewLog(log)
+			if cfg.ResendAPIKey != "" {
+				mailer = mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom)
+			}
+			deps.Signature = signature.NewService(signature.Deps{
+				DB:       db,
+				Renderer: docflow.NewRenderer(deps.Identity, deps.CRM, compiler),
+				Blobs:    blob.NewMemory(),
+				Mailer:   mailer,
+				AppURL:   cfg.AppURL,
+			})
+		}
 	}
 
 	handler := httpapi.NewRouter(deps)

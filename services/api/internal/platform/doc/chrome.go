@@ -33,6 +33,7 @@ func (c Chrome) WritePreamble(s *Source) {
 	s.Line(`#set text(fill: ink)`)
 
 	writeSigZoneHelpers(s)
+	writeSignedZoneHelper(s)
 
 	s.Line(`#let lem_h1(body) = block(above: 0pt, below: 10pt)[#text(size: 15pt, weight: 640, tracking: -0.4pt, body)]`)
 	s.Line(`#let lem_h2(body) = block(above: 14pt, below: 6pt)[#text(size: 10pt, weight: 620, body)]`)

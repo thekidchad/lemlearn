@@ -24,8 +24,20 @@ type Party struct {
 	Role        string // qualité du représentant (gérant, DRH…)
 }
 
+// addressLine compose l'adresse sur une ligne en omettant ce qui manque.
+//
+// Un fmt.Sprintf naïf imprimait « , » tout seul pour un organisme dont
+// l'adresse n'est pas encore renseignée — une virgule orpheline en tête de
+// convention, sur tous les documents d'un client qui vient de s'inscrire.
 func (p Party) addressLine() string {
-	return strings.TrimSpace(fmt.Sprintf("%s, %s %s", p.Address, p.PostalCode, p.City))
+	parts := make([]string, 0, 2)
+	if street := strings.TrimSpace(p.Address); street != "" {
+		parts = append(parts, street)
+	}
+	if locality := strings.TrimSpace(p.PostalCode + " " + p.City); locality != "" {
+		parts = append(parts, locality)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // LearnerLine est un apprenant inscrit à la session.
@@ -72,6 +84,11 @@ type Convention struct {
 	FunderName   string // OPCO ou financeur ; vide si financement direct
 
 	SignedCity string
+
+	// Signatures apposées. Vide, le gabarit rend des cadres vierges ; c'est
+	// le document présenté au signataire. Renseigné, il rend le document
+	// signé — même gabarit, même code, aucun post-traitement.
+	Signatures []doc.AppliedSignature
 }
 
 // RenderConvention produit la source Typst de la convention.
@@ -85,11 +102,9 @@ func RenderConvention(c Convention) doc.Document {
 	chrome := doc.Chrome{
 		OrgName:    c.Org.Name,
 		OrgAddress: c.Org.addressLine(),
-		LegalLine: fmt.Sprintf(
-			"%s — SIRET %s — déclaration d'activité enregistrée auprès du préfet de région. Cet enregistrement ne vaut pas agrément de l'État.",
-			c.Org.Name, c.Org.SIRET),
-		Reference: c.Reference,
-		Kind:      "Convention de formation professionnelle",
+		LegalLine:  legalLine(c.Org),
+		Reference:  c.Reference,
+		Kind:       "Convention de formation professionnelle",
 	}
 	chrome.WritePreamble(&s)
 
@@ -187,6 +202,7 @@ func RenderConvention(c Convention) doc.Document {
 
 	return doc.Document{
 		Source:       s.Bytes(),
+		Assets:       doc.Assets(c.Signatures),
 		CreationUnix: c.IssuedOn.Unix(),
 	}
 }
@@ -197,6 +213,10 @@ func writeSignatureBlock(s *doc.Source, c Convention) {
 		"Fait à %s, le %s. Établi en un exemplaire électronique original.",
 		c.SignedCity, formatDate(c.IssuedOn))))
 	s.Line(`#v(10pt)`)
+	// breakable: false — un bloc de signature coupé en deux laisse les
+	// libellés « Pour l'organisme » sur une page et les cadres sur la
+	// suivante. Un document contractuel ne peut pas se présenter ainsi.
+	s.Line(`#block(breakable: false, width: 100%)[`)
 	s.Line(`#grid(columns: (1fr, 1fr), column-gutter: 18pt, row-gutter: 5pt,`)
 	s.Linef(`  [#lem_label(%s)], [#lem_label(%s)],`,
 		doc.Str("Pour l'organisme de formation"),
@@ -206,9 +226,22 @@ func writeSignatureBlock(s *doc.Source, c Convention) {
 
 	// La mention manuscrite n'est demandée qu'au bénéficiaire : c'est la
 	// partie dont l'engagement doit être caractérisé face à un financeur.
-	s.Line(`  [#v(4pt)], [#lem_mention_zone("client")[#text(size: 7.5pt, fill: muted)[Faire précéder la signature de la mention « Lu et approuvé, bon pour accord »]]],`)
-	s.Line(`  [#lem_sig_zone("organization")], [#lem_sig_zone("client")],`)
+	// Une fois signée, on imprime la mention réellement saisie plutôt que la
+	// consigne.
+	if signed, ok := doc.FindSignature(c.Signatures, doc.RoleClient); ok && signed.Mention != "" {
+		s.Linef(`  [#v(4pt)], [#lem_mention_zone("client")[#text(size: 7.5pt, style: "italic", %s)]],`,
+			doc.Str(signed.Mention))
+	} else {
+		s.Line(`  [#v(4pt)], [#lem_mention_zone("client")[#text(size: 7.5pt, fill: muted)[Faire précéder la signature de la mention « Lu et approuvé, bon pour accord »]]],`)
+	}
+
+	s.Line(`  [`)
+	doc.WriteSignatureSlot(s, doc.RoleOrganization, c.Signatures)
+	s.Line(`  ], [`)
+	doc.WriteSignatureSlot(s, doc.RoleClient, c.Signatures)
+	s.Line(`  ],`)
 	s.Line(`)`)
+	s.Line(`]`)
 }
 
 func writeLearnersTable(s *doc.Source, learners []LearnerLine) {
@@ -240,6 +273,17 @@ func writeSessionsTable(s *doc.Source, sessions []SessionLine) {
 	}
 	s.Line(`  table.hline(stroke: 0.5pt + hairline),`)
 	s.Line(`)`)
+}
+
+// legalLine compose la mention de pied de page, sans laisser de « SIRET »
+// suivi du vide lorsque le numéro n'est pas renseigné.
+func legalLine(org Party) string {
+	line := org.Name
+	if siret := strings.TrimSpace(org.SIRET); siret != "" {
+		line += " — SIRET " + siret
+	}
+	return line + " — déclaration d'activité enregistrée auprès du préfet de région. " +
+		"Cet enregistrement ne vaut pas agrément de l'État."
 }
 
 func partyBlock(p Party) string {

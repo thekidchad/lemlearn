@@ -64,6 +64,19 @@ curl -c /tmp/lem.txt -X POST localhost:8787/v1/auth/login -H 'Content-Type: appl
 curl -b /tmp/lem.txt localhost:8787/v1/me
 curl -b /tmp/lem.txt localhost:8787/v1/files            # pipeline
 curl -b /tmp/lem.txt localhost:8787/v1/files/<id>/timeline   # journal vérifié
+
+# Parcours de signature. En local, la réponse porte un `devLink` : aucun
+# courriel ne part réellement, le code se lit dans les journaux de l'API.
+curl -b /tmp/lem.txt -X POST localhost:8787/v1/files/<id>/signatures \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"convention","reference":"CONV-2026-0143","role":"client",
+       "signerName":"Léa Bertrand","signerEmail":"lea@example.fr"}'
+
+curl localhost:8787/v1/sign/<token>              # ce que voit le signataire
+curl localhost:8787/v1/sign/<token>/document     # le PDF à signer
+curl -X POST localhost:8787/v1/sign/<token>/otp  # envoi du code
+curl -X POST localhost:8787/v1/sign/<token>/confirm -d @signature.json
+curl localhost:8787/v1/sign/<token>/sealed       # le document signé
 ```
 
 ## Tests
@@ -88,6 +101,13 @@ Les tests d'audit vérifient qu'une charge utile modifiée, un événement
 supprimé, des événements réordonnés ou un événement forgé avec sa propre
 empreinte valide sont tous détectés — et que la chaîne reste vérifiable après
 un aller-retour complet par DynamoDB.
+
+Les tests de signature exercent le parcours complet contre le vrai moteur :
+émission, ouverture, code, apposition, scellement — puis vérifient que le
+journal contient exactement les sept événements attendus dans l'ordre, que le
+code n'apparaît nulle part, que trois essais épuisent la tentative, qu'un
+tracé de deux dixièmes de seconde est refusé, et qu'un octet modifié dans le
+document archivé fait échouer la vérification d'intégrité.
 
 Les tests du CRM couvrent l'isolation entre organisations, l'unicité d'une
 adresse e-mail entre organisations, et le fait que quatre déplacements
@@ -130,4 +150,26 @@ Geist statiques ; il est monté en lecture seule sous `/opt` par la Lambda.
   celle-ci vient de la session, jamais de l'URL. Un bug de filtre ne peut pas
   exposer les données d'un autre organisme, parce que la requête n'atteint
   jamais leur partition.
+- **La signature est rendue *dans* sa zone**, pas tamponnée après coup sur un
+  PDF existant : le document signé est un rendu de plein droit, reproductible
+  à l'octet près, et il n'y a aucun post-traitement dont il faudrait démontrer
+  la fidélité au document présenté au signataire.
+- **Le jeton de signature n'est jamais rendu à l'organisme.** Un administrateur
+  qui pourrait le récupérer pourrait signer à la place du bénéficiaire, et le
+  dossier de preuve ne le montrerait pas. Seule exception, bornée au
+  développement local où aucun courriel ne part.
 - **Les données restent en France** (`eu-west-3`).
+
+## Limite connue : niveau de la signature
+
+L'intégrité du document signé repose aujourd'hui sur une **empreinte SHA-256
+inscrite au journal d'audit chaîné**, recalculée à chaque relecture. Cela
+couvre l'exigence de non-altération, mais pas le **scellement PAdES** — la
+signature cryptographique incorporée au PDF, vérifiable dans Adobe Reader.
+
+Y passer demande deux choses : un certificat de cachet d'organisation
+(≈300 €/an chez Certigna ou ChamberSign) et une bibliothèque de signature PDF.
+L'interface `signature.Timestamper` et le champ `Proof.TimestampToken` sont en
+place pour l'accueillir sans rien changer d'autre. Tant que ce n'est pas fait,
+le champ d'horodatage reste **vide** plutôt que d'afficher une heure serveur
+présentée comme opposable.

@@ -197,6 +197,26 @@ func (s *Service) MoveFile(ctx context.Context, orgID, fileID string, to Stage, 
 	return file, nil
 }
 
+// RecordExport journalise l'extraction d'un dossier.
+//
+// Savoir qui a extrait un dossier, quand, et avec combien de pièces fait
+// partie de ce qu'un contrôle peut demander — et c'est aussi la trace qui
+// permet de répondre à un apprenant qui s'inquiète de la diffusion de ses
+// données.
+func (s *Service) RecordExport(
+	ctx context.Context, orgID, fileID string,
+	actor audit.Actor, details map[string]any,
+) (audit.Event, error) {
+	if _, err := s.GetFile(ctx, orgID, fileID); err != nil {
+		return audit.Event{}, err
+	}
+	now := s.now()
+	return s.db.WriteWithAudit(ctx, FileSubject(fileID), nil,
+		func(prev audit.Event) (audit.Event, error) {
+			return audit.Append(prev, FileSubject(fileID), now, audit.ActionDossierExported, actor, details)
+		})
+}
+
 // Timeline renvoie le journal vérifié d'un dossier.
 func (s *Service) Timeline(ctx context.Context, fileID string) ([]audit.Event, error) {
 	return s.db.AuditChain(ctx, FileSubject(fileID))

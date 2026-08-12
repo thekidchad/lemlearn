@@ -91,7 +91,28 @@ curl -b /tmp/lem.txt -X POST \
   -d '{"fromMs":0,"toMs":5000,"rate":1,"focused":true}'
 
 curl -b /tmp/lem.txt "localhost:8787/v1/learn"   # tableau de bord apprenant
+
+# Le dossier probatoire complet, tel qu'il est remis à un auditeur
+curl -b /tmp/lem.txt -X POST -o dossier.zip localhost:8787/v1/files/<id>/export
 ```
+
+L'archive contient les documents scellés relus depuis l'archivage, les relevés
+de connexion et d'évaluation générés à la volée, l'attestation si elle est
+délivrable, le journal d'audit en CSV et un manifeste d'empreintes SHA-256 :
+
+```
+  générée   dossier.json                          2 178 o
+  archivée  documents/CONV-2026-0900.pdf         87 428 o
+  générée   releves/releve-de-connexion.pdf      39 296 o
+  générée   releves/releve-evaluation.pdf        41 339 o
+  générée   journal-audit.csv                     3 299 o
+  générée   manifeste.json
+```
+
+Le manifeste distingue les pièces **archivées** — qui portent leur propre
+signature PAdES — des pièces **générées**, qui n'engagent que la fidélité de
+nos données. Et il énumère ce qui manque, avec le motif : un dossier incomplet
+dont on connaît les trous vaut mieux qu'un dossier qui prétend être complet.
 
 ## Tests
 

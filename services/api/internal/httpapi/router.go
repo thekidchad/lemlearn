@@ -20,6 +20,7 @@ import (
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
+	"github.com/lemlearn/api/internal/export"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/learning"
 	"github.com/lemlearn/api/internal/platform/doc"
@@ -37,6 +38,7 @@ type Deps struct {
 	Signature *signature.Service
 	Catalog   *catalog.Service
 	Learning  *learning.Service
+	Export    *export.Service
 	Clock     func() time.Time
 }
 
@@ -122,6 +124,7 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/{fileID}", handleGetFile(deps))
 					r.Patch("/{fileID}/stage", handleMoveFile(deps))
 					r.Get("/{fileID}/timeline", handleFileTimeline(deps))
+					r.Post("/{fileID}/export", handleExportFile(deps))
 					r.Get("/{fileID}/signatures", handleListSignatures(deps))
 					r.Post("/{fileID}/signatures", handleIssueSignature(deps))
 				})

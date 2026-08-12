@@ -23,6 +23,7 @@ import (
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/docflow"
+	"github.com/lemlearn/api/internal/export"
 	"github.com/lemlearn/api/internal/httpapi"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/learning"
@@ -99,6 +100,14 @@ func main() {
 				Mailer:   mailer,
 				Sealer:   sealer,
 				AppURL:   cfg.AppURL,
+			})
+
+			// L'export vient après la signature : il relit les documents
+			// scellés, donc il lui faut le service qui les archive.
+			deps.Export = export.NewService(export.Deps{
+				Identity: deps.Identity, CRM: deps.CRM,
+				Catalog: deps.Catalog, Learning: deps.Learning,
+				Signature: deps.Signature, Compiler: compiler,
 			})
 		}
 	}

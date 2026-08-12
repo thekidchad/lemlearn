@@ -156,6 +156,36 @@ func Get[T any](ctx context.Context, c *Client, pk, sk string) (T, error) {
 	return out, nil
 }
 
+// GetRaw lit un élément sous forme de dictionnaire.
+//
+// Utile lorsqu'un paquet doit modifier un champ d'une entité qui appartient à
+// un autre domaine — le catalogue rattachant un dossier à sa session — sans
+// importer son type et créer un cycle de dépendances. La contrepartie est
+// assumée : les noms d'attributs sont écrits en toutes lettres, donc à tenir
+// à jour si le schéma change.
+func GetRaw(ctx context.Context, c *Client, pk, sk string) (map[string]any, error) {
+	res, err := c.api.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(c.table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: pk},
+			"SK": &types.AttributeValueMemberS{Value: sk},
+		},
+		ConsistentRead: aws.Bool(true),
+	})
+	if err != nil {
+		return nil, wrapErr(err)
+	}
+	if res.Item == nil {
+		return nil, ErrNotFound
+	}
+
+	var out map[string]any
+	if err := attributevalue.UnmarshalMap(res.Item, &out); err != nil {
+		return nil, fmt.Errorf("ddb: décodage: %w", err)
+	}
+	return out, nil
+}
+
 // QuerySpec décrit une requête sur la table ou l'un de ses index.
 type QuerySpec struct {
 	// Index vide interroge la table principale.

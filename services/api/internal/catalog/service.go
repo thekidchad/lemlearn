@@ -142,8 +142,15 @@ func (s *Service) Enroll(ctx context.Context, in EnrollInput) (Enrollment, error
 		return enrollment, nil
 	}
 
-	_, err = s.db.WriteWithAudit(ctx, "file/"+in.FileID,
-		[]ddb.Write{{Item: enrollment, Condition: "attribute_not_exists(SK)"}},
+	// Le dossier apprend de quelle session il relève : sans ce lien, l'export
+	// ne saurait pas quels relevés produire, et les pièces d'assiduité
+	// manqueraient au dossier probatoire sans que rien ne le signale.
+	writes := []ddb.Write{{Item: enrollment, Condition: "attribute_not_exists(SK)"}}
+	if linked, err := s.linkFile(ctx, in.OrgID, in.FileID, session, now); err == nil {
+		writes = append(writes, ddb.Write{Item: linked})
+	}
+
+	_, err = s.db.WriteWithAudit(ctx, "file/"+in.FileID, writes,
 		func(prev audit.Event) (audit.Event, error) {
 			return audit.Append(prev, "file/"+in.FileID, now, audit.ActionFileStageChanged, in.Actor,
 				map[string]any{
@@ -157,6 +164,22 @@ func (s *Service) Enroll(ctx context.Context, in EnrollInput) (Enrollment, error
 		return Enrollment{}, err
 	}
 	return enrollment, nil
+}
+
+// linkFile rattache le dossier à la session et à sa formation.
+//
+// Renvoie une erreur si le dossier est introuvable : l'appelant l'ignore alors
+// et l'inscription se fait sans lien, ce qui reste un état valide — on peut
+// inscrire avant d'avoir monté le dossier administratif.
+func (s *Service) linkFile(ctx context.Context, orgID, fileID string, session Session, now time.Time) (map[string]any, error) {
+	file, err := ddb.GetRaw(ctx, s.db, ddb.OrgPK(orgID), ddb.FileSK(fileID))
+	if err != nil {
+		return nil, err
+	}
+	file["sessionId"] = session.ID
+	file["courseId"] = session.CourseID
+	file["updatedAt"] = now.UTC().Format(time.RFC3339Nano)
+	return file, nil
 }
 
 // GetEnrollment lit une inscription.

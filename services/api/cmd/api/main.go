@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 
+	"github.com/lemlearn/api/internal/attendance"
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
@@ -76,6 +77,7 @@ func main() {
 		deps.CRM = crm.NewService(db, nil)
 		deps.Catalog = catalog.NewService(db, nil)
 		deps.Learning = learning.NewService(db, deps.Catalog, nil)
+		deps.Attendance = attendance.NewService(db, deps.Catalog, nil)
 
 		if compiler != nil {
 			// En local, les courriels sont journalisés plutôt qu'envoyés et
@@ -93,10 +95,28 @@ func main() {
 				os.Exit(1)
 			}
 
+			// Les documents scellés vont dans S3 sous Object Lock. En local,
+			// faute de compartiment, ils restent en mémoire : le parcours est
+			// exerçable, mais un redémarrage les perd — et l'export le dit,
+			// plutôt que de laisser croire à un archivage.
+			var store signature.BlobStore = blob.NewMemory()
+			if cfg.DocumentsBucket != "" {
+				bucket, err := blob.NewS3(context.Background(), cfg.DocumentsBucket)
+				if err != nil {
+					log.Error("archivage S3 indisponible", "err", err)
+					os.Exit(1)
+				}
+				store = bucket
+			} else if cfg.Env != config.EnvLocal {
+				log.Error("LEMLEARN_DOCUMENTS_BUCKET est requis hors développement : " +
+					"un document scellé ne peut pas être archivé en mémoire")
+				os.Exit(1)
+			}
+
 			deps.Signature = signature.NewService(signature.Deps{
 				DB:       db,
 				Renderer: docflow.NewRenderer(deps.Identity, deps.CRM, compiler),
-				Blobs:    blob.NewMemory(),
+				Blobs:    store,
 				Mailer:   mailer,
 				Sealer:   sealer,
 				AppURL:   cfg.AppURL,

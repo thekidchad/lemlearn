@@ -154,6 +154,11 @@ rien, qu'une passation reste attachée à sa version même après publication
 d'une nouvelle, que le corrigé ne part jamais vers l'apprenant avant sa
 soumission, et que le mélange des questions est reproductible pour un auditeur.
 
+Les tests d'émargement vérifient qu'une session en présentiel se découpe en
+demi-journées et une session asynchrone en modules, qu'un créneau déjà émargé
+ne se réécrit pas, qu'une absence sans motif est refusée, et qu'une absence
+n'entre pas dans les heures facturables.
+
 Les tests du CRM couvrent l'isolation entre organisations, l'unicité d'une
 adresse e-mail entre organisations, et le fait que quatre déplacements
 concurrents du même dossier laissent une chaîne d'audit intègre.
@@ -208,6 +213,11 @@ Geist statiques ; il est monté en lecture seule sous `/opt` par la Lambda.
   qui pourrait le récupérer pourrait signer à la place du bénéficiaire, et le
   dossier de preuve ne le montrerait pas. Seule exception, bornée au
   développement local où aucun courriel ne part.
+- **L'émargement porte toujours sur un créneau**, jamais sur une formation ni
+  sur un module : c'est la présence à un moment donné qui est attestée, et
+  c'est ce qu'un contrôleur recompte. Les créneaux sont dérivés de la session
+  plutôt que saisis — une feuille dont les créneaux ne correspondent pas à ce
+  qui a été conventionné ne prouve rien.
 - **Les données restent en France** (`eu-west-3`).
 
 ## Scellement PAdES

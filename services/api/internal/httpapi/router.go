@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/lemlearn/api/internal/attendance"
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
@@ -30,16 +31,17 @@ import (
 // Deps regroupe les dépendances injectées au routeur. Aucun handler ne
 // construit ses propres clients : c'est ce qui rend les tests possibles.
 type Deps struct {
-	Config    config.Config
-	Log       *slog.Logger
-	Compiler  doc.Compiler
-	Identity  *identity.Service
-	CRM       *crm.Service
-	Signature *signature.Service
-	Catalog   *catalog.Service
-	Learning  *learning.Service
-	Export    *export.Service
-	Clock     func() time.Time
+	Config     config.Config
+	Log        *slog.Logger
+	Compiler   doc.Compiler
+	Identity   *identity.Service
+	CRM        *crm.Service
+	Signature  *signature.Service
+	Catalog    *catalog.Service
+	Learning   *learning.Service
+	Export     *export.Service
+	Attendance *attendance.Service
+	Clock      func() time.Time
 }
 
 // Now renvoie l'heure courante, injectable pour les tests.
@@ -111,6 +113,9 @@ func NewRouter(deps Deps) http.Handler {
 					r.Post("/", handleCreateSession(deps))
 					r.Get("/{sessionID}/enrollments", handleListEnrollments(deps))
 					r.Post("/{sessionID}/enrollments", handleEnroll(deps))
+					r.Get("/{sessionID}/attendance", handleGetSheet(deps))
+					r.Post("/{sessionID}/attendance", handleSignAttendance(deps))
+					r.Post("/{sessionID}/attendance/countersign", handleCountersign(deps))
 				})
 
 				r.Route("/quizzes", func(r chi.Router) {

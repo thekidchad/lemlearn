@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "LEMLEARN_API_URL=${LEMLEARN_API_URL:-http://localhost:8787} next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

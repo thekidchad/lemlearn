@@ -39,6 +39,11 @@ pnpm dev          # apps/web sur http://localhost:3000
 pnpm api          # services/api sur http://localhost:8787
 ```
 
+L'application est à `/connexion`. Les pages sont des composants serveur qui
+appellent l'API en relayant le cookie de session : le jeton ne transite jamais
+par le JavaScript du navigateur, donc une faille XSS ne donne pas accès aux
+dossiers.
+
 L'API démarre sans base et sans Typst : elle signale alors les routes
 concernées comme indisponibles plutôt que de refuser de se lancer.
 

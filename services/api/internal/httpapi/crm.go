@@ -157,7 +157,10 @@ func handleGetFile(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := sessionFrom(r)
 
-		file, err := deps.CRM.GetFile(r.Context(), session.OrgID, chi.URLParam(r, "fileID"))
+		// La complétude est recalculée depuis le journal : c'est le premier
+		// chiffre que regarde un organisme, il ne doit jamais diverger de ce
+		// qui est réellement prouvable.
+		file, _, err := deps.CRM.FileWithProof(r.Context(), session.OrgID, chi.URLParam(r, "fileID"))
 		if err != nil {
 			respondNotFound(w, err, "dossier introuvable")
 			return

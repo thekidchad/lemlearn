@@ -1,0 +1,161 @@
+import { cookies } from "next/headers";
+
+/**
+ * Client de l'API Go.
+ *
+ * Les composants serveur appellent l'API directement, en relayant le cookie de
+ * session du navigateur. Le jeton ne transite donc jamais par le JavaScript
+ * du client : une faille XSS ne donne pas accès aux dossiers.
+ */
+const API_URL = process.env.LEMLEARN_API_URL ?? "http://localhost:8787";
+
+/** Nom du cookie de session, aligné sur le service Go (voir auth.go). */
+export const SESSION_COOKIE =
+  process.env.NODE_ENV === "production" ? "__Host-lemlearn_session" : "lemlearn_session";
+
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * apiFetch relaie la requête à l'API avec le cookie de session.
+ *
+ * `cache: "no-store"` est délibéré : un dossier, un pipeline ou un journal
+ * d'audit ne se met jamais en cache. Afficher un état périmé dans un outil de
+ * preuve est pire que de recharger.
+ */
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const store = await cookies();
+  const session = store.get(SESSION_COOKIE);
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session ? { Cookie: `${SESSION_COOKIE}=${session.value}` } : {}),
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let message = `l'API a répondu ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body.error) message = body.error;
+    } catch {
+      // Réponse non JSON : le message par défaut fera l'affaire.
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
+/** Indique si une session est présente, sans appeler l'API. */
+export async function hasSession(): Promise<boolean> {
+  const store = await cookies();
+  return store.has(SESSION_COOKIE);
+}
+
+// --- Types partagés avec l'API -------------------------------------------
+// Ils reflètent les structures Go. À terme, ils seront générés depuis
+// l'OpenAPI plutôt que réécrits.
+
+export type Role = "owner" | "admin" | "trainer" | "learner" | "superadmin";
+
+export interface Me {
+  user: {
+    id: string;
+    orgId: string;
+    contactId?: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: Role;
+  };
+  org: { id: string; name: string; plan: string; qualiopiCertified: boolean };
+  impersonatedBy: string;
+}
+
+export type Stage = "prospect" | "quote" | "agreement" | "in_training" | "closed" | "lost";
+
+export interface ProofStatus {
+  expected: number;
+  present: number;
+  missing?: string[];
+}
+
+export interface FileRecord {
+  id: string;
+  reference: string;
+  title: string;
+  stage: Stage;
+  learnerId?: string;
+  priceHT: number;
+  vatRate: number;
+  tags?: string[];
+  proof: ProofStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Contact {
+  id: string;
+  kind: "learner" | "company" | "funder";
+  firstName?: string;
+  lastName?: string;
+  companyName?: string;
+  email?: string;
+  phone?: string;
+  birthDate?: string;
+  address?: { line1?: string; postalCode?: string; city?: string };
+}
+
+export interface AuditEvent {
+  seq: number;
+  at: string;
+  action: string;
+  actor: { type: string; id: string; label?: string; ip?: string; on_behalf_of?: string };
+  payload?: Record<string, unknown>;
+  hash: string;
+}
+
+export interface SignatureRequest {
+  id: string;
+  reference: string;
+  kind: string;
+  role: string;
+  signerName: string;
+  signerEmail: string;
+  status: "pending" | "opened" | "otp_sent" | "signed" | "cancelled";
+  expiresAt: string;
+  proof?: {
+    signedAt: string;
+    sealedSha256: string;
+    timestampTsa?: string;
+    sealed: boolean;
+    ip: string;
+  };
+}
+
+/** Libellés des étapes du pipeline, dans l'ordre du parcours commercial. */
+export const STAGES: { key: Stage; label: string }[] = [
+  { key: "prospect", label: "Prospect" },
+  { key: "quote", label: "Devis" },
+  { key: "agreement", label: "Convention" },
+  { key: "in_training", label: "En formation" },
+  { key: "closed", label: "Clôturé" },
+];
+
+/** proofPercent est la complétude du dossier de preuve, en pourcentage. */
+export function proofPercent(proof: ProofStatus): number {
+  if (!proof?.expected) return 0;
+  return Math.round((proof.present * 100) / proof.expected);
+}

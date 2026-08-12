@@ -225,6 +225,25 @@ Geist statiques ; il est monté en lecture seule sous `/opt` par la Lambda.
   qui a été conventionné ne prouve rien.
 - **Les données restent en France** (`eu-west-3`).
 
+## Vidéo
+
+Le chemin est AWS de bout en bout : le navigateur dépose le fichier
+directement dans S3 par URL présignée, MediaConvert le transcode en HLS
+multi-débit (360p / 540p / 720p), CloudFront le diffuse derrière des URL
+signées valables quinze minutes. L'API ne voit jamais passer un octet de
+vidéo — la faire transiter par une Lambda imposerait de la dimensionner pour
+des fichiers dont elle n'a rien à faire.
+
+La signature CloudFront est écrite sur la bibliothèque standard
+([video.go](services/api/internal/platform/../video/video.go)) : une politique
+JSON, une signature RSA-SHA1, trois paramètres d'URL. Deux pièges y sont
+documentés parce qu'ils coûtent des heures — l'alphabet base64 particulier de
+CloudFront (`+=/` deviennent `-_~`), et l'ordre imposé des champs de la
+politique, qui interdit d'utiliser une map Go.
+
+La protection ne vise pas l'impossible : un apprenant déterminé peut filmer
+son écran. Elle vise le partage d'URL, qui est le risque réel.
+
 ## Scellement PAdES
 
 Le document signé porte une **signature PAdES-B-T incorporée** : signature

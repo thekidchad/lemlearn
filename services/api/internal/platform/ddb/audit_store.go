@@ -49,24 +49,54 @@ func (c *Client) WriteWithAudit(
 	writes []Write,
 	build func(prev audit.Event) (audit.Event, error),
 ) (audit.Event, error) {
+	events, err := c.WriteWithAuditChain(ctx, subject, writes,
+		func(prev audit.Event) ([]audit.Event, error) {
+			event, err := build(prev)
+			if err != nil {
+				return nil, err
+			}
+			return []audit.Event{event}, nil
+		})
+	if err != nil {
+		return audit.Event{}, err
+	}
+	return events[0], nil
+}
+
+// WriteWithAuditChain écrit plusieurs événements liés dans la même
+// transaction.
+//
+// Une opération produit parfois deux faits distincts qu'un auditeur doit voir
+// séparément — la soumission d'un contrôle, puis la validation du module
+// qu'elle débloque. Les écrire en deux transactions laisserait une fenêtre où
+// l'état dit « module validé » sans que le journal ne le dise.
+func (c *Client) WriteWithAuditChain(
+	ctx context.Context,
+	subject string,
+	writes []Write,
+	build func(prev audit.Event) ([]audit.Event, error),
+) ([]audit.Event, error) {
 	var lastErr error
 
 	for attempt := 0; attempt < maxAuditAttempts; attempt++ {
 		prev, err := c.LastAuditEvent(ctx, subject)
 		if err != nil {
-			return audit.Event{}, err
+			return nil, err
 		}
 
-		event, err := build(prev)
+		events, err := build(prev)
 		if err != nil {
-			return audit.Event{}, err
+			return nil, err
+		}
+		if len(events) == 0 {
+			return nil, fmt.Errorf("ddb: écriture sans événement d'audit")
 		}
 
-		items := make([]types.TransactWriteItem, 0, len(writes)+1)
+		items := make([]types.TransactWriteItem, 0, len(writes)+len(events))
 		for _, write := range writes {
 			av, err := attributevalue.MarshalMap(write.Item)
 			if err != nil {
-				return audit.Event{}, fmt.Errorf("ddb: encodage: %w", err)
+				return nil, fmt.Errorf("ddb: encodage: %w", err)
 			}
 			put := &types.Put{TableName: aws.String(c.table), Item: av}
 			if write.Condition != "" {
@@ -77,33 +107,35 @@ func (c *Client) WriteWithAudit(
 			items = append(items, types.TransactWriteItem{Put: put})
 		}
 
-		auditAV, err := attributevalue.MarshalMap(auditItem{
-			PK:    AuditPK(subject),
-			SK:    AuditSK(event.Seq),
-			Event: event,
-		})
-		if err != nil {
-			return audit.Event{}, fmt.Errorf("ddb: encodage de l'audit: %w", err)
+		for _, event := range events {
+			auditAV, err := attributevalue.MarshalMap(auditItem{
+				PK:    AuditPK(subject),
+				SK:    AuditSK(event.Seq),
+				Event: event,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("ddb: encodage de l'audit: %w", err)
+			}
+			items = append(items, types.TransactWriteItem{Put: &types.Put{
+				TableName: aws.String(c.auditTable),
+				Item:      auditAV,
+				// Le rang d'un sujet ne peut être occupé qu'une fois : c'est
+				// ce qui empêche deux écritures concurrentes de se recouvrir
+				// et de faire disparaître un événement de la chaîne.
+				ConditionExpression: aws.String("attribute_not_exists(SK)"),
+			}})
 		}
-		items = append(items, types.TransactWriteItem{Put: &types.Put{
-			TableName: aws.String(c.auditTable),
-			Item:      auditAV,
-			// Le rang d'un sujet ne peut être occupé qu'une fois : c'est ce
-			// qui empêche deux écritures concurrentes de se recouvrir et de
-			// faire disparaître un événement de la chaîne.
-			ConditionExpression: aws.String("attribute_not_exists(SK)"),
-		}})
 
 		_, err = c.api.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
 			TransactItems: items,
 		})
 		if err == nil {
-			return event, nil
+			return events, nil
 		}
 
 		lastErr = wrapErr(err)
 		if !errors.Is(lastErr, ErrConflict) {
-			return audit.Event{}, lastErr
+			return nil, lastErr
 		}
 		// Un conflit peut venir du rang d'audit (course, on rejoue) comme
 		// d'une condition métier (on abandonne). On ne peut pas les
@@ -111,7 +143,7 @@ func (c *Client) WriteWithAudit(
 		// de nouveau, cette fois définitivement.
 	}
 
-	return audit.Event{}, fmt.Errorf("ddb: écriture abandonnée après %d tentatives: %w", maxAuditAttempts, lastErr)
+	return nil, fmt.Errorf("ddb: écriture abandonnée après %d tentatives: %w", maxAuditAttempts, lastErr)
 }
 
 // LastAuditEvent renvoie le dernier événement d'un sujet, ou le zéro d'Event si

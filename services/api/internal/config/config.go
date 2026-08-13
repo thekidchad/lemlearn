@@ -86,11 +86,17 @@ func Load() (Config, error) {
 			"LEMLEARN_DOCUMENTS_BUCKET": cfg.DocumentsBucket,
 			"LEMLEARN_IDENTITY_BUCKET":  cfg.IdentityBucket,
 			"LEMLEARN_VIDEO_BUCKET":     cfg.VideoBucket,
-			"RESEND_API_KEY":            cfg.ResendAPIKey,
 		} {
 			if strings.TrimSpace(value) == "" {
 				missing = append(missing, name)
 			}
+		}
+		// La clé Resend n'est exigée qu'en production. Sur un environnement de
+		// recette, aucun courriel ne peut partir de toute façon — le domaine
+		// d'envoi n'y est pas vérifié — et les liens de signature restent
+		// consultables au journal.
+		if cfg.Env == EnvProd && strings.TrimSpace(cfg.ResendAPIKey) == "" {
+			missing = append(missing, "RESEND_API_KEY")
 		}
 		if len(missing) > 0 {
 			return Config{}, fmt.Errorf("config: variables manquantes en %s: %s", cfg.Env, strings.Join(missing, ", "))

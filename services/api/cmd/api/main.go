@@ -172,12 +172,17 @@ func buildSealer(cfg config.Config) (*seal.PAdES, error) {
 	timestamper := tsa.New(cfg.TSAURL)
 
 	if cfg.SealCertPEM == "" || cfg.SealKeyPEM == "" {
-		if cfg.Env != config.EnvLocal {
+		if cfg.Env == config.EnvProd {
+			// Un document contractuel ne peut pas être scellé avec un
+			// certificat auto-signé : en production, l'absence de cachet
+			// d'organisation est une erreur de déploiement, pas un mode
+			// dégradé.
 			return nil, fmt.Errorf(
-				"LEMLEARN_SEAL_CERT et LEMLEARN_SEAL_KEY sont requis en %s : "+
-					"un document contractuel ne peut pas être scellé avec un certificat de développement", cfg.Env)
+				"LEMLEARN_SEAL_CERT et LEMLEARN_SEAL_KEY sont requis en production")
 		}
-		return seal.Development("Organisme de développement", timestamper)
+		// Le certificat porte « sans valeur » dans son nom : un document de
+		// recette ne peut pas passer pour un document contractuel.
+		return seal.Development("Organisme de recette", timestamper)
 	}
 
 	cert, key, chain, err := seal.LoadKeyPair([]byte(cfg.SealCertPEM), []byte(cfg.SealKeyPEM))

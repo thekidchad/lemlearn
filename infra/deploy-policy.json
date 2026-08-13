@@ -4,7 +4,9 @@
     {
       "Sid": "Identite",
       "Effect": "Allow",
-      "Action": ["sts:GetCallerIdentity"],
+      "Action": [
+        "sts:GetCallerIdentity"
+      ],
       "Resource": "*"
     },
     {
@@ -35,7 +37,10 @@
     {
       "Sid": "CloudFormationListe",
       "Effect": "Allow",
-      "Action": ["cloudformation:ListStacks", "cloudformation:DescribeStackDriftDetectionStatus"],
+      "Action": [
+        "cloudformation:ListStacks",
+        "cloudformation:DescribeStackDriftDetectionStatus"
+      ],
       "Resource": "*"
     },
     {
@@ -66,7 +71,9 @@
     {
       "Sid": "CompartimentsDecouverte",
       "Effect": "Allow",
-      "Action": ["s3:ListAllMyBuckets"],
+      "Action": [
+        "s3:ListAllMyBuckets"
+      ],
       "Resource": "*"
     },
     {
@@ -135,7 +142,9 @@
     {
       "Sid": "EndossementDesRolesCDK",
       "Effect": "Allow",
-      "Action": ["sts:AssumeRole"],
+      "Action": [
+        "sts:AssumeRole"
+      ],
       "Resource": "arn:aws:iam::*:role/cdk-lemlearn26-*"
     },
     {
@@ -203,7 +212,13 @@
     {
       "Sid": "PasserelleHTTP",
       "Effect": "Allow",
-      "Action": ["apigateway:GET", "apigateway:POST", "apigateway:PUT", "apigateway:PATCH", "apigateway:DELETE"],
+      "Action": [
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:PUT",
+        "apigateway:PATCH",
+        "apigateway:DELETE"
+      ],
       "Resource": [
         "arn:aws:apigateway:eu-west-3::/apis",
         "arn:aws:apigateway:eu-west-3::/apis/*",
@@ -219,7 +234,12 @@
         "logs:DescribeLogGroups",
         "logs:PutRetentionPolicy",
         "logs:TagResource",
-        "logs:ListTagsForResource"
+        "logs:ListTagsForResource",
+        "logs:FilterLogEvents",
+        "logs:GetLogEvents",
+        "logs:DescribeLogStreams",
+        "logs:StartQuery",
+        "logs:GetQueryResults"
       ],
       "Resource": "arn:aws:logs:eu-west-3:*:log-group:/aws/lambda/lemlearn-*"
     }

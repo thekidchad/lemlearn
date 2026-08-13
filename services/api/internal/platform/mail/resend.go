@@ -76,10 +76,16 @@ func (r *Resend) Send(ctx context.Context, to, subject, html string) error {
 
 // Log écrit les courriels au journal au lieu de les envoyer.
 //
-// C'est l'expéditeur du développement local : le parcours de signature doit
-// être exerçable de bout en bout sans compte Resend ni domaine vérifié.
+// C'est l'expéditeur du développement local et des environnements de recette :
+// le parcours de signature doit être exerçable de bout en bout sans compte
+// Resend ni domaine vérifié.
 type Log struct {
 	log *slog.Logger
+	// verbose journalise aussi le corps du message. Un courriel d'invitation
+	// contient le lien de signature, c'est-à-dire un jeton d'accès : le
+	// consigner rend la recette exerçable mais serait une fuite en
+	// production. D'où le drapeau, jamais activé là-bas.
+	verbose bool
 
 	mu   sync.Mutex
 	sent []Sent
@@ -95,6 +101,10 @@ type Sent struct {
 // NewLog construit l'expéditeur de développement.
 func NewLog(log *slog.Logger) *Log { return &Log{log: log} }
 
+// NewLogVerbose journalise en plus le corps du message, lien de signature
+// compris. Réservé aux environnements sans données réelles.
+func NewLogVerbose(log *slog.Logger) *Log { return &Log{log: log, verbose: true} }
+
 // Send journalise le courriel et le conserve.
 func (l *Log) Send(_ context.Context, to, subject, html string) error {
 	l.mu.Lock()
@@ -102,10 +112,13 @@ func (l *Log) Send(_ context.Context, to, subject, html string) error {
 	l.mu.Unlock()
 
 	if l.log != nil {
-		// Le sujet contient le code OTP en développement : c'est ce qui rend
-		// le parcours exerçable depuis les journaux, et c'est aussi pourquoi
-		// cet expéditeur ne doit jamais servir hors local.
-		l.log.Info("courriel non envoyé (mode local)", "to", to, "subject", subject)
+		// Le sujet contient le code OTP : c'est ce qui rend le parcours
+		// exerçable depuis les journaux.
+		fields := []any{"to", to, "subject", subject}
+		if l.verbose {
+			fields = append(fields, "html", html)
+		}
+		l.log.Info("courriel non envoyé (expéditeur de recette)", fields...)
 	}
 	return nil
 }

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CreatePanel, Field, Select } from "@/components/app/form";
+import { StagePicker } from "@/components/app/stage-picker";
+import { issueSignature } from "@/app/actions/crm";
 import { notFound } from "next/navigation";
 import {
   apiFetch,
@@ -80,6 +83,49 @@ export default async function FilePage({ params }: PageProps<"/dossiers/[fileId]
         </Link>
         <span className="text-ink-3">/</span>
         <span className="font-mono text-xs text-ink-2">{file.reference}</span>
+
+        <div className="ml-auto flex items-center gap-2">
+          <StagePicker fileId={file.id} stage={file.stage} />
+
+          <CreatePanel
+            label="Envoyer à signer"
+            title="Envoyer un document à signer"
+            action={issueSignature}
+            submitLabel="Envoyer"
+          >
+            <input type="hidden" name="fileId" value={file.id} />
+            <Select
+              label="Document"
+              name="kind"
+              defaultValue="convention"
+              options={[{ value: "convention", label: "Convention de formation" }]}
+            />
+            <Field
+              label="Nom du signataire"
+              name="signerName"
+              required
+              defaultValue={learner ? `${learner.firstName ?? ""} ${learner.lastName ?? ""}`.trim() : ""}
+            />
+            <Field
+              label="Courriel du signataire"
+              name="signerEmail"
+              type="email"
+              required
+              defaultValue={learner?.email ?? ""}
+              hint="Le code de confirmation part à cette adresse : elle vaut preuve d'identité."
+            />
+            <Select
+              label="En qualité de"
+              name="role"
+              defaultValue="client"
+              options={[
+                { value: "client", label: "Apprenant ou client" },
+                { value: "provider", label: "Organisme de formation" },
+                { value: "funder", label: "Financeur" },
+              ]}
+            />
+          </CreatePanel>
+        </div>
       </header>
 
       <div className="px-6 py-6">

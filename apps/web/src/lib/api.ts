@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { Stage } from "@/lib/stages";
 
 /**
  * Client de l'API Go.
@@ -153,7 +154,7 @@ export interface Me {
   impersonatedBy: string;
 }
 
-export type Stage = "prospect" | "quote" | "agreement" | "in_training" | "closed" | "lost";
+
 
 export interface ProofStatus {
   expected: number;
@@ -187,6 +188,15 @@ export interface Contact {
   address?: { line1?: string; postalCode?: string; city?: string };
 }
 
+/** Libellé d'un contact : raison sociale pour une entreprise, nom sinon. */
+export function contactName(contact: Contact): string {
+  if (contact.kind !== "learner" && contact.companyName) return contact.companyName;
+  return [contact.firstName, contact.lastName].filter(Boolean).join(" ") ||
+    contact.companyName ||
+    contact.email ||
+    contact.id;
+}
+
 export interface AuditEvent {
   seq: number;
   at: string;
@@ -215,16 +225,6 @@ export interface SignatureRequest {
 }
 
 /** Libellés des étapes du pipeline, dans l'ordre du parcours commercial. */
-export const STAGES: { key: Stage; label: string }[] = [
-  { key: "prospect", label: "Prospect" },
-  { key: "quote", label: "Devis" },
-  { key: "agreement", label: "Convention" },
-  { key: "in_training", label: "En formation" },
-  { key: "closed", label: "Clôturé" },
-];
 
-/** proofPercent est la complétude du dossier de preuve, en pourcentage. */
-export function proofPercent(proof: ProofStatus): number {
-  if (!proof?.expected) return 0;
-  return Math.round((proof.present * 100) / proof.expected);
-}
+export { STAGES, proofPercent } from "@/lib/stages";
+export type { Stage } from "@/lib/stages";

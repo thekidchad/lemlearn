@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { CreatePanel, Field, TextArea } from "@/components/app/form";
+import { createCourse } from "@/app/actions/crm";
 import { apiFetch } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Catalogue" };
@@ -25,6 +27,46 @@ export default async function CataloguePage() {
         <span className="rounded-md border border-line bg-surface-2 px-1.5 py-0.5 font-mono text-2xs text-ink-3">
           {rows.length}
         </span>
+
+        <div className="ml-auto">
+          <CreatePanel
+            label="Nouvelle formation"
+            title="Nouvelle formation"
+            action={createCourse}
+          >
+            <Field label="Intitulé" name="title" required placeholder="Sécurité incendie — SSIAP 1" />
+            <TextArea label="Objectif général" name="goal" rows={2} />
+            <TextArea
+              label="Objectifs pédagogiques"
+              name="objectives"
+              rows={3}
+              placeholder="Un objectif par ligne&#10;Exigé pour publier la formation"
+            />
+            <Field label="Public visé" name="audience" />
+            <Field label="Prérequis" name="prerequisites" />
+            <Field label="Moyens pédagogiques" name="means" />
+            <Field label="Modalités d'évaluation" name="assessment" />
+            <Field label="Sanction de la formation" name="sanction" />
+            <Field
+              label="Accessibilité"
+              name="accessibility"
+              hint="Mention obligatoire : accueil des personnes en situation de handicap."
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Durée (heures)" name="durationHours" type="number" defaultValue={7} />
+              <Field label="Prix HT (€)" name="priceHT" type="number" defaultValue={0} />
+            </div>
+            <Field label="Étiquettes" name="tags" placeholder="certifiante, présentiel" />
+            <label className="flex items-center gap-2 text-2xs text-ink-2">
+              <input
+                type="checkbox"
+                name="published"
+                className="size-3.5 accent-[var(--color-accent)]"
+              />
+              Publier — une formation non publiée ne peut pas recevoir de session
+            </label>
+          </CreatePanel>
+        </div>
       </header>
 
       {rows.length === 0 ? (

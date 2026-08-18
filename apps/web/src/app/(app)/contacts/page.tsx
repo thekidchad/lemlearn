@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CreatePanel, Field, Select } from "@/components/app/form";
+import { createContact } from "@/app/actions/crm";
 import { apiFetch, type Contact } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Contacts" };
@@ -40,6 +42,48 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
         <span className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
           {rows.length}
         </span>
+        <div className="ml-3">
+          <CreatePanel label="Nouveau" title="Nouveau contact" action={createContact}>
+            <Select
+              label="Nature"
+              name="kind"
+              defaultValue={kind}
+              options={[
+                { value: "learner", label: "Apprenant" },
+                { value: "company", label: "Entreprise cliente" },
+                { value: "funder", label: "Financeur (OPCO)" },
+              ]}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Prénom" name="firstName" />
+              <Field label="Nom" name="lastName" />
+            </div>
+            <Field
+              label="Raison sociale"
+              name="companyName"
+              hint="Pour une entreprise ou un financeur."
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Courriel" name="email" type="email" />
+              <Field label="Téléphone" name="phone" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label="Date de naissance"
+                name="birthDate"
+                placeholder="1988-04-12"
+                hint="Exigée sur l'attestation."
+              />
+              <Field label="Lieu de naissance" name="birthPlace" />
+            </div>
+            <Field label="SIRET" name="siret" />
+            <Field label="Adresse" name="line1" />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Code postal" name="postalCode" />
+              <Field label="Ville" name="city" />
+            </div>
+          </CreatePanel>
+        </div>
       </header>
 
       {rows.length === 0 ? (

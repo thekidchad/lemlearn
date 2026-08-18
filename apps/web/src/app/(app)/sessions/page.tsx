@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CreatePanel, Field, Select } from "@/components/app/form";
+import { createSession } from "@/app/actions/crm";
 import { apiFetch } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Sessions" };
@@ -26,6 +28,9 @@ const MODES: Record<Session["mode"], string> = {
 export default async function SessionsPage() {
   const { sessions } = await apiFetch<{ sessions: Session[] | null }>("/v1/sessions");
   const rows = sessions ?? [];
+  const { courses } = await apiFetch<{ courses: { id: string; title: string }[] | null }>(
+    "/v1/courses",
+  ).catch(() => ({ courses: null }));
 
   return (
     <>
@@ -34,6 +39,48 @@ export default async function SessionsPage() {
         <span className="rounded-md border border-line bg-surface-2 px-1.5 py-0.5 font-mono text-2xs text-ink-3">
           {rows.length}
         </span>
+
+        <div className="ml-auto">
+          <CreatePanel label="Nouvelle session" title="Nouvelle session" action={createSession}>
+            <label className="block">
+              <span className="mb-1 block text-2xs text-ink-3">Formation</span>
+              <select
+                name="courseId"
+                required
+                className="h-9 w-full rounded-lg border border-line bg-surface-0 px-2 text-sm outline-none focus:border-accent"
+              >
+                {(courses ?? []).map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Field label="Intitulé" name="title" required placeholder="Session de février" />
+            <Select
+              label="Modalité"
+              name="mode"
+              defaultValue="onsite"
+              options={[
+                { value: "onsite", label: "Présentiel" },
+                { value: "virtual", label: "Classe virtuelle" },
+                { value: "async", label: "Asynchrone" },
+                { value: "blended", label: "Mixte" },
+              ]}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Début" name="startsAt" type="datetime-local" required />
+              <Field label="Fin" name="endsAt" type="datetime-local" required />
+            </div>
+            <Field
+              label="Lieu ou lien"
+              name="location"
+              hint="Obligatoire hors asynchrone : il figure sur la convocation."
+            />
+            <Field label="Capacité" name="capacity" type="number" defaultValue={12} />
+            <Field label="Étiquettes" name="tags" placeholder="Q3, OPCO-validé" />
+          </CreatePanel>
+        </div>
       </header>
 
       {rows.length === 0 ? (

@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { apiFetch, proofPercent, STAGES, type FileRecord, type Stage } from "@/lib/api";
+import { CreatePanel, Field } from "@/components/app/form";
+import { createFile } from "@/app/actions/crm";
+import {
+  apiFetch,
+  contactName,
+  proofPercent,
+  STAGES,
+  type Contact,
+  type FileRecord,
+  type Stage,
+} from "@/lib/api";
 
 export const metadata: Metadata = { title: "Pipeline" };
 
@@ -10,6 +20,11 @@ interface PipelineResponse {
 
 export default async function PipelinePage() {
   const { pipeline } = await apiFetch<PipelineResponse>("/v1/files");
+  // Les apprenants alimentent la liste du formulaire : saisir un identifiant
+  // à la main est le genre de détail qui fait abandonner un CRM.
+  const { contacts } = await apiFetch<{ contacts: Contact[] | null }>(
+    "/v1/contacts?kind=learner",
+  ).catch(() => ({ contacts: null }));
   const total = STAGES.reduce((sum, stage) => sum + (pipeline[stage.key]?.length ?? 0), 0);
 
   return (
@@ -24,6 +39,31 @@ export default async function PipelinePage() {
             {total} dossier{total > 1 ? "s" : ""}
           </span>
         </div>
+
+        <CreatePanel label="Nouveau dossier" title="Nouveau dossier" action={createFile}>
+          <Field label="Intitulé" name="title" required placeholder="SSIAP 1 — Léa Bertrand" />
+          <label className="block">
+            <span className="mb-1 block text-2xs text-ink-3">Apprenant</span>
+            <select
+              name="learnerId"
+              className="h-9 w-full rounded-lg border border-line bg-surface-0 px-2 text-sm outline-none focus:border-accent"
+            >
+              <option value="">—</option>
+              {(contacts ?? []).map((contact) => (
+                <option key={contact.id} value={contact.id}>
+                  {contactName(contact)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field label="Prix HT (€)" name="priceHT" type="number" defaultValue={0} />
+          <Field
+            label="Étiquettes"
+            name="tags"
+            placeholder="présentiel, OPCO-EP"
+            hint="Séparées par des virgules."
+          />
+        </CreatePanel>
       </header>
 
       {total === 0 ? (

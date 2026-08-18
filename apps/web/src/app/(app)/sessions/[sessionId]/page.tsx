@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { apiFetch, ApiError, type Contact } from "@/lib/api";
+import { CreatePanel } from "@/components/app/form";
+import { CloseSessionButton } from "@/components/app/close-session";
+import { enroll } from "@/app/actions/crm";
+import { apiFetch, ApiError, contactName, type Contact } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Émargement" };
 
@@ -63,7 +66,9 @@ export default async function AttendancePage({ params }: PageProps<"/sessions/[s
 
   // Les inscriptions ne portent qu'un identifiant de contact. Afficher cet
   // identifiant serait illisible pour un formateur qui coche des présences :
-  // on résout les noms en une requête, plutôt qu'une par apprenant.
+  // on résout les noms en une requête, plutôt qu'une par apprenant. La même
+  // liste alimente le formulaire d'inscription : saisir un identifiant à la
+  // main est le genre de détail qui fait abandonner un outil.
   const { contacts } = await apiFetch<{ contacts: Contact[] | null }>(
     "/v1/contacts?kind=learner",
   ).catch(() => ({ contacts: null }));
@@ -87,7 +92,41 @@ export default async function AttendancePage({ params }: PageProps<"/sessions/[s
         <span className="text-ink-3">/</span>
         <span className="text-xs text-ink-2">Émargement</span>
 
-        <span className="ml-auto text-2xs text-ink-3">
+        <div className="ml-auto flex items-center gap-2">
+          <CreatePanel label="Inscrire" title="Inscrire un apprenant" action={enroll}>
+            <input type="hidden" name="sessionId" value={sessionId} />
+            <label className="block">
+              <span className="mb-1 block text-2xs text-ink-3">Apprenant</span>
+              <select
+                name="contactId"
+                required
+                className="h-9 w-full rounded-lg border border-line bg-surface-0 px-2 text-sm outline-none focus:border-accent"
+              >
+                {(contacts ?? []).map((contact) => (
+                  <option key={contact.id} value={contact.id}>
+                    {contactName(contact)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-2xs text-ink-3">Dossier (facultatif)</span>
+              <input
+                name="fileId"
+                placeholder="Identifiant du dossier"
+                className="h-9 w-full rounded-lg border border-line bg-surface-0 px-3 font-mono text-xs outline-none focus:border-accent"
+              />
+              <span className="mt-1 block text-2xs text-ink-3">
+                Sans dossier, l&apos;inscription existe mais n&apos;alimente aucune
+                chaîne de preuve.
+              </span>
+            </label>
+          </CreatePanel>
+
+          <CloseSessionButton sessionId={sessionId} />
+        </div>
+
+        <span className="ml-3 text-2xs text-ink-3">
           {data.sheet.trainerSignedAt ? (
             <span className="flex items-center gap-1.5 text-ok">
               <span className="size-1.5 rounded-full bg-ok" />

@@ -9,9 +9,24 @@ import { cookies } from "next/headers";
  */
 const API_URL = process.env.LEMLEARN_API_URL ?? "http://localhost:8787";
 
-/** Nom du cookie de session, aligné sur le service Go (voir auth.go). */
+/**
+ * Nom du cookie que cette application pose sur son propre domaine.
+ *
+ * Le préfixe __Host- exige HTTPS : il ne peut donc pas servir en développement
+ * local, servi en clair.
+ */
 export const SESSION_COOKIE =
   process.env.NODE_ENV === "production" ? "__Host-lemlearn_session" : "lemlearn_session";
+
+/**
+ * Nom du cookie attendu par l'API.
+ *
+ * Ce n'est pas forcément le même : l'API le choisit selon *son* environnement,
+ * pas selon le nôtre. Une application locale branchée sur une API déployée doit
+ * donc parler le nom de l'API — sans quoi chaque appel authentifié repart en
+ * 401 sans que rien n'explique pourquoi.
+ */
+export const API_COOKIE = process.env.LEMLEARN_API_COOKIE ?? SESSION_COOKIE;
 
 export class ApiError extends Error {
   constructor(
@@ -38,7 +53,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
-      ...(session ? { Cookie: `${SESSION_COOKIE}=${session.value}` } : {}),
+      ...(session ? { Cookie: `${API_COOKIE}=${session.value}` } : {}),
       ...init?.headers,
     },
   });

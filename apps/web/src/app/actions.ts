@@ -61,6 +61,48 @@ export async function signIn(_: { error?: string } | undefined, form: FormData) 
   redirect("/pipeline");
 }
 
+/**
+ * signUp crée l'organisation et son compte propriétaire, puis connecte.
+ *
+ * L'inscription ne connecte pas d'elle-même côté API : on enchaîne sur la
+ * connexion, pour que le chemin qui servira tous les jours soit exercé dès la
+ * première minute plutôt que découvert au retour de vacances.
+ */
+export async function signUp(_: { error?: string } | undefined, form: FormData) {
+  const payload = {
+    orgName: String(form.get("orgName") ?? "").trim(),
+    email: String(form.get("email") ?? "").trim(),
+    password: String(form.get("password") ?? ""),
+    firstName: String(form.get("firstName") ?? "").trim(),
+    lastName: String(form.get("lastName") ?? "").trim(),
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+  } catch (error) {
+    const cause = error instanceof Error ? (error.cause as Error | undefined) : undefined;
+    return {
+      error: `Service d'inscription injoignable (${API_URL}) : ${cause?.message ?? (error as Error).message}`,
+    };
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    return { error: body.error ?? "Inscription impossible." };
+  }
+
+  const credentials = new FormData();
+  credentials.set("email", payload.email);
+  credentials.set("password", payload.password);
+  return signIn(undefined, credentials);
+}
+
 /** signOut révoque la session côté API puis efface le cookie. */
 export async function signOut() {
   const store = await cookies();

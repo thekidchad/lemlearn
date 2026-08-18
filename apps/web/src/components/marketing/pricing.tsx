@@ -47,7 +47,7 @@ const plans = [
       "Accompagnement à la certification",
     ],
     cta: "Nous contacter",
-    href: "/contact",
+    href: "/inscription?plan=reseau",
     highlight: false,
   },
 ];

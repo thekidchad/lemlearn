@@ -34,8 +34,8 @@ export function SiteHeader() {
           <ButtonLink href="/connexion" variant="ghost" size="sm">
             Se connecter
           </ButtonLink>
-          <ButtonLink href="/demo" size="sm">
-            Demander une démo
+          <ButtonLink href="/inscription" size="sm">
+            Essayer
           </ButtonLink>
         </div>
       </div>

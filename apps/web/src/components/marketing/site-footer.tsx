@@ -10,7 +10,7 @@ const columns = [
       { href: "#formations", label: "Formations et LMS" },
       { href: "#preuve", label: "Chaîne de preuve" },
       { href: "#tarifs", label: "Tarifs" },
-      { href: "/demo", label: "Démo" },
+      { href: "/inscription", label: "Essai gratuit" },
     ],
   },
   {
@@ -43,11 +43,12 @@ export function SiteFooter() {
               Voir la chaîne de preuve sur vos propres dossiers.
             </h2>
             <p className="mt-1.5 text-xs text-ink-2">
-              30 minutes, en visio, avec une session réelle de votre catalogue.
+              Montez un dossier complet en trente jours d&apos;essai, sans carte
+              bancaire — et ouvrez-le comme le ferait un auditeur.
             </p>
           </div>
-          <ButtonLink href="/demo" size="lg" className="shrink-0">
-            Demander une démo
+          <ButtonLink href="/inscription" size="lg" className="shrink-0">
+            Commencer l&apos;essai
           </ButtonLink>
         </div>
 

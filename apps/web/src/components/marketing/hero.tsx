@@ -35,8 +35,8 @@ export function Hero() {
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <ButtonLink href="/demo" size="lg">
-              Demander une démo
+            <ButtonLink href="/inscription" size="lg">
+              Commencer l&apos;essai
             </ButtonLink>
             <ButtonLink href="#crm" variant="secondary" size="lg">
               Voir le produit
@@ -44,7 +44,8 @@ export function Hero() {
           </div>
 
           <p className="mt-4 text-2xs text-ink-3">
-            Signature électronique intégrée — aucun coût par document.
+            Trente jours, sans carte bancaire · signature électronique intégrée,
+            aucun coût par document.
           </p>
         </div>
 

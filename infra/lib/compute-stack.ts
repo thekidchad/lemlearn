@@ -4,6 +4,8 @@ import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import type * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as logs from "aws-cdk-lib/aws-logs";
 import type * as s3 from "aws-cdk-lib/aws-s3";
 import type { Construct } from "constructs";
@@ -17,6 +19,15 @@ export interface ComputeStackProps extends StackProps {
   readonly identityBucket: s3.Bucket;
   readonly videoBucket: s3.Bucket;
   readonly appUrl: string;
+  /**
+   * Clé publique CloudFront, au format PEM, pour signer les URL de lecture.
+   * Absente, la diffusion vidéo n'est pas provisionnée — un organisme qui ne
+   * fait que du présentiel n'en a pas besoin, et le reste du produit ne doit
+   * pas en dépendre.
+   */
+  readonly cloudFrontPublicKey?: string;
+  /** Point d'entrée MediaConvert du compte, propre à chaque compte. */
+  readonly mediaConvertEndpoint?: string;
 }
 
 /**
@@ -141,6 +152,74 @@ export class ComputeStack extends Stack {
 
     exportFn.grantInvoke(apiFn);
     apiFn.addEnvironment("LEMLEARN_EXPORT_FUNCTION", exportFn.functionName);
+
+    // ---------------------------------------------------------------------
+    // Diffusion vidéo
+    // ---------------------------------------------------------------------
+    // Les rendus HLS ne sont jamais publics : CloudFront y accède par une
+    // identité d'origine, et chaque lecture exige une URL signée à durée
+    // courte. La protection ne vise pas l'enregistrement d'écran, impossible à
+    // empêcher, mais le partage de lien — le risque réel.
+    if (props.cloudFrontPublicKey) {
+      const publicKey = new cloudfront.PublicKey(this, "VideoPublicKey", {
+        encodedKey: props.cloudFrontPublicKey,
+        comment: "lemlearn — signature des URL de lecture",
+      });
+      const keyGroup = new cloudfront.KeyGroup(this, "VideoKeyGroup", {
+        items: [publicKey],
+      });
+
+      const distribution = new cloudfront.Distribution(this, "VideoDistribution", {
+        comment: `lemlearn ${props.envName} — modules vidéo`,
+        defaultBehavior: {
+          origin: origins.S3BucketOrigin.withOriginAccessControl(props.videoBucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          // Le manifeste et les segments ne portent aucune donnée
+          // personnelle : ils se mettent en cache. C'est l'URL signée qui
+          // porte l'autorisation, pas le contenu.
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+          trustedKeyGroups: [keyGroup],
+        },
+        // L'Europe et l'Amérique du Nord suffisent : la classe la plus large
+        // triple le coût pour des apprenants qui sont en France.
+        priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      });
+
+      apiFn.addEnvironment("LEMLEARN_CDN_DOMAIN", `https://${distribution.distributionDomainName}`);
+      apiFn.addEnvironment("LEMLEARN_CDN_KEY_ID", publicKey.publicKeyId);
+
+      new CfnOutput(this, "VideoDomain", { value: distribution.distributionDomainName });
+    }
+
+    // ---------------------------------------------------------------------
+    // Transcodage
+    // ---------------------------------------------------------------------
+    // Le rôle est endossé par MediaConvert, pas par notre Lambda : c'est lui
+    // qui lit la source et écrit les rendus, et les droits doivent suivre le
+    // service qui agit.
+    const mediaConvertRole = new iam.Role(this, "MediaConvertRole", {
+      roleName: `Lemlearn-mediaconvert-${props.envName}`,
+      assumedBy: new iam.ServicePrincipal("mediaconvert.amazonaws.com"),
+      description: "lemlearn: lecture des sources et ecriture des rendus HLS",
+    });
+    props.videoBucket.grantReadWrite(mediaConvertRole);
+
+    apiFn.addEnvironment("LEMLEARN_MEDIACONVERT_ROLE", mediaConvertRole.roleArn);
+    if (props.mediaConvertEndpoint) {
+      apiFn.addEnvironment("LEMLEARN_MEDIACONVERT_ENDPOINT", props.mediaConvertEndpoint);
+    }
+
+    // Créer et surveiller un travail de transcodage, et confier le rôle
+    // ci-dessus au service qui l'exécute.
+    apiFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ["mediaconvert:CreateJob", "mediaconvert:GetJob", "mediaconvert:DescribeEndpoints"],
+      resources: ["*"],
+    }));
+    apiFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ["iam:PassRole"],
+      resources: [mediaConvertRole.roleArn],
+      conditions: { StringEquals: { "iam:PassedToService": "mediaconvert.amazonaws.com" } },
+    }));
 
     // ---------------------------------------------------------------------
     // API HTTP

@@ -51,6 +51,30 @@ AWS_PROFILE=learnaly AWS_REGION=eu-west-3 \
 
 L'URL de l'API sort en `ApiUrl` à la fin du déploiement.
 
+## Chaîne vidéo
+
+Le dépôt et le transcodage se provisionnent seuls. La diffusion demande une
+paire de clés CloudFront, qui n'a rien à faire dans un dépôt :
+
+```bash
+openssl genrsa -out cloudfront.pem 2048
+openssl rsa -pubout -in cloudfront.pem -out cloudfront.pub
+
+LEMLEARN_CDN_PUBLIC_KEY="$(cat cloudfront.pub)" \
+AWS_PROFILE=learnaly AWS_REGION=eu-west-3 \
+  npx cdk deploy Lemlearn-Compute-dev --context env=dev
+```
+
+La clé privée correspondante se pose ensuite en variable `LEMLEARN_CDN_KEY` sur
+la fonction. Sans les trois valeurs, l'hébergement vidéo reste actif pour le
+dépôt et le transcodage, et les routes de lecture répondent 409 avec un motif —
+un organisme qui ne fait que du présentiel n'a pas de vidéo à diffuser, et le
+reste du produit ne doit pas en dépendre.
+
+Le point d'entrée MediaConvert n'est pas à renseigner : la Lambda le demande au
+service au démarrage, et retombe sur le point d'entrée régional si l'appel
+échoue.
+
 ## Ce qui survit à un `cdk destroy`
 
 Délibérément, et c'est à savoir avant de lancer quoi que ce soit :

@@ -42,6 +42,9 @@ func EnrollmentSK(sessionID, contactID string) string {
 }
 func DocumentSK(documentID string) string { return "DOC#" + documentID }
 
+// AssetSK porte une vidéo de module.
+func AssetSK(assetID string) string { return "ASSET#" + assetID }
+
 // WatchSK porte le relevé d'assiduité d'un apprenant sur un module.
 func WatchSK(enrollmentID, moduleID string) string {
 	return "ENR#" + enrollmentID + "#WATCH#" + moduleID

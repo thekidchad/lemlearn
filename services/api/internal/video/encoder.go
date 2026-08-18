@@ -17,6 +17,26 @@ type Encoder interface {
 	Start(ctx context.Context, asset Asset, bucket string) (jobID string, err error)
 }
 
+// JobState est l'avancement d'un transcodage.
+type JobState string
+
+const (
+	JobRunning  JobState = "running"
+	JobComplete JobState = "complete"
+	JobFailed   JobState = "failed"
+)
+
+// JobWatcher interroge l'avancement d'un travail.
+//
+// Séparé d'Encoder : un encodeur de test sait lancer sans savoir surveiller,
+// et le service dégrade proprement quand l'implémentation ne suit pas.
+type JobWatcher interface {
+	// Status renvoie l'état et, si le travail est terminé, la durée réelle
+	// de la vidéo mesurée à l'encodage — plus fiable que celle déclarée par
+	// le navigateur, et c'est elle qui borne le calcul d'assiduité.
+	Status(ctx context.Context, jobID string) (JobState, int64, error)
+}
+
 // MediaConvert transcode en HLS multi-débit.
 type MediaConvert struct {
 	api      *mediaconvert.Client
@@ -38,9 +58,20 @@ func NewMediaConvert(ctx context.Context, endpoint, roleARN, queueARN string) (*
 		return nil, fmt.Errorf("video: configuration aws: %w", err)
 	}
 
+	// MediaConvert expose historiquement un point d'entrée propre à chaque
+	// compte. Plutôt que d'en faire une variable à renseigner à la main — donc
+	// à oublier — on le demande au service quand il n'est pas fourni, et on
+	// retombe sur le point d'entrée régional si l'appel échoue.
+	if endpoint == "" {
+		probe := mediaconvert.NewFromConfig(cfg)
+		if out, err := probe.DescribeEndpoints(ctx, &mediaconvert.DescribeEndpointsInput{}); err == nil {
+			if len(out.Endpoints) > 0 && out.Endpoints[0].Url != nil {
+				endpoint = *out.Endpoints[0].Url
+			}
+		}
+	}
+
 	api := mediaconvert.NewFromConfig(cfg, func(o *mediaconvert.Options) {
-		// MediaConvert expose un point d'entrée propre à chaque compte, à
-		// récupérer une fois puis à conserver en configuration.
 		if endpoint != "" {
 			o.BaseEndpoint = aws.String(endpoint)
 		}
@@ -153,4 +184,36 @@ func MasterKeyFor(assetID string) string {
 // AssetIDFromJobMetadata retrouve l'asset concerné par une notification.
 func AssetIDFromJobMetadata(metadata map[string]string) string {
 	return strings.TrimSpace(metadata["assetId"])
+}
+
+// Status interroge MediaConvert sur l'avancement d'un travail.
+func (m *MediaConvert) Status(ctx context.Context, jobID string) (JobState, int64, error) {
+	out, err := m.api.GetJob(ctx, &mediaconvert.GetJobInput{Id: aws.String(jobID)})
+	if err != nil {
+		return "", 0, fmt.Errorf("video: état du travail %s: %w", jobID, err)
+	}
+	if out.Job == nil {
+		return "", 0, fmt.Errorf("video: travail %s introuvable", jobID)
+	}
+
+	switch out.Job.Status {
+	case types.JobStatusComplete:
+		var durationMs int64
+		// La durée mesurée à l'encodage prime sur celle déclarée par le
+		// navigateur : c'est elle qui sert de dénominateur à l'assiduité.
+		if out.Job.OutputGroupDetails != nil {
+			for _, group := range out.Job.OutputGroupDetails {
+				for _, detail := range group.OutputDetails {
+					if detail.DurationInMs != nil && int64(*detail.DurationInMs) > durationMs {
+						durationMs = int64(*detail.DurationInMs)
+					}
+				}
+			}
+		}
+		return JobComplete, durationMs, nil
+	case types.JobStatusError, types.JobStatusCanceled:
+		return JobFailed, 0, nil
+	default:
+		return JobRunning, 0, nil
+	}
 }

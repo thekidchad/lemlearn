@@ -26,6 +26,7 @@ import (
 	"github.com/lemlearn/api/internal/learning"
 	"github.com/lemlearn/api/internal/platform/doc"
 	"github.com/lemlearn/api/internal/signature"
+	"github.com/lemlearn/api/internal/video"
 )
 
 // Deps regroupe les dépendances injectées au routeur. Aucun handler ne
@@ -41,6 +42,7 @@ type Deps struct {
 	Learning   *learning.Service
 	Export     *export.Service
 	Attendance *attendance.Service
+	Video      *video.Service
 	Clock      func() time.Time
 }
 
@@ -87,6 +89,7 @@ func NewRouter(deps Deps) http.Handler {
 				r.Route("/{sessionID}/courses/{courseID}", func(r chi.Router) {
 					r.Get("/modules/{moduleID}/progress", handleModuleProgress(deps))
 					r.Post("/modules/{moduleID}/beat", handleHeartbeat(deps))
+					r.Post("/modules/{moduleID}/playback", handlePlayback(deps))
 					r.Get("/quizzes/{quizID}", handleGetQuiz(deps))
 					r.Post("/quizzes/{quizID}/submit", handleSubmitQuiz(deps))
 				})
@@ -116,6 +119,13 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/{sessionID}/attendance", handleGetSheet(deps))
 					r.Post("/{sessionID}/attendance", handleSignAttendance(deps))
 					r.Post("/{sessionID}/attendance/countersign", handleCountersign(deps))
+				})
+
+				r.Route("/videos", func(r chi.Router) {
+					r.Get("/", handleListVideos(deps))
+					r.Post("/", handleReserveVideo(deps))
+					r.Get("/{assetID}", handleGetVideo(deps))
+					r.Post("/{assetID}/uploaded", handleVideoUploaded(deps))
 				})
 
 				r.Route("/quizzes", func(r chi.Router) {

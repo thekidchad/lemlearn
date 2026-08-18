@@ -242,6 +242,36 @@
         "logs:GetQueryResults"
       ],
       "Resource": "arn:aws:logs:eu-west-3:*:log-group:/aws/lambda/lemlearn-*"
+    },
+    {
+      "Sid": "DiffusionVideo",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateDistribution",
+        "cloudfront:UpdateDistribution",
+        "cloudfront:DeleteDistribution",
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:TagResource",
+        "cloudfront:ListTagsForResource",
+        "cloudfront:CreateInvalidation",
+        "cloudfront:CreatePublicKey",
+        "cloudfront:DeletePublicKey",
+        "cloudfront:GetPublicKey",
+        "cloudfront:CreateKeyGroup",
+        "cloudfront:DeleteKeyGroup",
+        "cloudfront:GetKeyGroup",
+        "cloudfront:UpdateKeyGroup",
+        "cloudfront:CreateOriginAccessControl",
+        "cloudfront:UpdateOriginAccessControl",
+        "cloudfront:DeleteOriginAccessControl",
+        "cloudfront:GetOriginAccessControl",
+        "cloudfront:GetOriginAccessControlConfig",
+        "cloudfront:ListDistributions",
+        "cloudfront:ListPublicKeys",
+        "cloudfront:ListKeyGroups"
+      ],
+      "Resource": "*"
     }
   ]
 }

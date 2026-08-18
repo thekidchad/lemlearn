@@ -31,5 +31,10 @@ new ComputeStack(app, `Lemlearn-Compute-${envName}`, {
   identityBucket: data.identityBucket,
   videoBucket: data.videoBucket,
   appUrl: isProd ? "https://app.lemlearn.fr" : `https://${envName}.lemlearn.fr`,
+  // La clé publique et le point d'entrée viennent de l'environnement : la
+  // clé privée correspondante n'a rien à faire dans un dépôt, et le point
+  // d'entrée MediaConvert est propre à chaque compte.
+  cloudFrontPublicKey: process.env.LEMLEARN_CDN_PUBLIC_KEY,
+  mediaConvertEndpoint: process.env.LEMLEARN_MEDIACONVERT_ENDPOINT,
   description: "lemlearn — API Lambda et passerelle HTTP",
 });

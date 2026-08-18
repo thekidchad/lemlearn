@@ -35,6 +35,7 @@ import (
 	"github.com/lemlearn/api/internal/platform/seal"
 	"github.com/lemlearn/api/internal/platform/tsa"
 	"github.com/lemlearn/api/internal/signature"
+	"github.com/lemlearn/api/internal/video"
 )
 
 func main() {
@@ -78,6 +79,7 @@ func main() {
 		deps.Catalog = catalog.NewService(db, nil)
 		deps.Learning = learning.NewService(db, deps.Catalog, nil)
 		deps.Attendance = attendance.NewService(db, deps.Catalog, nil)
+		deps.Video = buildVideo(context.Background(), cfg, db, log)
 
 		if compiler != nil {
 			// Sans clé Resend, les courriels sont journalisés plutôt
@@ -197,4 +199,49 @@ func buildSealer(cfg config.Config) (*seal.PAdES, error) {
 		return nil, err
 	}
 	return seal.New(cert, key, chain, timestamper), nil
+}
+
+// buildVideo assemble la chaîne vidéo, ou renvoie nil si elle n'est pas
+// configurée.
+//
+// L'absence est un état normal : un organisme qui ne fait que du présentiel
+// n'a pas de vidéo à héberger, et le reste du produit ne doit pas en dépendre.
+// Les routes concernées répondent alors 503 avec un motif, plutôt que
+// d'échouer au démarrage.
+func buildVideo(ctx context.Context, cfg config.Config, db *ddb.Client, log *slog.Logger) *video.Service {
+	if cfg.VideoBucket == "" {
+		return nil
+	}
+
+	bucket, err := blob.NewS3(ctx, cfg.VideoBucket)
+	if err != nil {
+		log.Warn("dépôt vidéo indisponible", "err", err)
+		return nil
+	}
+
+	deps := video.Deps{DB: db, Uploader: bucket, Bucket: cfg.VideoBucket}
+
+	if cfg.CloudFrontDomain != "" && cfg.CloudFrontKeyPairID != "" && cfg.CloudFrontKeyPEM != "" {
+		signer, err := video.NewSigner(cfg.CloudFrontDomain, cfg.CloudFrontKeyPairID,
+			[]byte(cfg.CloudFrontKeyPEM))
+		if err != nil {
+			log.Warn("diffusion vidéo indisponible", "err", err)
+		} else {
+			deps.Signer = signer
+		}
+	}
+
+	if cfg.MediaConvertRoleARN != "" {
+		encoder, err := video.NewMediaConvert(ctx, cfg.MediaConvertEndpoint,
+			cfg.MediaConvertRoleARN, cfg.MediaConvertQueueARN)
+		if err != nil {
+			log.Warn("transcodage indisponible", "err", err)
+		} else {
+			deps.Encoder = encoder
+		}
+	}
+
+	log.Info("chaîne vidéo",
+		"depot", true, "transcodage", deps.Encoder != nil, "diffusion", deps.Signer != nil)
+	return video.NewService(deps)
 }

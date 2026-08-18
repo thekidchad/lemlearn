@@ -52,6 +52,19 @@ type Config struct {
 	// posé à côté du binaire.
 	SealCertPEM string
 	SealKeyPEM  string
+
+	// Diffusion vidéo. Sans ces trois valeurs, l'hébergement vidéo est
+	// simplement absent : le reste du produit fonctionne, les modules sans
+	// vidéo compris.
+	CloudFrontDomain    string
+	CloudFrontKeyPairID string
+	CloudFrontKeyPEM    string
+
+	// Transcodage. MediaConvert expose un point d'entrée propre à chaque
+	// compte, à récupérer une fois avec `aws mediaconvert describe-endpoints`.
+	MediaConvertEndpoint string
+	MediaConvertRoleARN  string
+	MediaConvertQueueARN string
 }
 
 // Load lit la configuration et refuse de démarrer si l'essentiel manque.
@@ -70,6 +83,14 @@ func Load() (Config, error) {
 		TSAURL:          orDefault("LEMLEARN_TSA_URL", "https://freetsa.org/tsr"),
 		SealCertPEM:     os.Getenv("LEMLEARN_SEAL_CERT"),
 		SealKeyPEM:      os.Getenv("LEMLEARN_SEAL_KEY"),
+
+		CloudFrontDomain:    os.Getenv("LEMLEARN_CDN_DOMAIN"),
+		CloudFrontKeyPairID: os.Getenv("LEMLEARN_CDN_KEY_ID"),
+		CloudFrontKeyPEM:    os.Getenv("LEMLEARN_CDN_KEY"),
+
+		MediaConvertEndpoint: os.Getenv("LEMLEARN_MEDIACONVERT_ENDPOINT"),
+		MediaConvertRoleARN:  os.Getenv("LEMLEARN_MEDIACONVERT_ROLE"),
+		MediaConvertQueueARN: os.Getenv("LEMLEARN_MEDIACONVERT_QUEUE"),
 	}
 
 	switch cfg.Env {

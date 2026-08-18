@@ -73,6 +73,39 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return (await response.json()) as T;
 }
 
+/**
+ * apiText relaie une requête dont la réponse n'est pas du JSON.
+ *
+ * Un manifeste HLS est du texte, et le lecteur le veut tel quel — le passer
+ * par un encodage JSON ne ferait que le casser.
+ */
+export async function apiText(path: string): Promise<{ body: string; contentType: string }> {
+  const store = await cookies();
+  const session = store.get(SESSION_COOKIE);
+
+  const response = await fetch(`${API_URL}${path}`, {
+    cache: "no-store",
+    headers: session ? { Cookie: `${API_COOKIE}=${session.value}` } : {},
+  });
+
+  const body = await response.text();
+  if (!response.ok) {
+    let message = `l'API a répondu ${response.status}`;
+    try {
+      const parsed = JSON.parse(body) as { error?: string };
+      if (parsed.error) message = parsed.error;
+    } catch {
+      // Réponse non JSON : le message par défaut fera l'affaire.
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  return {
+    body,
+    contentType: response.headers.get("Content-Type") ?? "text/plain; charset=utf-8",
+  };
+}
+
 /** Indique si une session est présente, sans appeler l'API. */
 export async function hasSession(): Promise<boolean> {
   const store = await cookies();

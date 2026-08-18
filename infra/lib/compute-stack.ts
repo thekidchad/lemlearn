@@ -4,8 +4,8 @@ import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import type * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
-import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
+import * as events from "aws-cdk-lib/aws-events";
+import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as logs from "aws-cdk-lib/aws-logs";
 import type * as s3 from "aws-cdk-lib/aws-s3";
 import type { Construct } from "constructs";
@@ -20,12 +20,18 @@ export interface ComputeStackProps extends StackProps {
   readonly videoBucket: s3.Bucket;
   readonly appUrl: string;
   /**
-   * Clé publique CloudFront, au format PEM, pour signer les URL de lecture.
-   * Absente, la diffusion vidéo n'est pas provisionnée — un organisme qui ne
-   * fait que du présentiel n'en a pas besoin, et le reste du produit ne doit
-   * pas en dépendre.
+   * Domaine et identifiant de clé de la distribution vidéo, produits par la
+   * pile de données — c'est elle qui porte le compartiment, donc la
+   * distribution qui le sert.
    */
-  readonly cloudFrontPublicKey?: string;
+  readonly videoDomain?: string;
+  readonly videoKeyPairID?: string;
+  /**
+   * Clé privée de signature des URL de lecture, posée en variable
+   * d'environnement de la fonction. Acceptable en recette ; en production elle
+   * a sa place dans Secrets Manager, référencée plutôt que recopiée.
+   */
+  readonly cloudFrontPrivateKey?: string;
   /** Point d'entrée MediaConvert du compte, propre à chaque compte. */
   readonly mediaConvertEndpoint?: string;
 }
@@ -153,42 +159,13 @@ export class ComputeStack extends Stack {
     exportFn.grantInvoke(apiFn);
     apiFn.addEnvironment("LEMLEARN_EXPORT_FUNCTION", exportFn.functionName);
 
-    // ---------------------------------------------------------------------
-    // Diffusion vidéo
-    // ---------------------------------------------------------------------
-    // Les rendus HLS ne sont jamais publics : CloudFront y accède par une
-    // identité d'origine, et chaque lecture exige une URL signée à durée
-    // courte. La protection ne vise pas l'enregistrement d'écran, impossible à
-    // empêcher, mais le partage de lien — le risque réel.
-    if (props.cloudFrontPublicKey) {
-      const publicKey = new cloudfront.PublicKey(this, "VideoPublicKey", {
-        encodedKey: props.cloudFrontPublicKey,
-        comment: "lemlearn — signature des URL de lecture",
-      });
-      const keyGroup = new cloudfront.KeyGroup(this, "VideoKeyGroup", {
-        items: [publicKey],
-      });
-
-      const distribution = new cloudfront.Distribution(this, "VideoDistribution", {
-        comment: `lemlearn ${props.envName} — modules vidéo`,
-        defaultBehavior: {
-          origin: origins.S3BucketOrigin.withOriginAccessControl(props.videoBucket),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          // Le manifeste et les segments ne portent aucune donnée
-          // personnelle : ils se mettent en cache. C'est l'URL signée qui
-          // porte l'autorisation, pas le contenu.
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-          trustedKeyGroups: [keyGroup],
-        },
-        // L'Europe et l'Amérique du Nord suffisent : la classe la plus large
-        // triple le coût pour des apprenants qui sont en France.
-        priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
-      });
-
-      apiFn.addEnvironment("LEMLEARN_CDN_DOMAIN", `https://${distribution.distributionDomainName}`);
-      apiFn.addEnvironment("LEMLEARN_CDN_KEY_ID", publicKey.publicKeyId);
-
-      new CfnOutput(this, "VideoDomain", { value: distribution.distributionDomainName });
+    // La diffusion n'est branchée que si la pile de données l'a provisionnée.
+    if (props.videoDomain && props.videoKeyPairID) {
+      apiFn.addEnvironment("LEMLEARN_CDN_DOMAIN", `https://${props.videoDomain}`);
+      apiFn.addEnvironment("LEMLEARN_CDN_KEY_ID", props.videoKeyPairID);
+      if (props.cloudFrontPrivateKey) {
+        apiFn.addEnvironment("LEMLEARN_CDN_KEY", props.cloudFrontPrivateKey);
+      }
     }
 
     // ---------------------------------------------------------------------
@@ -220,6 +197,35 @@ export class ComputeStack extends Stack {
       resources: [mediaConvertRole.roleArn],
       conditions: { StringEquals: { "iam:PassedToService": "mediaconvert.amazonaws.com" } },
     }));
+
+    // ---------------------------------------------------------------------
+    // Satisfaction à froid
+    // ---------------------------------------------------------------------
+    // Qualiopi demande une mesure de satisfaction à trois mois. C'est
+    // l'indicateur que les organismes oublient le plus, parce qu'il tombe
+    // longtemps après que tout le monde est passé à autre chose : une règle
+    // quotidienne qui relit les échéances du jour est la seule façon qu'il
+    // parte sans que personne n'y pense.
+    //
+    // La même fonction sert l'API et ce travail — elle distingue les deux sur
+    // la forme de l'événement. Un artefact séparé aurait les mêmes
+    // dépendances et un déploiement de plus à garder en phase.
+    new events.Rule(this, "ColdSurveyRule", {
+      ruleName: `lemlearn-satisfaction-froid-${props.envName}`,
+      description: "lemlearn: relance quotidienne des questionnaires a froid",
+      // 7 h UTC : le courriel arrive en début de matinée en France, heure à
+      // laquelle un questionnaire de deux minutes a le plus de chances d'être
+      // ouvert.
+      schedule: events.Schedule.cron({ minute: "0", hour: "7" }),
+      targets: [
+        new targets.LambdaFunction(apiFn, {
+          event: events.RuleTargetInput.fromObject({ task: "satisfaction-froid" }),
+          // Une relance manquée est rattrapée le lendemain par la requête sur
+          // le mois courant : inutile de réessayer en boucle le jour même.
+          retryAttempts: 2,
+        }),
+      ],
+    });
 
     // ---------------------------------------------------------------------
     // API HTTP

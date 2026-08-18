@@ -22,6 +22,7 @@ import (
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/export"
+	"github.com/lemlearn/api/internal/followup"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/learning"
 	"github.com/lemlearn/api/internal/platform/doc"
@@ -43,6 +44,7 @@ type Deps struct {
 	Export     *export.Service
 	Attendance *attendance.Service
 	Video      *video.Service
+	FollowUp   *followup.Service
 	Clock      func() time.Time
 }
 
@@ -79,6 +81,9 @@ func NewRouter(deps Deps) http.Handler {
 			r.Use(requireAuth(deps))
 
 			r.Get("/me", handleMe(deps))
+			// Portabilité : accessible à la personne concernée comme à
+			// l'administrateur, jamais à un tiers.
+			r.Get("/contacts/{contactID}/donnees", handlePortability(deps))
 
 			// Espace apprenant. Ces routes ne sont pas réservées aux
 			// administrateurs : c'est l'apprenant lui-même qui les appelle,
@@ -90,6 +95,7 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/modules/{moduleID}/progress", handleModuleProgress(deps))
 					r.Post("/modules/{moduleID}/beat", handleHeartbeat(deps))
 					r.Post("/modules/{moduleID}/playback", handlePlayback(deps))
+					r.Get("/modules/{moduleID}/manifest.m3u8", handleManifest(deps))
 					r.Get("/quizzes/{quizID}", handleGetQuiz(deps))
 					r.Post("/quizzes/{quizID}/submit", handleSubmitQuiz(deps))
 				})
@@ -102,6 +108,7 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/", handleListContacts(deps))
 					r.Post("/", handleCreateContact(deps))
 					r.Get("/{contactID}", handleGetContact(deps))
+					r.Post("/{contactID}/anonymize", handleAnonymize(deps))
 				})
 
 				r.Route("/courses", func(r chi.Router) {
@@ -116,6 +123,7 @@ func NewRouter(deps Deps) http.Handler {
 					r.Post("/", handleCreateSession(deps))
 					r.Get("/{sessionID}/enrollments", handleListEnrollments(deps))
 					r.Post("/{sessionID}/enrollments", handleEnroll(deps))
+					r.Post("/{sessionID}/close", handleCloseSession(deps))
 					r.Get("/{sessionID}/attendance", handleGetSheet(deps))
 					r.Post("/{sessionID}/attendance", handleSignAttendance(deps))
 					r.Post("/{sessionID}/attendance/countersign", handleCountersign(deps))
@@ -155,6 +163,13 @@ func NewRouter(deps Deps) http.Handler {
 			r.Post("/otp", handleSignOTP(deps))
 			r.Post("/confirm", handleSignConfirm(deps))
 			r.Get("/sealed", handleSignSealed(deps))
+		})
+
+		// Satisfaction à froid : même principe que la signature — la personne
+		// n'a pas de compte, sa légitimité vient du jeton reçu par courriel.
+		r.Route("/satisfaction/{token}", func(r chi.Router) {
+			r.Get("/", handleSurveyOpen(deps))
+			r.Post("/", handleSurveySubmit(deps))
 		})
 
 		r.Route("/documents", func(r chi.Router) {

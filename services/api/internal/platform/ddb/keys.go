@@ -86,6 +86,15 @@ func SignatureTokenPK(tokenHash string) string { return prefixToken + tokenHash 
 // SignatureTokenSK est constant.
 const SignatureTokenSK = "SIG"
 
+// SurveyTokenPK indexe une relance de satisfaction par l'empreinte du jeton
+// envoyé par courriel.
+func SurveyTokenPK(tokenHash string) string { return prefixToken + tokenHash }
+
+// SurveyTokenSK distingue le pointeur d'une relance de celui d'une signature :
+// les deux vivent sous la même partition, et rien ne dit qu'un jeton de l'un
+// ne collisionne jamais avec l'autre.
+const SurveyTokenSK = "SURVEY"
+
 // --- Index secondaires ----------------------------------------------------
 
 // GSI1 sert les listes : contacts d'une organisation par type, dossiers par

@@ -157,3 +157,64 @@ func handlePlayback(deps Deps) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, playback)
 	}
 }
+
+// handleManifest sert le manifeste HLS d'un module à un apprenant inscrit.
+//
+// Le manifeste passe par l'API, les segments non : c'est la seule façon de
+// rendre le flux lisible partout, y compris par le lecteur natif de Safari sur
+// iPhone, qui ne laisse aucune prise à JavaScript sur ses requêtes.
+func handleManifest(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		if deps.Video == nil || deps.Catalog == nil {
+			writeError(w, http.StatusServiceUnavailable, "diffusion indisponible")
+			return
+		}
+
+		target, _, err := learnerTarget(deps, r)
+		if err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		if _, err := deps.Catalog.GetEnrollment(r.Context(), session.OrgID,
+			target.SessionID, target.ContactID); err != nil {
+			writeError(w, http.StatusForbidden, "aucune inscription à cette session")
+			return
+		}
+
+		module, err := deps.Catalog.GetModule(r.Context(), session.OrgID, target.CourseID, target.ModuleID)
+		if err != nil {
+			respondNotFound(w, err, "module introuvable")
+			return
+		}
+		if module.AssetID == "" {
+			writeError(w, http.StatusNotFound, "ce module ne porte aucune vidéo")
+			return
+		}
+
+		// Les sous-manifestes repassent par cette même route : leurs segments
+		// doivent être réécrits à leur tour. Le renvoi ne porte que la
+		// requête, sans chemin : il se résout donc contre l'URL par laquelle
+		// le lecteur nous a joints, que ce soit l'API en direct ou le relais
+		// de l'application. Écrire un chemin absolu ici casserait l'un des
+		// deux.
+		asked := r.URL.Query()
+		body, err := deps.Video.Manifest(r.Context(), session.OrgID, module.AssetID,
+			asked.Get("rendu"),
+			func(name string) string {
+				query := r.URL.Query()
+				query.Set("rendu", name)
+				return "?" + query.Encode()
+			})
+		if err != nil {
+			writeError(w, http.StatusConflict, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", video.ManifestContentType)
+		// Le manifeste porte des URL signées à échéance courte : le mettre en
+		// cache le ferait resservir périmé.
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write([]byte(body))
+	}
+}

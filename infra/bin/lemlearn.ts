@@ -19,6 +19,7 @@ const data = new DataStack(app, `Lemlearn-Data-${envName}`, {
   env,
   envName,
   retain: isProd,
+  cloudFrontPublicKey: process.env.LEMLEARN_CDN_PUBLIC_KEY,
   description: "lemlearn — tables DynamoDB et compartiments S3",
 });
 
@@ -34,7 +35,9 @@ new ComputeStack(app, `Lemlearn-Compute-${envName}`, {
   // La clé publique et le point d'entrée viennent de l'environnement : la
   // clé privée correspondante n'a rien à faire dans un dépôt, et le point
   // d'entrée MediaConvert est propre à chaque compte.
-  cloudFrontPublicKey: process.env.LEMLEARN_CDN_PUBLIC_KEY,
+  videoDomain: data.videoDomain,
+  videoKeyPairID: data.videoKeyPairID,
+  cloudFrontPrivateKey: process.env.LEMLEARN_CDN_KEY,
   mediaConvertEndpoint: process.env.LEMLEARN_MEDIACONVERT_ENDPOINT,
   description: "lemlearn — API Lambda et passerelle HTTP",
 });

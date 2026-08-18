@@ -42,8 +42,8 @@ export default async function ModulePage({
     throw error;
   }
 
-  const module = course.modules.find((entry) => entry.id === moduleId);
-  if (!module) notFound();
+  const lesson = course.modules.find((entry) => entry.id === moduleId);
+  if (!lesson) notFound();
 
   const coverage = await apiFetch<Coverage>(
     `/v1/learn/${sessionId}/courses/${courseId}/modules/${moduleId}/progress${suffix}`,
@@ -67,21 +67,23 @@ export default async function ModulePage({
       </header>
 
       <div className="mx-auto max-w-3xl px-6 py-6">
-        <p className="font-mono text-2xs text-ink-3">Module {module.position}</p>
-        <h1 className="mt-1 text-xl font-semibold tracking-[-0.03em]">{module.title}</h1>
-        {module.summary && <p className="mt-2 text-xs text-ink-2">{module.summary}</p>}
+        <p className="font-mono text-2xs text-ink-3">Module {lesson.position}</p>
+        <h1 className="mt-1 text-xl font-semibold tracking-[-0.03em]">{lesson.title}</h1>
+        {lesson.summary && <p className="mt-2 text-xs text-ink-2">{lesson.summary}</p>}
 
         <div className="mt-6">
           <ModulePlayer
             beatUrl={`/api/learn/${sessionId}/${courseId}/${moduleId}/beat${suffix}`}
-            durationMs={module.durationMs}
+            playbackUrl={`/api/learn/${sessionId}/${courseId}/${moduleId}/playback${suffix}`}
+            manifestUrl={`/api/learn/${sessionId}/${courseId}/${moduleId}/manifest.m3u8${suffix}`}
+            durationMs={lesson.durationMs}
             initial={coverage}
           />
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-line bg-line">
           <Stat label="couverture" value={`${coverage.percent} %`} />
-          <Stat label="requis" value={`${module.minCoveragePercent} %`} />
+          <Stat label="requis" value={`${lesson.minCoveragePercent} %`} />
           <Stat label="séances" value={String(coverage.sessions)} />
         </div>
 
@@ -98,7 +100,7 @@ export default async function ModulePage({
           </p>
         )}
 
-        {module.quizId && (
+        {lesson.quizId && (
           <section className="surface-card mt-6 p-5">
             <h2 className="text-sm font-medium">Questionnaire du module</h2>
             <p className="mt-1.5 text-xs text-ink-2">
@@ -108,7 +110,7 @@ export default async function ModulePage({
             </p>
             <p className="mt-3 text-2xs text-ink-3">
               Le module est validé lorsque la couverture atteint{" "}
-              {module.minCoveragePercent} % <em>et</em> que le questionnaire est réussi.
+              {lesson.minCoveragePercent} % <em>et</em> que le questionnaire est réussi.
             </p>
           </section>
         )}

@@ -272,6 +272,22 @@
         "cloudfront:ListKeyGroups"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "TravauxProgrammes",
+      "Effect": "Allow",
+      "Action": [
+        "events:PutRule",
+        "events:DeleteRule",
+        "events:DescribeRule",
+        "events:PutTargets",
+        "events:RemoveTargets",
+        "events:ListTargetsByRule",
+        "events:ListTagsForResource",
+        "events:TagResource",
+        "events:UntagResource"
+      ],
+      "Resource": "arn:aws:events:eu-west-3:*:rule/lemlearn-*"
     }
   ]
 }

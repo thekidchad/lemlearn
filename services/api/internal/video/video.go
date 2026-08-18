@@ -121,16 +121,46 @@ func NewSigner(domain, keyPairID string, keyPEM []byte) (*Signer, error) {
 	return &Signer{domain: strings.TrimSuffix(domain, "/"), keyPairID: keyPairID, key: key}, nil
 }
 
-// cannedPolicy est la politique la plus simple : une ressource, une échéance.
-type cannedPolicy struct {
-	Statement []struct {
-		Resource  string `json:"Resource"`
-		Condition struct {
-			DateLessThan struct {
-				EpochTime int64 `json:"AWS:EpochTime"`
-			} `json:"DateLessThan"`
-		} `json:"Condition"`
-	} `json:"Statement"`
+// policyDocument est la politique de lecture remise à CloudFront.
+//
+// La forme est la même pour une ressource unique et pour un préfixe ; seul le
+// champ Resource change, et avec lui le paramètre d'URL attendu — Expires pour
+// la politique simple, Policy pour la politique personnalisée.
+type policyDocument struct {
+	Statement []policyStatement `json:"Statement"`
+}
+
+type policyStatement struct {
+	Resource  string `json:"Resource"`
+	Condition struct {
+		DateLessThan struct {
+			EpochTime int64 `json:"AWS:EpochTime"`
+		} `json:"DateLessThan"`
+	} `json:"Condition"`
+}
+
+func newPolicy(resource string, expires int64) policyDocument {
+	var statement policyStatement
+	statement.Resource = resource
+	statement.Condition.DateLessThan.EpochTime = expires
+	return policyDocument{Statement: []policyStatement{statement}}
+}
+
+// sign encode la politique et la signe.
+func (s *Signer) sign(policy policyDocument) (document []byte, signature string, err error) {
+	document, err = json.Marshal(policy)
+	if err != nil {
+		return nil, "", fmt.Errorf("video: encodage de la politique: %w", err)
+	}
+
+	// CloudFront impose RSA-SHA1 : ce n'est pas notre choix, et la signature
+	// ne protège pas un secret — elle horodate une autorisation de lecture.
+	digest := sha1.Sum(document)
+	raw, err := rsa.SignPKCS1v15(rand.Reader, s.key, crypto.SHA1, digest[:])
+	if err != nil {
+		return nil, "", fmt.Errorf("video: signature: %w", err)
+	}
+	return document, cloudFrontEncode(raw), nil
 }
 
 // Sign produit une URL de lecture valable pour la durée indiquée.
@@ -142,33 +172,41 @@ func (s *Signer) Sign(path string, ttl time.Duration) (string, error) {
 	url := s.domain + "/" + strings.TrimPrefix(path, "/")
 	expires := time.Now().Add(ttl).Unix()
 
-	var policy cannedPolicy
-	policy.Statement = make([]struct {
-		Resource  string `json:"Resource"`
-		Condition struct {
-			DateLessThan struct {
-				EpochTime int64 `json:"AWS:EpochTime"`
-			} `json:"DateLessThan"`
-		} `json:"Condition"`
-	}, 1)
-	policy.Statement[0].Resource = url
-	policy.Statement[0].Condition.DateLessThan.EpochTime = expires
-
-	document, err := json.Marshal(policy)
+	_, signature, err := s.sign(newPolicy(url, expires))
 	if err != nil {
-		return "", fmt.Errorf("video: encodage de la politique: %w", err)
-	}
-
-	// CloudFront impose RSA-SHA1 : ce n'est pas notre choix, et la signature
-	// ne protège pas un secret — elle horodate une autorisation de lecture.
-	digest := sha1.Sum(document)
-	signature, err := rsa.SignPKCS1v15(rand.Reader, s.key, crypto.SHA1, digest[:])
-	if err != nil {
-		return "", fmt.Errorf("video: signature: %w", err)
+		return "", err
 	}
 
 	return fmt.Sprintf("%s?Expires=%d&Signature=%s&Key-Pair-Id=%s",
-		url, expires, cloudFrontEncode(signature), s.keyPairID), nil
+		url, expires, signature, s.keyPairID), nil
+}
+
+// SignPrefix autorise toutes les ressources d'un préfixe et renvoie les
+// paramètres d'URL à joindre à chaque requête.
+//
+// Un flux HLS n'est pas un fichier : le manifeste principal renvoie vers trois
+// sous-manifestes, qui renvoient chacun vers des dizaines de segments. Signer
+// la seule URL du manifeste donnerait un lecteur qui charge la liste des
+// qualités puis échoue en 403 sur le premier segment. La politique
+// personnalisée couvre le dossier de l'asset — et lui seul : elle n'ouvre rien
+// des autres vidéos de l'organisme.
+func (s *Signer) SignPrefix(prefix string, ttl time.Duration) (string, error) {
+	if s == nil {
+		return "", fmt.Errorf("video: diffusion non configurée")
+	}
+
+	resource := s.domain + "/" + strings.TrimPrefix(prefix, "/") + "*"
+	expires := time.Now().Add(ttl).Unix()
+
+	document, signature, err := s.sign(newPolicy(resource, expires))
+	if err != nil {
+		return "", err
+	}
+
+	// Politique personnalisée : c'est le document qui porte l'échéance, et
+	// CloudFront refuse le paramètre Expires en même temps que Policy.
+	return fmt.Sprintf("Policy=%s&Signature=%s&Key-Pair-Id=%s",
+		cloudFrontEncode(document), signature, s.keyPairID), nil
 }
 
 // cloudFrontEncode applique l'alphabet base64 particulier de CloudFront.

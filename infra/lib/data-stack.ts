@@ -1,4 +1,5 @@
 import {
+  CfnOutput,
   Duration,
   RemovalPolicy,
   Stack,
@@ -6,6 +7,8 @@ import {
 } from "aws-cdk-lib";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as kms from "aws-cdk-lib/aws-kms";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import type { Construct } from "constructs";
 
@@ -13,6 +16,12 @@ export interface DataStackProps extends StackProps {
   readonly envName: string;
   /** Les environnements de production ne se détruisent pas par mégarde. */
   readonly retain: boolean;
+  /**
+   * Clé publique CloudFront au format PEM. Absente, la diffusion vidéo n'est
+   * pas provisionnée : un organisme qui ne fait que du présentiel n'a rien à
+   * diffuser, et le reste du produit ne doit pas en dépendre.
+   */
+  readonly cloudFrontPublicKey?: string;
 }
 
 /**
@@ -29,6 +38,9 @@ export class DataStack extends Stack {
   readonly identityBucket: s3.Bucket;
   readonly videoBucket: s3.Bucket;
   readonly identityKey: kms.Key;
+  /** Renseignés si la diffusion vidéo est provisionnée. */
+  readonly videoDomain?: string;
+  readonly videoKeyPairID?: string;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
@@ -174,5 +186,45 @@ export class DataStack extends Stack {
       removalPolicy,
       autoDeleteObjects: !props.retain,
     });
+
+    // ---------------------------------------------------------------------
+    // Diffusion vidéo
+    // ---------------------------------------------------------------------
+    // La distribution vit avec le compartiment qu'elle sert : l'accès par
+    // identité d'origine pose une politique sur ce compartiment, et la placer
+    // ailleurs créerait un cycle entre les piles.
+    //
+    // Les rendus HLS ne sont jamais publics. Chaque lecture exige une URL
+    // signée à durée courte : la protection ne vise pas l'enregistrement
+    // d'écran, impossible à empêcher, mais le partage de lien.
+    if (props.cloudFrontPublicKey) {
+      const publicKey = new cloudfront.PublicKey(this, "VideoPublicKey", {
+        encodedKey: props.cloudFrontPublicKey,
+        comment: "lemlearn: signature des URL de lecture",
+      });
+      const keyGroup = new cloudfront.KeyGroup(this, "VideoKeyGroup", {
+        items: [publicKey],
+      });
+
+      const distribution = new cloudfront.Distribution(this, "VideoDistribution", {
+        comment: `lemlearn ${props.envName}: modules video`,
+        defaultBehavior: {
+          origin: origins.S3BucketOrigin.withOriginAccessControl(this.videoBucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          // Le manifeste et les segments ne portent aucune donnée
+          // personnelle : ils se mettent en cache. C'est l'URL signée qui
+          // porte l'autorisation, pas le contenu.
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+          trustedKeyGroups: [keyGroup],
+        },
+        // L'Europe et l'Amérique du Nord suffisent : la classe la plus large
+        // triple le coût pour des apprenants qui sont en France.
+        priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      });
+
+      this.videoDomain = distribution.distributionDomainName;
+      this.videoKeyPairID = publicKey.publicKeyId;
+      new CfnOutput(this, "VideoDomain", { value: distribution.distributionDomainName });
+    }
   }
 }

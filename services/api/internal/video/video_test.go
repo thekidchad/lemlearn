@@ -135,3 +135,48 @@ func TestNewAssetReservesADistinctSource(t *testing.T) {
 		t.Errorf("état initial = %q", first.Status)
 	}
 }
+
+// La politique de préfixe couvre le dossier de l'asset — sous-manifestes et
+// segments compris — et rien au-delà. Un flux HLS qui n'autoriserait que le
+// manifeste principal échouerait en 403 sur le premier segment.
+func TestPrefixPolicyCoversTheAssetFolderOnly(t *testing.T) {
+	s, key := signer(t)
+
+	query, err := s.SignPrefix("hls/asset-1/", 15*time.Minute)
+	if err != nil {
+		t.Fatalf("signature de préfixe: %v", err)
+	}
+
+	values, err := url.ParseQuery(query)
+	if err != nil {
+		t.Fatalf("paramètres illisibles: %v", err)
+	}
+	// Une politique personnalisée porte son échéance dans le document :
+	// CloudFront rejette la requête si Expires l'accompagne.
+	if values.Has("Expires") {
+		t.Error("Expires ne doit pas accompagner une politique personnalisée")
+	}
+
+	decode := func(value string) []byte {
+		raw := strings.NewReplacer("-", "+", "_", "=", "~", "/").Replace(value)
+		decoded, err := base64.StdEncoding.DecodeString(raw)
+		if err != nil {
+			t.Fatalf("valeur illisible: %v", err)
+		}
+		return decoded
+	}
+
+	document := decode(values.Get("Policy"))
+	if want := `"Resource":"https://video.lemlearn.fr/hls/asset-1/*"`; !strings.Contains(string(document), want) {
+		t.Errorf("politique = %s, attendu %s", document, want)
+	}
+	if strings.Contains(string(document), "/hls/*") {
+		t.Error("la politique déborde sur les autres vidéos de l'organisme")
+	}
+
+	digest := sha1.Sum(document)
+	if err := rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA1, digest[:],
+		decode(values.Get("Signature"))); err != nil {
+		t.Fatalf("la signature ne vérifie pas la politique transmise: %v", err)
+	}
+}

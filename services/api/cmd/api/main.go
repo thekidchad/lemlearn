@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -16,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 
@@ -25,6 +27,7 @@ import (
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/docflow"
 	"github.com/lemlearn/api/internal/export"
+	"github.com/lemlearn/api/internal/followup"
 	"github.com/lemlearn/api/internal/httpapi"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/learning"
@@ -81,21 +84,26 @@ func main() {
 		deps.Attendance = attendance.NewService(db, deps.Catalog, nil)
 		deps.Video = buildVideo(context.Background(), cfg, db, log)
 
+		// Sans clé Resend, les courriels sont journalisés plutôt qu'envoyés :
+		// le parcours de signature reste exerçable de bout en bout sur un
+		// poste de développement comme sur un environnement de recette. Le
+		// corps du message y figure — donc le lien de signature, qui est un
+		// jeton d'accès — ce qui serait une fuite en production, où l'absence
+		// de clé fait échouer le démarrage.
+		var mailer mail.Sender = mail.NewLogVerbose(log)
+		if cfg.ResendAPIKey != "" {
+			mailer = mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom)
+		} else if cfg.Env == config.EnvProd {
+			log.Error("RESEND_API_KEY est requise en production : " +
+				"sans expéditeur réel, aucun lien de signature ne part")
+			os.Exit(1)
+		}
+
+		// La satisfaction à froid ne dépend ni du compilateur ni du
+		// scellement : elle poste un lien de questionnaire, trois mois après.
+		deps.FollowUp = followup.NewService(db, mailer, cfg.AppURL, nil)
+
 		if compiler != nil {
-			// Sans clé Resend, les courriels sont journalisés plutôt
-			// qu'envoyés : le parcours de signature reste exerçable de bout en
-			// bout sur un poste de développement comme sur un environnement de
-			// recette. Le corps du message y figure — donc le lien de
-			// signature, qui est un jeton d'accès — ce qui serait une fuite en
-			// production, où l'absence de clé fait échouer le démarrage.
-			var mailer mail.Sender = mail.NewLogVerbose(log)
-			if cfg.ResendAPIKey != "" {
-				mailer = mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom)
-			} else if cfg.Env == config.EnvProd {
-				log.Error("RESEND_API_KEY est requise en production : " +
-					"sans expéditeur réel, aucun lien de signature ne part")
-				os.Exit(1)
-			}
 			// Le scelleur : certificat de l'organisme en production, certificat
 			// auto-signé et explicitement nommé « sans valeur » en local.
 			sealer, err := buildSealer(cfg)
@@ -146,7 +154,25 @@ func main() {
 	if config.IsLambda() {
 		log.Info("démarrage en lambda", "env", cfg.Env)
 		adapter := httpadapter.NewV2(handler)
-		lambda.Start(adapter.ProxyWithContext)
+
+		// La même fonction sert l'API et les travaux programmés. Une fonction
+		// séparée pour la relance à froid n'aurait rien apporté : mêmes
+		// dépendances, même code, un artefact de plus à déployer et à garder
+		// en phase.
+		lambda.Start(func(ctx context.Context, payload json.RawMessage) (any, error) {
+			var scheduled struct {
+				Task string `json:"task"`
+			}
+			if err := json.Unmarshal(payload, &scheduled); err == nil && scheduled.Task != "" {
+				return runTask(ctx, scheduled.Task, deps, log)
+			}
+
+			var request events.APIGatewayV2HTTPRequest
+			if err := json.Unmarshal(payload, &request); err != nil {
+				return nil, fmt.Errorf("événement non reconnu: %w", err)
+			}
+			return adapter.ProxyWithContext(ctx, request)
+		})
 		return
 	}
 
@@ -219,7 +245,7 @@ func buildVideo(ctx context.Context, cfg config.Config, db *ddb.Client, log *slo
 		return nil
 	}
 
-	deps := video.Deps{DB: db, Uploader: bucket, Bucket: cfg.VideoBucket}
+	deps := video.Deps{DB: db, Uploader: bucket, Objects: bucket, Bucket: cfg.VideoBucket}
 
 	if cfg.CloudFrontDomain != "" && cfg.CloudFrontKeyPairID != "" && cfg.CloudFrontKeyPEM != "" {
 		signer, err := video.NewSigner(cfg.CloudFrontDomain, cfg.CloudFrontKeyPairID,
@@ -244,4 +270,32 @@ func buildVideo(ctx context.Context, cfg config.Config, db *ddb.Client, log *slo
 	log.Info("chaîne vidéo",
 		"depot", true, "transcodage", deps.Encoder != nil, "diffusion", deps.Signer != nil)
 	return video.NewService(deps)
+}
+
+// runTask exécute un travail programmé.
+//
+// Le résultat est renvoyé et journalisé plutôt que silencieux : une relance
+// qui ne part pas doit se voir dans les métriques d'invocation, pas se
+// découvrir trois mois plus tard sur un taux de retour à zéro.
+func runTask(ctx context.Context, task string, deps httpapi.Deps, log *slog.Logger) (any, error) {
+	switch task {
+	case "satisfaction-froid":
+		if deps.FollowUp == nil {
+			return nil, fmt.Errorf("relances non configurées")
+		}
+		sent, failed, err := deps.FollowUp.Run(ctx, time.Now().UTC())
+		if err != nil {
+			log.Error("relance de satisfaction à froid", "err", err)
+			return nil, err
+		}
+		log.Info("relance de satisfaction à froid", "envoyees", sent, "echecs", failed)
+		if failed > 0 {
+			// Échouer l'invocation rend l'incident visible dans les alarmes,
+			// et les tâches restées « planned » repartiront au tour suivant.
+			return nil, fmt.Errorf("%d relance(s) en échec sur %d", failed, sent+failed)
+		}
+		return map[string]int{"envoyees": sent}, nil
+	default:
+		return nil, fmt.Errorf("travail %q inconnu", task)
+	}
 }

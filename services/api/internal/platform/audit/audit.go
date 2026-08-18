@@ -39,6 +39,8 @@ const (
 	ActionQuizStarted       Action = "quiz.started"
 	ActionQuizSubmitted     Action = "quiz.submitted"
 	ActionAttendanceSigned  Action = "attendance.signed"
+	ActionSessionClosed     Action = "session.closed"
+	ActionFollowUpScheduled Action = "followup.scheduled"
 	ActionCertificateIssued Action = "certificate.issued"
 	ActionDossierExported   Action = "dossier.exported"
 	ActionLearnerAnonymized Action = "learner.anonymized"

@@ -3,6 +3,7 @@ package learning
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -120,3 +121,35 @@ func (s *Service) AllAttempts(ctx context.Context, orgID, enrollmentID string) (
 // unusedTime garde l'import time utile si les signatures évoluent.
 var _ = time.Time{}
 var _ = strings.TrimSpace
+
+// PublishedByKind renvoie les questionnaires publiés d'un usage donné.
+//
+// Sert à trouver le questionnaire de satisfaction à froid au moment de clore
+// une session : c'est une recherche par rôle, pas par identifiant, parce que
+// l'organisme en configure un seul et n'a pas à le désigner à chaque clôture.
+func (s *Service) PublishedByKind(ctx context.Context, orgID string, kind quiz.Kind) ([]quiz.Questionnaire, error) {
+	all, err := ddb.Query[quiz.Questionnaire](ctx, s.db, ddb.QuerySpec{
+		Index: "GSI1", PK: ddb.OrgPK(orgID) + "#QUIZKIND#" + string(kind),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Une seule entrée par questionnaire, la version publiée la plus récente.
+	latest := make(map[string]quiz.Questionnaire)
+	for _, q := range all {
+		if !q.Published {
+			continue
+		}
+		if kept, ok := latest[q.ID]; !ok || q.Version > kept.Version {
+			latest[q.ID] = q
+		}
+	}
+
+	published := make([]quiz.Questionnaire, 0, len(latest))
+	for _, q := range latest {
+		published = append(published, q)
+	}
+	sort.Slice(published, func(i, j int) bool { return published[i].Title < published[j].Title })
+	return published, nil
+}

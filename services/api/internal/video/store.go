@@ -20,6 +20,12 @@ type Uploader interface {
 	PresignedPut(ctx context.Context, key, contentType string, ttl time.Duration) (string, error)
 }
 
+// Objects donne accès au contenu du compartiment vidéo. Seuls les manifestes
+// y sont lus : la vidéo elle-même ne transite jamais par l'API.
+type Objects interface {
+	Get(ctx context.Context, key string) ([]byte, error)
+}
+
 // Service porte le cycle de vie d'une vidéo : réservation, dépôt, transcodage,
 // diffusion.
 type Service struct {
@@ -27,6 +33,7 @@ type Service struct {
 	uploader Uploader
 	encoder  Encoder
 	signer   *Signer
+	blobs    Objects
 	bucket   string
 	now      func() time.Time
 }
@@ -37,6 +44,7 @@ type Deps struct {
 	Uploader Uploader
 	Encoder  Encoder
 	Signer   *Signer
+	Objects  Objects
 	Bucket   string
 	Now      func() time.Time
 }
@@ -49,7 +57,7 @@ func NewService(deps Deps) *Service {
 	}
 	return &Service{
 		db: deps.DB, uploader: deps.Uploader, encoder: deps.Encoder,
-		signer: deps.Signer, bucket: deps.Bucket, now: now,
+		signer: deps.Signer, blobs: deps.Objects, bucket: deps.Bucket, now: now,
 	}
 }
 

@@ -80,12 +80,19 @@ func main() {
 		deps.Attendance = attendance.NewService(db, deps.Catalog, nil)
 
 		if compiler != nil {
-			// En local, les courriels sont journalisés plutôt qu'envoyés et
-			// les fichiers restent en mémoire : le parcours de signature est
-			// exerçable de bout en bout sans compte Resend ni compartiment S3.
-			var mailer mail.Sender = mail.NewLog(log)
+			// Sans clé Resend, les courriels sont journalisés plutôt
+			// qu'envoyés : le parcours de signature reste exerçable de bout en
+			// bout sur un poste de développement comme sur un environnement de
+			// recette. Le corps du message y figure — donc le lien de
+			// signature, qui est un jeton d'accès — ce qui serait une fuite en
+			// production, où l'absence de clé fait échouer le démarrage.
+			var mailer mail.Sender = mail.NewLogVerbose(log)
 			if cfg.ResendAPIKey != "" {
 				mailer = mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom)
+			} else if cfg.Env == config.EnvProd {
+				log.Error("RESEND_API_KEY est requise en production : " +
+					"sans expéditeur réel, aucun lien de signature ne part")
+				os.Exit(1)
 			}
 			// Le scelleur : certificat de l'organisme en production, certificat
 			// auto-signé et explicitement nommé « sans valeur » en local.

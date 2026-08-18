@@ -75,6 +75,30 @@ Le point d'entrée MediaConvert n'est pas à renseigner : la Lambda le demande a
 service au démarrage, et retombe sur le point d'entrée régional si l'appel
 échoue.
 
+## Satisfaction à froid
+
+La clôture d'une session programme la relance à trois mois pour chaque
+inscrit ; une règle EventBridge (`lemlearn-satisfaction-froid-<env>`) invoque
+la fonction API à 7 h UTC avec `{"task":"satisfaction-froid"}`. La même
+fonction sert l'API et ce travail — elle distingue les deux sur la forme de
+l'événement.
+
+Le traitement relit les échéances du mois courant **et du mois précédent** :
+une panne décale la relance, elle ne la perd pas.
+
+Déclencher manuellement :
+
+```bash
+AWS_PROFILE=learnaly AWS_REGION=eu-west-3 aws lambda invoke \
+  --function-name lemlearn-api-dev \
+  --payload "$(printf '{"task":"satisfaction-froid"}' | base64)" /dev/stdout
+```
+
+Ce déclenchement manuel — et l'inspection de la règle — demandent
+`lambda:InvokeFunction` et `events:Describe/ListRules` dans la politique du
+profil. Le déploiement, lui, n'en a pas besoin : CloudFormation crée la règle
+avec le rôle d'exécution CDK.
+
 ## Ce qui survit à un `cdk destroy`
 
 Délibérément, et c'est à savoir avant de lancer quoi que ce soit :

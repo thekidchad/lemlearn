@@ -106,6 +106,27 @@ export async function apiText(path: string): Promise<{ body: string; contentType
   };
 }
 
+/**
+ * apiRaw relaie une requête dont la réponse est binaire — un PDF, par exemple.
+ *
+ * La réponse de fetch est renvoyée telle quelle : la recopier dans un tampon
+ * ferait transiter un document de plusieurs mégaoctets par la mémoire du
+ * serveur pour rien.
+ */
+export async function apiRaw(path: string, init?: RequestInit): Promise<Response> {
+  const store = await cookies();
+  const session = store.get(SESSION_COOKIE);
+
+  return fetch(`${API_URL}${path}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      ...(session ? { Cookie: `${API_COOKIE}=${session.value}` } : {}),
+      ...init?.headers,
+    },
+  });
+}
+
 /** Indique si une session est présente, sans appeler l'API. */
 export async function hasSession(): Promise<boolean> {
   const store = await cookies();

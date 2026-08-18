@@ -1,0 +1,81 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { SignatureFlow } from "@/components/app/signature-flow";
+import { apiFetch, ApiError } from "@/lib/api";
+
+export const metadata: Metadata = {
+  title: "Signature électronique",
+  // Un lien de signature vaut jeton d'accès : il n'a rien à faire dans un
+  // index.
+  robots: { index: false, follow: false },
+};
+
+interface SignRequest {
+  reference: string;
+  kind: string;
+  signerName: string;
+  signerHint: string;
+  status: string;
+  expiresAt: string;
+  sha256: string;
+}
+
+const KINDS: Record<string, string> = {
+  quote: "Devis",
+  agreement: "Convention de formation",
+  contract: "Contrat de formation professionnelle",
+  attendance: "Feuille d'émargement",
+  certificate: "Attestation de fin de formation",
+};
+
+export default async function SignerPage({ params }: PageProps<"/signer/[token]">) {
+  const { token } = await params;
+
+  let request: SignRequest;
+  try {
+    request = await apiFetch<SignRequest>(`/v1/sign/${encodeURIComponent(token)}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) notFound();
+    if (error instanceof ApiError) {
+      return (
+        <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5">
+          <h1 className="text-lg font-semibold tracking-[-0.03em]">
+            Ce lien n&apos;est plus utilisable
+          </h1>
+          <p className="mt-2 text-sm text-ink-2">{error.message}</p>
+          <p className="mt-4 text-2xs text-ink-3">
+            Demandez à l&apos;organisme de formation de vous en envoyer un
+            nouveau : un lien de signature est à usage unique et à durée limitée,
+            c&apos;est ce qui lui donne sa valeur.
+          </p>
+        </main>
+      );
+    }
+    throw error;
+  }
+
+  return (
+    <main className="mx-auto min-h-dvh max-w-xl px-5 py-8">
+      <p className="font-mono text-2xs tracking-wide text-ink-3 uppercase">
+        {KINDS[request.kind] ?? request.kind} · {request.reference}
+      </p>
+      <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+        Signature électronique
+      </h1>
+      <p className="mt-3 text-sm text-ink-2">
+        {request.signerName}, ce document vous engage. Lisez-le entièrement : un
+        code de confirmation vous sera envoyé à {request.signerHint}, puis votre
+        signature sera horodatée et le document scellé.
+      </p>
+
+      <SignatureFlow
+        base={`/api/signer/${encodeURIComponent(token)}`}
+        reference={request.reference}
+        signerName={request.signerName}
+        signerHint={request.signerHint}
+        sha256={request.sha256}
+        alreadySigned={request.status === "signed"}
+      />
+    </main>
+  );
+}

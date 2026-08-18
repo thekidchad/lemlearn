@@ -189,6 +189,7 @@
       "Action": [
         "lambda:CreateFunction",
         "lambda:DeleteFunction",
+        "lambda:InvokeFunction",
         "lambda:GetFunction",
         "lambda:GetFunctionConfiguration",
         "lambda:UpdateFunctionCode",
@@ -285,7 +286,9 @@
         "events:ListTargetsByRule",
         "events:ListTagsForResource",
         "events:TagResource",
-        "events:UntagResource"
+        "events:UntagResource",
+        "events:ListRules",
+        "events:ListRuleNamesByTarget"
       ],
       "Resource": "arn:aws:events:eu-west-3:*:rule/lemlearn-*"
     }

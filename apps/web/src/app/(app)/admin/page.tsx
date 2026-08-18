@@ -54,7 +54,8 @@ export default async function AdminPage() {
       <header className="flex h-14 items-center justify-between border-b border-line px-6">
         <h1 className="text-sm font-medium">Organisations</h1>
         <p className="font-mono text-2xs text-ink-3" data-numeric>
-          {data.orgs.length} clients · {euros(data.mrrCents)} / mois
+          {data.orgs.length} client{data.orgs.length > 1 ? "s" : ""} ·{" "}
+          {euros(data.mrrCents)} / mois
         </p>
       </header>
 

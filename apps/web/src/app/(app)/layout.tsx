@@ -9,7 +9,9 @@ const nav = [
   { href: "/contacts", label: "Contacts", hint: "G puis C" },
   { href: "/catalogue", label: "Catalogue" },
   { href: "/sessions", label: "Sessions" },
+  { href: "/questionnaires", label: "Questionnaires" },
   { href: "/apprenant", label: "Espace apprenant" },
+  { href: "/abonnement", label: "Abonnement" },
 ];
 
 /**

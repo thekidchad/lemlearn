@@ -1,14 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { QuestionField, type Question } from "@/components/app/question-field";
 
-export interface Question {
-  id: string;
-  type: "single" | "multiple" | "boolean" | "likert" | "numeric" | "text";
-  prompt: string;
-  options?: { id: string; label: string }[];
-  required: boolean;
-}
+export type { Question };
 
 export interface Questionnaire {
   id: string;
@@ -54,16 +49,6 @@ export function SurveyForm({
         },
       };
     });
-  };
-
-  const toggle = (question: Question, optionId: string) => {
-    const current = answers[question.id]?.values ?? [];
-    set(
-      question,
-      current.includes(optionId)
-        ? current.filter((value) => value !== optionId)
-        : [...current, optionId],
-    );
   };
 
   const submit = async () => {
@@ -125,80 +110,12 @@ export function SurveyForm({
           </p>
 
           <div className="mt-3.5">
-            {(question.type === "single" || question.type === "boolean") &&
-              question.options?.map((option) => (
-                <Choice
-                  key={option.id}
-                  name={question.id}
-                  label={option.label}
-                  type="radio"
-                  checked={answers[question.id]?.values.includes(option.id) ?? false}
-                  onChange={() => set(question, [option.id])}
-                />
-              ))}
-
-            {question.type === "multiple" &&
-              question.options?.map((option) => (
-                <Choice
-                  key={option.id}
-                  name={question.id}
-                  label={option.label}
-                  type="checkbox"
-                  checked={answers[question.id]?.values.includes(option.id) ?? false}
-                  onChange={() => toggle(question, option.id)}
-                />
-              ))}
-
-            {question.type === "likert" && (
-              <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5].map((value) => {
-                  const selected = answers[question.id]?.values[0] === String(value);
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => set(question, [String(value)])}
-                      aria-pressed={selected}
-                      className={`h-10 flex-1 rounded-lg border text-sm transition-colors duration-[120ms] ${
-                        selected
-                          ? "border-accent bg-accent/15 text-ink"
-                          : "border-line text-ink-2 hover:border-line-strong"
-                      }`}
-                      data-numeric
-                    >
-                      {value}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {question.type === "numeric" && (
-              <input
-                type="number"
-                inputMode="decimal"
-                className="h-10 w-40 rounded-lg border border-line bg-surface-0 px-3 text-sm outline-none focus:border-accent"
-                onChange={(event) => set(question, [event.target.value])}
-                data-numeric
-              />
-            )}
-
-            {question.type === "text" && (
-              <textarea
-                rows={3}
-                className="w-full rounded-lg border border-line bg-surface-0 px-3 py-2 text-sm outline-none focus:border-accent"
-                placeholder="Votre réponse"
-                onChange={(event) => set(question, [event.target.value])}
-              />
-            )}
+            <QuestionField
+              question={question}
+              values={answers[question.id]?.values ?? []}
+              onChange={(values) => set(question, values)}
+            />
           </div>
-
-          {question.type === "likert" && (
-            <p className="mt-2 flex justify-between text-2xs text-ink-3">
-              <span>Pas du tout</span>
-              <span>Tout à fait</span>
-            </p>
-          )}
         </fieldset>
       ))}
 
@@ -217,32 +134,5 @@ export function SurveyForm({
         {sending ? "Envoi…" : "Envoyer mes réponses"}
       </button>
     </div>
-  );
-}
-
-function Choice({
-  name,
-  label,
-  type,
-  checked,
-  onChange,
-}: {
-  name: string;
-  label: string;
-  type: "radio" | "checkbox";
-  checked: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-2 text-sm text-ink-2 hover:text-ink">
-      <input
-        type={type}
-        name={name}
-        checked={checked}
-        onChange={onChange}
-        className="size-4 accent-[var(--color-accent)]"
-      />
-      {label}
-    </label>
   );
 }

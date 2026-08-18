@@ -111,7 +111,11 @@ export function ModulePlayer({
         playback = body;
       } catch (error) {
         if (cancelled) return;
-        setReason(error instanceof Error ? error.message : "lecture indisponible");
+        setReason(
+          error instanceof Error && error.message
+            ? capitalise(error.message) + "."
+            : "Aucune vidéo diffusable pour ce module.",
+        );
         setSource("simulated");
         return;
       }
@@ -129,7 +133,7 @@ export function ModulePlayer({
       } else {
         const { default: Hls } = await import("hls.js");
         if (cancelled || !Hls.isSupported()) {
-          setReason("ce navigateur ne sait pas lire le format de diffusion");
+          setReason("Ce navigateur ne sait pas lire le format de diffusion.");
           setSource("simulated");
           return;
         }
@@ -310,8 +314,8 @@ export function ModulePlayer({
           <p className="text-2xs text-ink-3">
             {/* Dire pourquoi il n'y a pas d'image, plutôt que d'afficher un
                 lecteur qui ne lit rien. */}
-            Aucune vidéo diffusable ({reason}) — le curseur ci-dessus simule la
-            lecture et produit les mêmes signaux d&apos;assiduité.
+            {reason} Le curseur ci-dessus simule la lecture et produit les
+            mêmes signaux d&apos;assiduité.
           </p>
         )}
 
@@ -328,4 +332,8 @@ export function ModulePlayer({
 function formatClock(ms: number): string {
   const total = Math.floor(ms / 1000);
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

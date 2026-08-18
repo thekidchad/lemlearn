@@ -2,6 +2,7 @@ package video
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -192,6 +193,13 @@ func (s *Service) Refresh(ctx context.Context, orgID, assetID string) (Asset, er
 func (s *Service) Playback(ctx context.Context, orgID, assetID string) (Playback, error) {
 	asset, err := s.Refresh(ctx, orgID, assetID)
 	if err != nil {
+		if errors.Is(err, ddb.ErrNotFound) {
+			// Le module désigne une vidéo qui n'existe plus. Le dire en
+			// français : l'apprenant lit ce message à l'écran, et « élément
+			// introuvable » ne lui apprend rien qu'il puisse faire.
+			return Playback{}, fmt.Errorf(
+				"la vidéo de ce module est introuvable : prévenez votre organisme de formation")
+		}
 		return Playback{}, err
 	}
 	if s.signer == nil {

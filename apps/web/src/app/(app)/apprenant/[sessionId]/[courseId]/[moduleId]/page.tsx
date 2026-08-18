@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ModulePlayer } from "@/components/app/player";
+import { QuizRunner, type Questionnaire } from "@/components/app/quiz-runner";
 import { apiFetch, ApiError } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Module" };
@@ -44,6 +45,19 @@ export default async function ModulePage({
 
   const lesson = course.modules.find((entry) => entry.id === moduleId);
   if (!lesson) notFound();
+
+  // Le questionnaire est chargé ici, avec sa tentative : l'apprenant ne doit
+  // pas attendre un aller-retour de plus après la vidéo. Une erreur — plus de
+  // tentatives, questionnaire dépublié — n'empêche pas d'afficher le module.
+  const quiz = lesson.quizId
+    ? await apiFetch<{
+        questionnaire: Questionnaire;
+        attempt: number;
+        maxAttempts: number;
+      }>(
+        `/v1/learn/${sessionId}/courses/${courseId}/quizzes/${lesson.quizId}${suffix}`,
+      ).catch(() => null)
+    : null;
 
   const coverage = await apiFetch<Coverage>(
     `/v1/learn/${sessionId}/courses/${courseId}/modules/${moduleId}/progress${suffix}`,
@@ -112,6 +126,19 @@ export default async function ModulePage({
               Le module est validé lorsque la couverture atteint{" "}
               {lesson.minCoveragePercent} % <em>et</em> que le questionnaire est réussi.
             </p>
+
+            {quiz ? (
+              <QuizRunner
+                endpoint={`/api/learn/${sessionId}/${courseId}/${moduleId}/quiz/${lesson.quizId}${suffix}`}
+                quiz={quiz.questionnaire}
+                attempt={{ number: quiz.attempt, max: quiz.maxAttempts }}
+              />
+            ) : (
+              <p className="mt-3 text-2xs text-ink-3">
+                Ce questionnaire n&apos;est pas disponible pour l&apos;instant —
+                tentatives épuisées, ou version non publiée.
+              </p>
+            )}
           </section>
         )}
       </div>

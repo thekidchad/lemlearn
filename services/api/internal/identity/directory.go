@@ -28,11 +28,19 @@ type DirectoryEntry struct {
 }
 
 // NewDirectoryEntry construit la fiche d'annuaire.
+//
+// La date de la fiche est celle de l'organisation, pas celle de son
+// inscription à l'annuaire : « client depuis » doit dire depuis quand il est
+// client, pas depuis quand nous savons le compter.
 func NewDirectoryEntry(org Org, owner string, now time.Time) DirectoryEntry {
+	created := org.CreatedAt
+	if created.IsZero() {
+		created = now
+	}
 	return DirectoryEntry{
 		Record: ddb.Record{
 			PK: DirectoryPK, SK: "ORG#" + org.ID, Type: "org_directory",
-			CreatedAt: now, UpdatedAt: now,
+			CreatedAt: created, UpdatedAt: now,
 		},
 		OrgID: org.ID, Name: org.Name, Plan: org.Plan, Owner: owner,
 	}

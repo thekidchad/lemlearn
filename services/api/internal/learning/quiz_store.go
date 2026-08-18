@@ -153,3 +153,51 @@ func (s *Service) PublishedByKind(ctx context.Context, orgID string, kind quiz.K
 	sort.Slice(published, func(i, j int) bool { return published[i].Title < published[j].Title })
 	return published, nil
 }
+
+// ListQuestionnaires renvoie la dernière version de chaque questionnaire.
+//
+// L'éditeur travaille toujours sur la dernière : les versions antérieures ne
+// se modifient pas, elles se consultent — c'est ce qui permet de réimprimer
+// une copie telle qu'elle a été passée.
+func (s *Service) ListQuestionnaires(ctx context.Context, orgID string) ([]quiz.Questionnaire, error) {
+	all, err := ddb.Query[quiz.Questionnaire](ctx, s.db, ddb.QuerySpec{
+		PK: ddb.OrgPK(orgID), SKPrefix: "QUIZ#",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	latest := make(map[string]quiz.Questionnaire)
+	for _, q := range all {
+		if kept, ok := latest[q.ID]; !ok || q.Version > kept.Version {
+			latest[q.ID] = q
+		}
+	}
+
+	list := make([]quiz.Questionnaire, 0, len(latest))
+	for _, q := range latest {
+		list = append(list, q)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Kind != list[j].Kind {
+			return list[i].Kind < list[j].Kind
+		}
+		return list[i].Title < list[j].Title
+	})
+	return list, nil
+}
+
+// Versions renvoie toutes les versions d'un questionnaire, la plus récente en
+// tête.
+func (s *Service) Versions(ctx context.Context, orgID, quizID string) ([]quiz.Questionnaire, error) {
+	return ddb.Query[quiz.Questionnaire](ctx, s.db, ddb.QuerySpec{
+		PK: ddb.OrgPK(orgID), SKPrefix: "QUIZ#" + quizID + "#V", Descending: true,
+	})
+}
+
+// AttemptsFor renvoie toutes les passations d'un questionnaire.
+func (s *Service) AttemptsFor(ctx context.Context, orgID, quizID string) ([]quiz.Attempt, error) {
+	return ddb.Query[quiz.Attempt](ctx, s.db, ddb.QuerySpec{
+		Index: "GSI1", PK: ddb.OrgPK(orgID) + "#QUIZ#" + quizID,
+	})
+}

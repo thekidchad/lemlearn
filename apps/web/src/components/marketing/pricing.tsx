@@ -1,43 +1,49 @@
 import { ButtonLink } from "@/components/ui/button";
 
+// Les paliers reprennent exactement le catalogue de facturation
+// (services/api/internal/billing/plans.go) : un prospect qui lit 89 € ici et
+// se voit facturer autrement n'oublie jamais l'écart.
 const plans = [
   {
-    name: "Indépendant",
-    price: "49",
-    tagline: "Formateur seul, quelques sessions par mois.",
+    name: "Essentiel",
+    code: "essentiel",
+    price: "89",
+    tagline: "Un organisme indépendant, jusqu'à cent apprenants par an.",
     features: [
-      "1 formateur, 50 apprenants actifs",
-      "20 h de vidéo hébergée",
-      "Signatures illimitées",
-      "Exports Qualiopi",
+      "100 apprenants, formateurs illimités",
+      "200 signatures par mois, sans surcoût",
+      "20 h de vidéo hébergée, 50 Go",
+      "Exports Qualiopi et dossiers de preuve",
     ],
-    cta: "Commencer",
-    href: "/inscription?plan=solo",
+    cta: "Commencer l'essai",
+    href: "/inscription?plan=essentiel",
     highlight: false,
   },
   {
-    name: "Organisme",
-    price: "149",
-    tagline: "L'offre pensée pour un OF certifié Qualiopi.",
+    name: "Structuré",
+    code: "structure",
+    price: "199",
+    tagline: "Plusieurs formateurs, un catalogue en ligne, des audits réguliers.",
     features: [
-      "10 formateurs, apprenants illimités",
-      "200 h de vidéo hébergée",
-      "Questionnaires & analyse par question",
+      "500 apprenants",
+      "1 000 signatures par mois",
+      "100 h de vidéo hébergée, 250 Go",
+      "Questionnaires et analyse par question",
       "Émargement présentiel et distanciel",
-      "Archivage inviolable 10 ans",
     ],
-    cta: "Demander une démo",
-    href: "/demo",
+    cta: "Commencer l'essai",
+    href: "/inscription?plan=structure",
     highlight: true,
   },
   {
     name: "Réseau",
-    price: "Sur mesure",
-    tagline: "Plusieurs entités, marque blanche, API.",
+    code: "reseau",
+    price: "499",
+    tagline: "Réseau de centres, volumes élevés, accompagnement dédié.",
     features: [
-      "Organisations multiples",
-      "SSO et rôles avancés",
-      "API et webhooks",
+      "5 000 apprenants, entités multiples",
+      "10 000 signatures par mois",
+      "500 h de vidéo hébergée, 2 To",
       "Accompagnement à la certification",
     ],
     cta: "Nous contacter",
@@ -82,11 +88,9 @@ export function Pricing() {
 
               <p className="mt-4 flex items-baseline gap-1.5">
                 <span className="text-3xl font-semibold tracking-[-0.04em]" data-numeric>
-                  {plan.price === "Sur mesure" ? plan.price : `${plan.price} €`}
+                  {plan.price} €
                 </span>
-                {plan.price !== "Sur mesure" && (
-                  <span className="text-xs text-ink-3">/ mois HT</span>
-                )}
+                <span className="text-xs text-ink-3">/ mois HT</span>
               </p>
               <p className="mt-2 text-xs text-ink-2">{plan.tagline}</p>
 
@@ -111,7 +115,8 @@ export function Pricing() {
         </div>
 
         <p className="mt-6 text-center text-2xs text-ink-3">
-          Hébergement en France · données chiffrées · réversibilité garantie par export
+          Trente jours d&apos;essai, sans carte bancaire, avec de quoi monter un
+          dossier complet de bout en bout. Hébergement en France · données chiffrées · réversibilité garantie par export
           complet.
         </p>
       </div>

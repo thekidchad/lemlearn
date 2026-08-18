@@ -137,6 +137,74 @@ func handleAddModule(deps Deps) http.HandlerFunc {
 	}
 }
 
+// handleUpdateModule modifie un module existant.
+//
+// Attacher une vidéo ou un contrôle après coup est le cas courant, pas
+// l'exception : un contrôle après module doit désigner un module qui existe,
+// donc il ne peut pas être créé en même temps que lui. Sans cette route, la
+// seule façon d'attacher un questionnaire serait de recréer le module — et de
+// perdre l'assiduité déjà enregistrée.
+func handleUpdateModule(deps Deps) http.HandlerFunc {
+	type request struct {
+		Title              *string `json:"title"`
+		Summary            *string `json:"summary"`
+		Position           *int    `json:"position"`
+		AssetID            *string `json:"assetId"`
+		DurationMs         *int64  `json:"durationMs"`
+		QuizID             *string `json:"quizId"`
+		MinCoveragePercent *int    `json:"minCoveragePercent"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		courseID := chi.URLParam(r, "courseID")
+
+		var body request
+		if !decodeJSON(w, r, &body) {
+			return
+		}
+
+		module, err := deps.Catalog.GetModule(r.Context(), session.OrgID, courseID,
+			chi.URLParam(r, "moduleID"))
+		if err != nil {
+			respondNotFound(w, err, "module introuvable")
+			return
+		}
+
+		// Champs absents laissés tels quels : un PATCH qui remettrait à zéro
+		// ce qu'il ne mentionne pas effacerait une vidéo au premier
+		// changement de titre.
+		if body.Title != nil {
+			module.Title = *body.Title
+		}
+		if body.Summary != nil {
+			module.Summary = *body.Summary
+		}
+		if body.Position != nil {
+			module.Position = *body.Position
+		}
+		if body.AssetID != nil {
+			module.AssetID = *body.AssetID
+		}
+		if body.DurationMs != nil {
+			module.DurationMs = *body.DurationMs
+		}
+		if body.QuizID != nil {
+			module.QuizID = *body.QuizID
+		}
+		if body.MinCoveragePercent != nil {
+			module.MinCoveragePercent = *body.MinCoveragePercent
+		}
+
+		updated, err := deps.Catalog.SaveModule(r.Context(), module)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, updated)
+	}
+}
+
 // handleCreateSession planifie une session.
 func handleCreateSession(deps Deps) http.HandlerFunc {
 	type request struct {

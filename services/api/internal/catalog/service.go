@@ -65,6 +65,15 @@ func (s *Service) AddModule(ctx context.Context, module Module) (Module, error) 
 	return module, nil
 }
 
+// SaveModule enregistre un module modifié.
+//
+// Les mêmes règles qu'à la création : une vidéo sans durée rendrait la
+// couverture incalculable, et le module paraîtrait validé sans qu'on ait rien
+// mesuré.
+func (s *Service) SaveModule(ctx context.Context, module Module) (Module, error) {
+	return s.AddModule(ctx, module)
+}
+
 // ListModules renvoie les modules d'une formation, dans l'ordre pédagogique.
 func (s *Service) ListModules(ctx context.Context, orgID, courseID string) ([]Module, error) {
 	return ddb.Query[Module](ctx, s.db, ddb.QuerySpec{

@@ -235,6 +235,46 @@ func handleStripeWebhook(deps Deps) http.HandlerFunc {
 	}
 }
 
+// handleSubscription renvoie la formule et la consommation de l'organisation
+// connectée.
+//
+// Le client voit exactement ce que voit le support : lui montrer moins
+// donnerait au premier appel au téléphone l'allure d'une négociation dont il
+// n'a pas les chiffres.
+func handleSubscription(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		if deps.Identity == nil {
+			writeError(w, http.StatusServiceUnavailable, "abonnement indisponible")
+			return
+		}
+
+		org, err := deps.Identity.LoadOrg(r.Context(), session.OrgID)
+		if err != nil {
+			respondNotFound(w, err, "organisation introuvable")
+			return
+		}
+		plan, err := billing.PlanByCode(org.Plan)
+		if err != nil {
+			plan = billing.Plan{Code: org.Plan, Label: org.Plan}
+		}
+
+		response := map[string]any{
+			"org": org.Public(), "plan": plan, "plans": billing.Plans,
+			// Dire si le paiement en ligne est ouvert évite un bouton qui
+			// échoue : sans compte Stripe, l'abonnement passe par un devis.
+			"selfServe": deps.Stripe != nil,
+		}
+		if deps.Billing != nil {
+			if usage, err := deps.Billing.Usage(r.Context(), session.OrgID); err == nil {
+				response["usage"] = usage
+				response["overage"] = usage.Overage(plan)
+			}
+		}
+		writeJSON(w, http.StatusOK, response)
+	}
+}
+
 // handleCheckout ouvre une page de paiement pour l'organisation connectée.
 func handleCheckout(deps Deps) http.HandlerFunc {
 	type request struct {

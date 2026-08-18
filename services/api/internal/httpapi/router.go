@@ -84,8 +84,9 @@ func NewRouter(deps Deps) http.Handler {
 			r.Use(requireAuth(deps))
 
 			r.Get("/me", handleMe(deps))
-			// Souscrire est un acte du dirigeant, pas du support : la route
-			// vit dans l'espace client, pas dans la vue de l'équipe.
+			// Souscrire est un acte du dirigeant, pas du support : ces routes
+			// vivent dans l'espace client, pas dans la vue de l'équipe.
+			r.Get("/abonnement", handleSubscription(deps))
 			r.Post("/abonnement/paiement", handleCheckout(deps))
 			// Portabilité : accessible à la personne concernée comme à
 			// l'administrateur, jamais à un tiers.
@@ -122,6 +123,7 @@ func NewRouter(deps Deps) http.Handler {
 					r.Post("/", handleCreateCourse(deps))
 					r.Get("/{courseID}", handleGetCourse(deps))
 					r.Post("/{courseID}/modules", handleAddModule(deps))
+					r.Patch("/{courseID}/modules/{moduleID}", handleUpdateModule(deps))
 				})
 
 				r.Route("/sessions", func(r chi.Router) {
@@ -143,7 +145,10 @@ func NewRouter(deps Deps) http.Handler {
 				})
 
 				r.Route("/quizzes", func(r chi.Router) {
+					r.Get("/", handleListQuizzes(deps))
 					r.Post("/", handleSaveQuiz(deps))
+					r.Get("/{quizID}", handleGetQuizVersions(deps))
+					r.Get("/{quizID}/resultats", handleQuizResults(deps))
 					r.Post("/{quizID}/versions/{version}/publish", handlePublishQuiz(deps))
 				})
 

@@ -127,3 +127,26 @@ func (s *S3) PresignedPut(ctx context.Context, key, contentType string, ttl time
 	}
 	return request.URL, nil
 }
+
+// Size renvoie la taille d'un objet, sans le télécharger.
+//
+// Sert à constater le volume déposé par une organisation : lire le fichier
+// pour en mesurer la taille reviendrait à faire transiter des gigaoctets de
+// vidéo par la mémoire d'une fonction pour afficher un nombre.
+func (s *S3) Size(ctx context.Context, key string) (int64, error) {
+	head, err := s.api.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		var missing *types.NotFound
+		if errors.As(err, &missing) {
+			return 0, ErrNotFound
+		}
+		return 0, fmt.Errorf("blob: taille de %s: %w", key, err)
+	}
+	if head.ContentLength == nil {
+		return 0, nil
+	}
+	return *head.ContentLength, nil
+}

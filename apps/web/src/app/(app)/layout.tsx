@@ -40,7 +40,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
 
         <nav className="flex flex-col gap-0.5 px-2">
-          {nav.map((item) => (
+          {/* La vue de l'équipe lemlearn n'apparaît que pour l'équipe : un
+              lien mort vers un écran interdit n'apprend rien d'utile au
+              client, sinon qu'il existe. */}
+          {(me.user.role === "superadmin"
+            ? [...nav, { href: "/admin", label: "Organisations", hint: undefined }]
+            : nav
+          ).map((item) => (
             <Link
               key={item.href}
               href={item.href}

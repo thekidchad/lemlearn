@@ -55,9 +55,12 @@ type Asset struct {
 	SourceKey string `dynamodbav:"sourceKey" json:"-"`
 	MasterKey string `dynamodbav:"masterKey,omitempty" json:"-"`
 
-	DurationMs int64  `dynamodbav:"durationMs" json:"durationMs"`
-	JobID      string `dynamodbav:"jobId,omitempty" json:"-"`
-	Error      string `dynamodbav:"error,omitempty" json:"error,omitempty"`
+	DurationMs int64 `dynamodbav:"durationMs" json:"durationMs"`
+	// SizeBytes est la taille de la source déposée, constatée sur S3 et non
+	// déclarée par le navigateur : c'est un chiffre de facturation.
+	SizeBytes int64  `dynamodbav:"sizeBytes,omitempty" json:"sizeBytes,omitempty"`
+	JobID     string `dynamodbav:"jobId,omitempty" json:"-"`
+	Error     string `dynamodbav:"error,omitempty" json:"error,omitempty"`
 
 	CreatedAt time.Time  `dynamodbav:"createdAt" json:"createdAt"`
 	ReadyAt   *time.Time `dynamodbav:"readyAt,omitempty" json:"readyAt,omitempty"`

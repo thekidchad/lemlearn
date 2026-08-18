@@ -44,6 +44,7 @@ const (
 	ActionCertificateIssued Action = "certificate.issued"
 	ActionDossierExported   Action = "dossier.exported"
 	ActionLearnerAnonymized Action = "learner.anonymized"
+	ActionPlanChanged       Action = "billing.plan_changed"
 	ActionImpersonated      Action = "admin.impersonated"
 )
 

@@ -39,5 +39,6 @@ new ComputeStack(app, `Lemlearn-Compute-${envName}`, {
   videoKeyPairID: data.videoKeyPairID,
   cloudFrontPrivateKey: process.env.LEMLEARN_CDN_KEY,
   mediaConvertEndpoint: process.env.LEMLEARN_MEDIACONVERT_ENDPOINT,
+  superAdmins: process.env.LEMLEARN_SUPERADMINS,
   description: "lemlearn — API Lambda et passerelle HTTP",
 });

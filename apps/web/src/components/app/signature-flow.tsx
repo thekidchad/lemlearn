@@ -191,7 +191,7 @@ export function SignatureFlow({
 
         {receipt && (
           <dl className="mt-4 space-y-2 border-t border-line pt-4 text-2xs">
-            <Row label="Référence" value={receipt.reference} />
+            {receipt.reference && <Row label="Référence" value={receipt.reference} />}
             <Row label="Empreinte SHA-256 du document scellé" value={receipt.sealedSha256} mono />
             <Row
               label="Horodatage"

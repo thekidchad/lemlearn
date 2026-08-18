@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -224,6 +225,31 @@ func handleLogin(deps Deps) http.HandlerFunc {
 				writeError(w, http.StatusInternalServerError, "erreur interne")
 			}
 			return
+		}
+
+		// L'équipe lemlearn est désignée par une variable posée au
+		// déploiement, dans les deux sens : un compte retiré de la liste perd
+		// son accès inter-organisations à sa connexion suivante. La liste est
+		// la seule source de vérité, sans quoi un rôle accordé une fois
+		// resterait acquis pour toujours.
+		if wanted, actual := slices.Contains(deps.Config.SuperAdmins, user.Email),
+			user.Role == identity.RoleSuperAdmin; wanted != actual {
+			role := identity.RoleOwner
+			if wanted {
+				role = identity.RoleSuperAdmin
+			}
+			promoted, err := deps.Identity.Promote(r.Context(), user, role, token)
+			if err != nil {
+				deps.Log.Error("rôle de l'équipe", "err", err, "voulu", role)
+			} else {
+				user = promoted
+			}
+		}
+
+		// L'annuaire se répare de lui-même : une organisation créée avant son
+		// existence y entre à la première connexion, sans migration.
+		if err := deps.Identity.EnsureDirectory(r.Context(), user.OrgID, user.Email); err != nil {
+			deps.Log.Error("annuaire des organisations", "err", err)
 		}
 
 		setSessionCookie(w, deps.Config, token)

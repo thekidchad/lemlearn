@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 
 	"github.com/lemlearn/api/internal/attendance"
+	"github.com/lemlearn/api/internal/billing"
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
@@ -102,6 +103,14 @@ func main() {
 		// La satisfaction à froid ne dépend ni du compilateur ni du
 		// scellement : elle poste un lien de questionnaire, trois mois après.
 		deps.FollowUp = followup.NewService(db, mailer, cfg.AppURL, nil)
+
+		// La vue super-admin non plus : elle doit rester consultable
+		// précisément quand une brique manque, puisque c'est ce qu'on
+		// regarde quand un client appelle.
+		deps.Billing = billing.NewService(billing.Deps{
+			DB: db, CRM: deps.CRM, Catalog: deps.Catalog, Video: deps.Video,
+		})
+		deps.Stripe = billing.NewStripe(cfg.StripeKey, cfg.StripeWebhookSecret, cfg.StripePrices)
 
 		if compiler != nil {
 			// Le scelleur : certificat de l'organisme en production, certificat

@@ -34,6 +34,13 @@ export interface ComputeStackProps extends StackProps {
   readonly cloudFrontPrivateKey?: string;
   /** Point d'entrée MediaConvert du compte, propre à chaque compte. */
   readonly mediaConvertEndpoint?: string;
+  /**
+   * Adresses de l'équipe lemlearn, séparées par des virgules. Le rôle
+   * super-admin s'attribue d'après cette liste à la connexion, et se retire
+   * de la même façon : il n'est pas modifiable depuis l'application, sans
+   * quoi un accès inter-organisations se donnerait tout seul.
+   */
+  readonly superAdmins?: string;
 }
 
 /**
@@ -71,6 +78,7 @@ export class ComputeStack extends Stack {
       LEMLEARN_APP_URL: props.appUrl,
       TYPST_PATH: "/opt/bin/typst",
       TYPST_FONT_PATH: "/opt/fonts",
+      LEMLEARN_SUPERADMINS: props.superAdmins ?? "",
     };
 
     // Groupes de logs déclarés explicitement : `logRetention` crée une Lambda

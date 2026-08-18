@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/lemlearn/api/internal/attendance"
+	"github.com/lemlearn/api/internal/billing"
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
@@ -45,6 +46,8 @@ type Deps struct {
 	Attendance *attendance.Service
 	Video      *video.Service
 	FollowUp   *followup.Service
+	Billing    *billing.Service
+	Stripe     *billing.Stripe
 	Clock      func() time.Time
 }
 
@@ -81,6 +84,9 @@ func NewRouter(deps Deps) http.Handler {
 			r.Use(requireAuth(deps))
 
 			r.Get("/me", handleMe(deps))
+			// Souscrire est un acte du dirigeant, pas du support : la route
+			// vit dans l'espace client, pas dans la vue de l'équipe.
+			r.Post("/abonnement/paiement", handleCheckout(deps))
 			// Portabilité : accessible à la personne concernée comme à
 			// l'administrateur, jamais à un tiers.
 			r.Get("/contacts/{contactID}/donnees", handlePortability(deps))
@@ -152,6 +158,19 @@ func NewRouter(deps Deps) http.Handler {
 					r.Post("/{fileID}/signatures", handleIssueSignature(deps))
 				})
 			})
+
+			// Vue super-admin : l'équipe lemlearn, jamais un client.
+			r.Group(func(r chi.Router) {
+				r.Use(requireRole(func(role identity.Role) bool {
+					return role == identity.RoleSuperAdmin
+				}, "réservé à l'équipe lemlearn"))
+
+				r.Route("/admin", func(r chi.Router) {
+					r.Get("/orgs", handleListOrgs(deps))
+					r.Post("/orgs/{orgID}/plan", handleSetPlan(deps))
+					r.Post("/orgs/{orgID}/impersonate", handleImpersonate(deps))
+				})
+			})
 		})
 
 		// Parcours du signataire : délibérément hors de tout groupe
@@ -171,6 +190,10 @@ func NewRouter(deps Deps) http.Handler {
 			r.Get("/", handleSurveyOpen(deps))
 			r.Post("/", handleSurveySubmit(deps))
 		})
+
+		// Stripe n'a pas de session : sa légitimité tient à la signature de
+		// l'appel, vérifiée avant d'ouvrir la charge utile.
+		r.Post("/stripe/webhook", handleStripeWebhook(deps))
 
 		r.Route("/documents", func(r chi.Router) {
 			// Prévisualisation d'un gabarit avec un jeu de données de

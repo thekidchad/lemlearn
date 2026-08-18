@@ -404,3 +404,32 @@ func TestTamperedSealedDocumentIsDetected(t *testing.T) {
 		t.Errorf("message peu explicite: %v", err)
 	}
 }
+
+// Une référence vide ferait écrire deux documents du même dossier sous la même
+// clé d'archive, et un séparateur de chemin les sortirait de l'espace de
+// l'organisation. Les deux sont refusés à l'émission.
+func TestReferenceCannotBeEmptyOrEscapeTheOrgFolder(t *testing.T) {
+	s := newStack(t)
+
+	if _, _, err := s.sign.Issue(context.Background(), signature.IssueInput{
+		OrgID: s.org.ID, FileID: s.file.ID, Kind: "convention",
+		Role:       doc.RoleClient,
+		SignerName: "Léa Fontaine", SignerEmail: "lea@example.fr",
+		Actor: s.actor,
+	}); err == nil {
+		t.Error("une demande sans référence a été acceptée")
+	}
+
+	req, _, err := s.sign.Issue(context.Background(), signature.IssueInput{
+		OrgID: s.org.ID, FileID: s.file.ID, Kind: "convention",
+		Reference: "../../autre-org/CONV", Role: doc.RoleClient,
+		SignerName: "Léa Fontaine", SignerEmail: "lea@example.fr",
+		Actor: s.actor,
+	})
+	if err != nil {
+		t.Fatalf("émission: %v", err)
+	}
+	if strings.Contains(req.Reference, "/") {
+		t.Errorf("référence = %q, elle sort de l'espace de l'organisation", req.Reference)
+	}
+}

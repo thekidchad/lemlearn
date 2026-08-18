@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -42,9 +43,17 @@ func handleIssueSignature(deps Deps) http.HandlerFunc {
 		}
 
 		fileID := chi.URLParam(r, "fileID")
-		if _, err := deps.CRM.GetFile(r.Context(), session.OrgID, fileID); err != nil {
+		file, err := deps.CRM.GetFile(r.Context(), session.OrgID, fileID)
+		if err != nil {
 			respondNotFound(w, err, "dossier introuvable")
 			return
+		}
+
+		// À défaut de référence, celle du dossier suffixée du type de
+		// document. Elle nomme le fichier archivé : la laisser vide ferait
+		// écrire deux conventions du même dossier sous la même clé.
+		if strings.TrimSpace(body.Reference) == "" {
+			body.Reference = file.Reference + "-" + body.Kind
 		}
 		user, err := deps.Identity.LoadUser(r.Context(), session)
 		if err != nil {
@@ -59,6 +68,14 @@ func handleIssueSignature(deps Deps) http.HandlerFunc {
 			SignerName: body.SignerName, SignerEmail: body.SignerEmail, SignerPhone: body.SignerPhone,
 			Actor: actorFrom(r, user.FullName()),
 		})
+		if err == nil && deps.Billing != nil {
+			// Le compteur suit l'émission, pas la signature : c'est
+			// l'émission qui consomme la ressource, et un signataire qui
+			// laisse traîner son lien coûte le même rendu documentaire.
+			if err := deps.Billing.CountSignature(r.Context(), session.OrgID); err != nil {
+				deps.Log.Error("compteur de signatures", "err", err)
+			}
+		}
 		if err != nil {
 			// La demande peut exister malgré l'échec de l'envoi : on le dit,
 			// plutôt que de laisser croire que rien ne s'est passé.

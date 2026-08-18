@@ -21,11 +21,11 @@ interface SignRequest {
 }
 
 const KINDS: Record<string, string> = {
-  quote: "Devis",
-  agreement: "Convention de formation",
-  contract: "Contrat de formation professionnelle",
-  attendance: "Feuille d'émargement",
-  certificate: "Attestation de fin de formation",
+  convention: "Convention de formation",
+  devis: "Devis",
+  contrat: "Contrat de formation professionnelle",
+  emargement: "Feuille d'émargement",
+  attestation: "Attestation de fin de formation",
 };
 
 export default async function SignerPage({ params }: PageProps<"/signer/[token]">) {
@@ -57,7 +57,9 @@ export default async function SignerPage({ params }: PageProps<"/signer/[token]"
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-8">
       <p className="font-mono text-2xs tracking-wide text-ink-3 uppercase">
-        {KINDS[request.kind] ?? request.kind} · {request.reference}
+        {[KINDS[request.kind] ?? request.kind, request.reference]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
       <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
         Signature électronique

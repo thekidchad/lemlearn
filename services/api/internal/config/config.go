@@ -42,6 +42,18 @@ type Config struct {
 
 	ResendAPIKey string
 	MailFrom     string
+	// SuperAdmins liste les adresses de l'équipe lemlearn, promues à la
+	// connexion. Le rôle ne s'attribue pas depuis l'application : personne
+	// ne doit pouvoir se donner un accès inter-organisations en écrivant
+	// dans la base, et une variable posée au déploiement a le même niveau de
+	// confiance que la politique IAM de la fonction.
+	SuperAdmins []string
+
+	// Stripe est optionnel : un organisme peut être facturé sur devis, et le
+	// produit doit tourner sans compte de paiement.
+	StripeKey           string
+	StripeWebhookSecret string
+	StripePrices        string
 
 	// Autorité d'horodatage RFC 3161. FreeTSA en développement, une autorité
 	// qualifiée eIDAS en production.
@@ -80,9 +92,14 @@ func Load() (Config, error) {
 		AppURL:          orDefault("LEMLEARN_APP_URL", "http://localhost:3000"),
 		ResendAPIKey:    os.Getenv("RESEND_API_KEY"),
 		MailFrom:        orDefault("LEMLEARN_MAIL_FROM", "lemlearn <ne-pas-repondre@lemlearn.fr>"),
-		TSAURL:          orDefault("LEMLEARN_TSA_URL", "https://freetsa.org/tsr"),
-		SealCertPEM:     os.Getenv("LEMLEARN_SEAL_CERT"),
-		SealKeyPEM:      os.Getenv("LEMLEARN_SEAL_KEY"),
+		SuperAdmins:     splitList(os.Getenv("LEMLEARN_SUPERADMINS")),
+
+		StripeKey:           os.Getenv("STRIPE_SECRET_KEY"),
+		StripeWebhookSecret: os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		StripePrices:        os.Getenv("STRIPE_PRICES"),
+		TSAURL:              orDefault("LEMLEARN_TSA_URL", "https://freetsa.org/tsr"),
+		SealCertPEM:         os.Getenv("LEMLEARN_SEAL_CERT"),
+		SealKeyPEM:          os.Getenv("LEMLEARN_SEAL_KEY"),
 
 		CloudFrontDomain:    os.Getenv("LEMLEARN_CDN_DOMAIN"),
 		CloudFrontKeyPairID: os.Getenv("LEMLEARN_CDN_KEY_ID"),
@@ -137,4 +154,15 @@ func orDefault(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// splitList découpe une liste séparée par des virgules, en ignorant le vide.
+func splitList(value string) []string {
+	var items []string
+	for _, item := range strings.Split(value, ",") {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			items = append(items, strings.ToLower(trimmed))
+		}
+	}
+	return items
 }

@@ -75,6 +75,30 @@ type Org struct {
 	QualiopiCertified bool `dynamodbav:"qualiopiCertified"`
 }
 
+// PublicOrg est l'organisation telle qu'elle sort de l'API.
+//
+// Les clés de partition et d'index n'en font pas partie : elles décrivent la
+// façon dont on range les données, pas l'organisation, et les exposer
+// figerait un détail d'implémentation dans le contrat du client.
+type PublicOrg struct {
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	SIRET             string `json:"siret,omitempty"`
+	NDA               string `json:"nda,omitempty"`
+	Plan              string `json:"plan"`
+	QualiopiCertified bool   `json:"qualiopiCertified"`
+	CreatedAt         string `json:"createdAt"`
+}
+
+// Public projette l'organisation.
+func (o Org) Public() PublicOrg {
+	return PublicOrg{
+		ID: o.ID, Name: o.Name, SIRET: o.SIRET, NDA: o.NDA,
+		Plan: o.Plan, QualiopiCertified: o.QualiopiCertified,
+		CreatedAt: o.CreatedAt.Format(time.RFC3339),
+	}
+}
+
 // NewOrg construit une organisation prête à écrire.
 func NewOrg(name string, now time.Time) Org {
 	id := NewID()

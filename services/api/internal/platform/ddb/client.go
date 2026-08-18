@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -28,24 +29,28 @@ var ErrConflict = errors.New("ddb: conflit d'écriture")
 // sont exportés car l'encodeur DynamoDB en a besoin, mais aucun code métier ne
 // doit les renseigner à la main : c'est le rôle des constructeurs de clé.
 type Record struct {
-	PK     string `dynamodbav:"PK"`
-	SK     string `dynamodbav:"SK"`
-	GSI1PK string `dynamodbav:"GSI1PK,omitempty"`
-	GSI1SK string `dynamodbav:"GSI1SK,omitempty"`
-	GSI2PK string `dynamodbav:"GSI2PK,omitempty"`
-	GSI2SK string `dynamodbav:"GSI2SK,omitempty"`
+	// Les clés ne sortent jamais de l'API : elles décrivent la façon dont on
+	// range les données, pas l'entité. Les exposer ferait entrer un détail de
+	// stockage dans le contrat du client — et le premier qui s'en servirait
+	// pour deviner une autre clé aurait raison d'essayer.
+	PK     string `dynamodbav:"PK" json:"-"`
+	SK     string `dynamodbav:"SK" json:"-"`
+	GSI1PK string `dynamodbav:"GSI1PK,omitempty" json:"-"`
+	GSI1SK string `dynamodbav:"GSI1SK,omitempty" json:"-"`
+	GSI2PK string `dynamodbav:"GSI2PK,omitempty" json:"-"`
+	GSI2SK string `dynamodbav:"GSI2SK,omitempty" json:"-"`
 
 	// Type nomme l'entité. Il ne sert pas au routage — la clé de tri suffit —
 	// mais rend les exports et les journaux lisibles sans décodage.
-	Type string `dynamodbav:"Type"`
+	Type string `dynamodbav:"Type" json:"type,omitempty"`
 
-	CreatedAt time.Time `dynamodbav:"createdAt"`
-	UpdatedAt time.Time `dynamodbav:"updatedAt"`
+	CreatedAt time.Time `dynamodbav:"createdAt" json:"createdAt"`
+	UpdatedAt time.Time `dynamodbav:"updatedAt" json:"updatedAt"`
 
 	// ExpiresAt alimente le TTL DynamoDB, en secondes Unix. Renseigné
 	// uniquement sur les éléments à durée de vie bornée : sessions, codes à
 	// usage unique, heartbeats bruts.
-	ExpiresAt int64 `dynamodbav:"expiresAt,omitempty"`
+	ExpiresAt int64 `dynamodbav:"expiresAt,omitempty" json:"-"`
 }
 
 // Client encapsule l'accès aux deux tables.
@@ -289,4 +294,41 @@ type auditItem struct {
 	PK string `dynamodbav:"PK"`
 	SK string `dynamodbav:"SK"`
 	audit.Event
+}
+
+// Increment ajoute une valeur à un compteur, en créant l'article au besoin.
+//
+// C'est la seule écriture non transactionnelle du produit, et elle ne porte
+// que des compteurs d'usage : un compteur de facturation doit être exact sous
+// concurrence, ce qu'un lire-modifier-écrire ne garantit pas, et ADD est
+// atomique côté moteur.
+func (c *Client) Increment(ctx context.Context, pk, sk, field string, by int64) (int64, error) {
+	out, err := c.api.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(c.table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: pk},
+			"SK": &types.AttributeValueMemberS{Value: sk},
+		},
+		UpdateExpression: aws.String("ADD #f :n"),
+		ExpressionAttributeNames: map[string]string{
+			"#f": field,
+		},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":n": &types.AttributeValueMemberN{Value: strconv.FormatInt(by, 10)},
+		},
+		ReturnValues: types.ReturnValueUpdatedNew,
+	})
+	if err != nil {
+		return 0, wrapErr(err)
+	}
+
+	value, ok := out.Attributes[field].(*types.AttributeValueMemberN)
+	if !ok {
+		return 0, nil
+	}
+	total, err := strconv.ParseInt(value.Value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("ddb: compteur %s illisible: %w", field, err)
+	}
+	return total, nil
 }

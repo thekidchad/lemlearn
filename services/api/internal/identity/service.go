@@ -62,6 +62,10 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Org, User, er
 		[]ddb.Write{
 			{Item: org, Condition: "attribute_not_exists(PK)"},
 			{Item: user},
+			// L'annuaire est écrit dans la même transaction : une
+			// organisation créée mais absente de l'annuaire serait invisible
+			// du support, donc introuvable le jour où elle appelle.
+			{Item: NewDirectoryEntry(org, user.Email, now)},
 			// La seule condition qui compte : l'adresse ne doit pas être
 			// déjà réservée. Elle fait échouer toute la transaction.
 			{Item: pointer, Condition: "attribute_not_exists(PK)"},

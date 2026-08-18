@@ -21,9 +21,11 @@ type Uploader interface {
 }
 
 // Objects donne accès au contenu du compartiment vidéo. Seuls les manifestes
-// y sont lus : la vidéo elle-même ne transite jamais par l'API.
+// y sont lus, et la taille des sources constatée : la vidéo elle-même ne
+// transite jamais par l'API.
 type Objects interface {
 	Get(ctx context.Context, key string) ([]byte, error)
+	Size(ctx context.Context, key string) (int64, error)
 }
 
 // Service porte le cycle de vie d'une vidéo : réservation, dépôt, transcodage,
@@ -107,6 +109,15 @@ func (s *Service) Uploaded(ctx context.Context, orgID, assetID string, durationM
 	}
 	if s.encoder == nil {
 		return Asset{}, fmt.Errorf("video: transcodage indisponible")
+	}
+
+	// La taille est constatée sur le compartiment, jamais déclarée par le
+	// navigateur : c'est un chiffre qui finira sur une facture. Un dépôt dont
+	// la taille est illisible ne bloque pas le transcodage pour autant.
+	if s.blobs != nil {
+		if size, err := s.blobs.Size(ctx, asset.SourceKey); err == nil {
+			asset.SizeBytes = size
+		}
 	}
 
 	jobID, err := s.encoder.Start(ctx, asset, s.bucket)

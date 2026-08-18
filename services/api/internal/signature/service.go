@@ -115,8 +115,16 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (Request, string, er
 		return Request{}, "", fmt.Errorf("le nom du signataire est obligatoire")
 	}
 
+	// La référence nomme le fichier archivé : un séparateur de chemin y
+	// créerait un dossier fantôme dans le compartiment, voire ferait sortir la
+	// clé de l'espace de l'organisation.
+	reference := safeReference(in.Reference)
+	if reference == "" {
+		return Request{}, "", fmt.Errorf("la référence du document est obligatoire")
+	}
+
 	now := s.now()
-	req := NewRequest(in.OrgID, in.FileID, in.Kind, in.Reference, in.Role, now)
+	req := NewRequest(in.OrgID, in.FileID, in.Kind, reference, in.Role, now)
 	req.SignerName = in.SignerName
 	req.SignerEmail = ddb.NormalizeEmail(in.SignerEmail)
 	req.SignerPhone = in.SignerPhone
@@ -548,4 +556,18 @@ func short(hash string) string {
 		return hash
 	}
 	return hash[:12] + "…"
+}
+
+// safeReference retire d'une référence ce qui n'a pas sa place dans une clé
+// d'objet.
+func safeReference(reference string) string {
+	cleaned := strings.Map(func(r rune) rune {
+		switch {
+		case r == '/' || r == '\\' || r < ' ':
+			return '-'
+		default:
+			return r
+		}
+	}, strings.TrimSpace(reference))
+	return strings.Trim(cleaned, ".-")
 }

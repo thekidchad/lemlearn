@@ -17,6 +17,14 @@ import (
 // fakeObjects tient lieu de compartiment vidéo.
 type fakeObjects struct{ items map[string][]byte }
 
+func (f *fakeObjects) Size(_ context.Context, key string) (int64, error) {
+	data, ok := f.items[key]
+	if !ok {
+		return 0, ddb.ErrNotFound
+	}
+	return int64(len(data)), nil
+}
+
 func (f *fakeObjects) Get(_ context.Context, key string) ([]byte, error) {
 	data, ok := f.items[key]
 	if !ok {

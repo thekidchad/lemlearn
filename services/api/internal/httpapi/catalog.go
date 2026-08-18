@@ -69,7 +69,7 @@ func handleListCourses(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"courses": courses})
+		writeJSON(w, http.StatusOK, map[string]any{"courses": list(courses)})
 	}
 }
 
@@ -90,7 +90,7 @@ func handleGetCourse(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"course": course, "modules": modules})
+		writeJSON(w, http.StatusOK, map[string]any{"course": course, "modules": list(modules)})
 	}
 }
 
@@ -252,7 +252,7 @@ func handleListSessions(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"sessions": sessions})
+		writeJSON(w, http.StatusOK, map[string]any{"sessions": list(sessions)})
 	}
 }
 
@@ -301,6 +301,6 @@ func handleListEnrollments(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"enrollments": enrollments})
+		writeJSON(w, http.StatusOK, map[string]any{"enrollments": list(enrollments)})
 	}
 }

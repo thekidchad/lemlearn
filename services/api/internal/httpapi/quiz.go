@@ -104,13 +104,13 @@ func handleListQuizzes(deps Deps) http.HandlerFunc {
 			return
 		}
 
-		list, err := deps.Learning.ListQuestionnaires(r.Context(), session.OrgID)
+		quizzes, err := deps.Learning.ListQuestionnaires(r.Context(), session.OrgID)
 		if err != nil {
 			deps.Log.Error("liste des questionnaires", "err", err)
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"quizzes": list})
+		writeJSON(w, http.StatusOK, map[string]any{"quizzes": list(quizzes)})
 	}
 }
 
@@ -133,7 +133,7 @@ func handleGetQuizVersions(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusNotFound, "questionnaire introuvable")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"versions": versions})
+		writeJSON(w, http.StatusOK, map[string]any{"versions": list(versions)})
 	}
 }
 

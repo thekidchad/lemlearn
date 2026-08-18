@@ -196,3 +196,34 @@ export async function moveFile(fileId: string, stage: string): Promise<FormState
     return { error: "erreur interne" };
   }
 }
+
+/**
+ * Émargement d'un créneau par le formateur.
+ *
+ * L'apprenant signe depuis son espace ; cette voie sert au formateur qui tient
+ * la feuille en salle, et elle enregistre qui a coché — un émargement sans
+ * auteur ne prouve rien.
+ */
+export async function markAttendance(
+  sessionId: string,
+  slotId: string,
+  contactId: string,
+  method: "signature" | "connection" | "absent",
+): Promise<FormState> {
+  const result = await submit(
+    `/v1/sessions/${sessionId}/attendance`,
+    { slotId, contactId, method },
+    `/sessions/${sessionId}`,
+  );
+  return result;
+}
+
+/** Contresignature de la feuille par le formateur. */
+export async function countersign(_: FormState, form: FormData): Promise<FormState> {
+  const sessionId = text(form, "sessionId");
+  return submit(
+    `/v1/sessions/${sessionId}/attendance/countersign`,
+    {},
+    `/sessions/${sessionId}`,
+  );
+}

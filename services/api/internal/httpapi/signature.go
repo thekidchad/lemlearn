@@ -120,7 +120,7 @@ func handleListSignatures(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"requests": requests})
+		writeJSON(w, http.StatusOK, map[string]any{"requests": list(requests)})
 	}
 }
 

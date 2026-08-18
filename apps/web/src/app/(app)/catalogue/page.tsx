@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CreatePanel, Field, TextArea } from "@/components/app/form";
 import { createCourse } from "@/app/actions/crm";
 import { apiFetch } from "@/lib/api";
@@ -76,7 +77,11 @@ export default async function CataloguePage() {
       ) : (
         <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((course) => (
-            <article key={course.id} className="surface-card flex flex-col p-4">
+            <Link
+              key={course.id}
+              href={`/catalogue/${course.id}`}
+              className="surface-card flex flex-col p-4 transition-colors duration-[120ms] hover:border-line-strong"
+            >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-sm font-medium">{course.title}</h2>
                 {/* Une formation non publiée ne peut pas recevoir de session :
@@ -121,7 +126,7 @@ export default async function CataloguePage() {
                   }).format(course.priceHT)}
                 </span>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       )}

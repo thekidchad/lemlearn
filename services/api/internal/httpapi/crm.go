@@ -74,7 +74,7 @@ func handleListContacts(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"contacts": contacts})
+		writeJSON(w, http.StatusOK, map[string]any{"contacts": list(contacts)})
 	}
 }
 
@@ -148,7 +148,14 @@ func handlePipeline(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"pipeline": pipeline})
+		// Chaque colonne sort en tableau, vide le cas échéant : un pipeline
+		// dont la moitié des colonnes valent `null` oblige le client à s'en
+		// méfier colonne par colonne.
+		columns := make(map[crm.Stage][]crm.File, len(pipeline))
+		for stage, files := range pipeline {
+			columns[stage] = list(files)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"pipeline": columns})
 	}
 }
 
@@ -227,7 +234,7 @@ func handleFileTimeline(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "journal d'audit incohérent")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"events": events})
+		writeJSON(w, http.StatusOK, map[string]any{"events": list(events)})
 	}
 }
 

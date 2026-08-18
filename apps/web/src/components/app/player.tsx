@@ -126,21 +126,24 @@ export function ModulePlayer({
       const element = video.current;
       if (!element) return;
 
-      // Safari lit le HLS nativement ; partout ailleurs il faut hls.js, chargé
-      // seulement ici pour ne pas peser sur les pages qui ne lisent rien.
-      if (element.canPlayType("application/vnd.apple.mpegurl")) {
-        element.src = manifestUrl;
-      } else {
-        const { default: Hls } = await import("hls.js");
-        if (cancelled || !Hls.isSupported()) {
-          setReason("Ce navigateur ne sait pas lire le format de diffusion.");
-          setSource("simulated");
-          return;
-        }
+      // hls.js d'abord, lecture native ensuite — et pas l'inverse : Chromium
+      // répond « maybe » à canPlayType pour le HLS sans savoir le lire, et le
+      // croire donne un lecteur qui reste noir. Seul iOS, où hls.js ne
+      // fonctionne pas faute de Media Source, prend la voie native.
+      const { default: Hls } = await import("hls.js");
+      if (cancelled) return;
+
+      if (Hls.isSupported()) {
         const hls = new Hls({ enableWorker: true });
         hls.loadSource(manifestUrl);
         hls.attachMedia(element);
         cleanup = () => hls.destroy();
+      } else if (element.canPlayType("application/vnd.apple.mpegurl")) {
+        element.src = manifestUrl;
+      } else {
+        setReason("Ce navigateur ne sait pas lire le format de diffusion.");
+        setSource("simulated");
+        return;
       }
 
       if (initial.lastPosMs > 0) {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CreatePanel, Field, Select } from "@/components/app/form";
+import { ExportButton } from "@/components/app/export-button";
 import { StagePicker } from "@/components/app/stage-picker";
 import { issueSignature } from "@/app/actions/crm";
 import { notFound } from "next/navigation";
@@ -85,6 +86,7 @@ export default async function FilePage({ params }: PageProps<"/dossiers/[fileId]
         <span className="font-mono text-xs text-ink-2">{file.reference}</span>
 
         <div className="ml-auto flex items-center gap-2">
+          <ExportButton fileId={file.id} />
           <StagePicker fileId={file.id} stage={file.stage} />
 
           <CreatePanel
@@ -166,11 +168,11 @@ export default async function FilePage({ params }: PageProps<"/dossiers/[fileId]
               Journal horodaté
             </h2>
 
-            {timeline.events.length === 0 ? (
+            {(timeline.events ?? []).length === 0 ? (
               <p className="text-xs text-ink-3">Aucun événement enregistré.</p>
             ) : (
               <ol className="relative space-y-3 border-l border-line pl-5">
-                {timeline.events.map((event) => (
+                {(timeline.events ?? []).map((event) => (
                   <li key={event.seq} className="relative">
                     <span
                       className={`absolute top-1.5 -left-[1.4375rem] size-1.5 rounded-full ring-4 ring-surface-0 ${
@@ -197,8 +199,8 @@ export default async function FilePage({ params }: PageProps<"/dossiers/[fileId]
 
             <p className="mt-4 flex items-center gap-1.5 text-2xs text-ink-3">
               <span className="size-1 rounded-full bg-ok" />
-              Chaîne vérifiée · {timeline.events.length} événement
-              {timeline.events.length > 1 ? "s" : ""} · empreintes chaînées
+              Chaîne vérifiée · {(timeline.events ?? []).length} événement
+              {(timeline.events ?? []).length > 1 ? "s" : ""} · empreintes chaînées
             </p>
           </section>
 
@@ -227,11 +229,11 @@ export default async function FilePage({ params }: PageProps<"/dossiers/[fileId]
               <h2 className="text-2xs font-medium tracking-wide text-ink-3 uppercase">
                 Signatures
               </h2>
-              {signatures.requests.length === 0 ? (
+              {(signatures.requests ?? []).length === 0 ? (
                 <p className="mt-3 text-xs text-ink-3">Aucun document envoyé à signer.</p>
               ) : (
                 <ul className="mt-3 space-y-2.5">
-                  {signatures.requests.map((request) => (
+                  {(signatures.requests ?? []).map((request) => (
                     <li key={request.id}>
                       <p className="flex items-center gap-1.5 text-xs">
                         <span

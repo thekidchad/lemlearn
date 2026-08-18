@@ -293,6 +293,18 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
+// list garantit qu'une liste vide sort en `[]` et non en `null`.
+//
+// Go rend une tranche nil en `null`, ce qui oblige chaque client à écrire la
+// même garde — et à l'oublier une fois. Le premier écran qui plante sur un
+// dossier sans document est un bug d'API, pas un bug de front.
+func list[T any](items []T) []T {
+	if items == nil {
+		return []T{}
+	}
+	return items
+}
+
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
 }

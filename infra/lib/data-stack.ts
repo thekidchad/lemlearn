@@ -159,7 +159,14 @@ export class DataStack extends Stack {
         {
           // Téléversement direct par le navigateur via URL présignée : sans
           // cela, la vidéo transiterait par la Lambda, plafonnée en taille.
-          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
+          // GET et HEAD servent la lecture directe en développement, quand la
+          // distribution n'est pas provisionnée.
+          allowedMethods: [
+            s3.HttpMethods.PUT,
+            s3.HttpMethods.POST,
+            s3.HttpMethods.GET,
+            s3.HttpMethods.HEAD,
+          ],
           allowedOrigins: ["*"],
           allowedHeaders: ["*"],
           maxAge: 3000,
@@ -215,6 +222,11 @@ export class DataStack extends Stack {
           // personnelle : ils se mettent en cache. C'est l'URL signée qui
           // porte l'autorisation, pas le contenu.
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+          // Le lecteur charge les segments en XHR : sans en-tête CORS, le
+          // navigateur les refuse alors même que CloudFront les a servis, et
+          // la vidéo reste noire sans message utile. La signature reste la
+          // seule autorisation — ouvrir l'en-tête n'ouvre pas le contenu.
+          responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS,
           trustedKeyGroups: [keyGroup],
         },
         // L'Europe et l'Amérique du Nord suffisent : la classe la plus large

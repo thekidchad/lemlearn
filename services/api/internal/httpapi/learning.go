@@ -311,6 +311,6 @@ func handleLearnerDashboard(deps Deps) http.HandlerFunc {
 			})
 		}
 
-		writeJSON(w, http.StatusOK, map[string]any{"enrollments": entries})
+		writeJSON(w, http.StatusOK, map[string]any{"enrollments": list(entries)})
 	}
 }

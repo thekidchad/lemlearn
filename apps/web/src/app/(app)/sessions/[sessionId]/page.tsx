@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttendanceCell } from "@/components/app/attendance-cell";
 import { CreatePanel } from "@/components/app/form";
 import { CloseSessionButton } from "@/components/app/close-session";
+import { CountersignButton } from "@/components/app/countersign";
 import { enroll } from "@/app/actions/crm";
 import { apiFetch, ApiError, contactName, type Contact } from "@/lib/api";
 
@@ -133,10 +135,7 @@ export default async function AttendancePage({ params }: PageProps<"/sessions/[s
               Contresignée par {data.sheet.trainerName}
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-warn">
-              <span className="size-1.5 rounded-full bg-warn" />
-              En attente de contresignature du formateur
-            </span>
+            <CountersignButton sessionId={sessionId} />
           )}
         </span>
       </header>
@@ -177,7 +176,13 @@ export default async function AttendancePage({ params }: PageProps<"/sessions/[s
                     const entry = byCell.get(`${slot.id}|${enrollment.contactId}`);
                     return (
                       <td key={slot.id} className="border-b border-line/60 px-3 py-2.5">
-                        <Cell entry={entry} />
+                        <AttendanceCell
+                          sessionId={sessionId}
+                          slotId={slot.id}
+                          contactId={enrollment.contactId}
+                          method={entry?.method}
+                          coveragePercent={entry?.coveragePercent}
+                        />
                       </td>
                     );
                   })}
@@ -205,34 +210,6 @@ export default async function AttendancePage({ params }: PageProps<"/sessions/[s
   );
 }
 
-function Cell({ entry }: { entry?: Entry }) {
-  if (!entry) {
-    return <span className="block h-4 w-8 rounded bg-surface-3" title="Créneau non traité" />;
-  }
-
-  const style =
-    entry.method === "absent"
-      ? "bg-bad/20 text-bad"
-      : entry.method === "connection"
-        ? "bg-accent/20 text-accent-ink"
-        : "bg-ok/20 text-ok";
-
-  const label =
-    entry.method === "absent"
-      ? "Absent"
-      : entry.method === "connection"
-        ? `${entry.coveragePercent ?? 0} %`
-        : "Signé";
-
-  return (
-    <span
-      className={`inline-block rounded px-2 py-0.5 text-2xs ${style}`}
-      title={entry.comment || new Date(entry.signedAt).toLocaleString("fr-FR")}
-    >
-      {label}
-    </span>
-  );
-}
 
 function Legend({ color, label }: { color: string; label: string }) {
   return (

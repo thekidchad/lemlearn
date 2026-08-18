@@ -109,7 +109,7 @@ func handleListVideos(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"assets": assets})
+		writeJSON(w, http.StatusOK, map[string]any{"assets": list(assets)})
 	}
 }
 

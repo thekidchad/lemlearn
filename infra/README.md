@@ -118,6 +118,8 @@ Renseignées par la pile de calcul, sauf les deux dernières :
 
 | Variable | Rôle |
 |---|---|
+| `LEMLEARN_APP_URL` | adresse publique du front. Elle compose les liens de signature et de satisfaction envoyés par courriel, et l'origine autorisée en CORS. À poser au déploiement : `LEMLEARN_APP_URL=https://…` devant `cdk deploy`. |
+| `LEMLEARN_SUPERADMINS` | adresses de l'équipe lemlearn, séparées par des virgules. Le rôle s'attribue *et se retire* d'après cette liste à la connexion. |
 | `LEMLEARN_TABLE`, `LEMLEARN_AUDIT_TABLE` | tables DynamoDB |
 | `LEMLEARN_DOCUMENTS_BUCKET`, `LEMLEARN_IDENTITY_BUCKET`, `LEMLEARN_VIDEO_BUCKET` | compartiments |
 | `TYPST_PATH`, `TYPST_FONT_PATH` | binaire et polices montés par le layer |

@@ -31,7 +31,13 @@ new ComputeStack(app, `Lemlearn-Compute-${envName}`, {
   documentsBucket: data.documentsBucket,
   identityBucket: data.identityBucket,
   videoBucket: data.videoBucket,
-  appUrl: isProd ? "https://app.lemlearn.fr" : `https://${envName}.lemlearn.fr`,
+  // L'adresse publique de l'application : elle sert aux liens des courriels
+  // — signature, satisfaction à froid — et à l'origine autorisée en CORS. Une
+  // valeur fausse ici donne des liens qui tombent en 404 chez le signataire,
+  // qui est la dernière personne à qui on peut demander de recommencer.
+  appUrl:
+    process.env.LEMLEARN_APP_URL ??
+    (isProd ? "https://app.lemlearn.fr" : `https://${envName}.lemlearn.fr`),
   // La clé publique et le point d'entrée viennent de l'environnement : la
   // clé privée correspondante n'a rien à faire dans un dépôt, et le point
   // d'entrée MediaConvert est propre à chaque compte.

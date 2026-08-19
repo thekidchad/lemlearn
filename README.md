@@ -39,7 +39,8 @@ pnpm dev          # apps/web sur http://localhost:3000
 pnpm api          # services/api sur http://localhost:8787
 ```
 
-L'application est à `/connexion`. Les pages sont des composants serveur qui
+L'application est à `/inscription` pour créer un organisme, `/connexion`
+ensuite. Les pages sont des composants serveur qui
 appellent l'API en relayant le cookie de session : le jeton ne transite jamais
 par le JavaScript du navigateur, donc une faille XSS ne donne pas accès aux
 dossiers.
@@ -118,6 +119,49 @@ Le manifeste distingue les pièces **archivées** — qui portent leur propre
 signature PAdES — des pièces **générées**, qui n'engagent que la fidélité de
 nos données. Et il énumère ce qui manque, avec le motif : un dossier incomplet
 dont on connaît les trous vaut mieux qu'un dossier qui prétend être complet.
+
+## Les écrans
+
+| Écran | Ce qu'on y fait |
+|---|---|
+| `/` | page d'accueil : le produit est un CRM avant d'être un système de preuve |
+| `/inscription`, `/connexion` | ouvrir un organisme, s'y connecter |
+| `/pipeline` | les dossiers par étape, création, complétude du dossier de preuve |
+| `/dossiers/{id}` | journal horodaté, documents, envoi à signer, export de l'archive |
+| `/contacts` | apprenants, entreprises clientes, financeurs |
+| `/catalogue`, `/catalogue/{id}` | formations, mentions Qualiopi, modules, dépôt vidéo |
+| `/sessions`, `/sessions/{id}` | agenda, inscriptions, émargement, contresignature, clôture |
+| `/questionnaires`, `/questionnaires/{id}` | éditeur versionné, résultats par question et par apprenant |
+| `/apprenant/...` | lecteur vidéo, couverture réelle, contrôle après module |
+| `/abonnement` | formule en cours, consommation, changement de palier |
+| `/admin` | vue de l'équipe lemlearn : organisations, revenu, dépassements, impersonation |
+| `/signer/{jeton}` | parcours public de signature — document, code, mention, tracé |
+| `/satisfaction/{jeton}` | questionnaire à froid, sans compte ni mot de passe |
+
+## Abonnements
+
+Quatre paliers ([`billing/plans.go`](services/api/internal/billing/plans.go)),
+des quotas qui **s'affichent sans rien couper** : suspendre un organisme en
+pleine session ferait plus de dégâts qu'un mois facturé au palier au-dessus.
+Une résiliation ramène à l'essai sans rien retirer — les documents scellés
+restent sous Object Lock et l'export reste disponible.
+
+Stripe est optionnel et branché sans sa bibliothèque : deux appels REST et une
+vérification HMAC ne justifient pas cette dépendance. La fenêtre de tolérance
+sur l'horodatage du webhook est ce qui empêche un appel capté une fois d'être
+rejoué pour faire redescendre une organisation de formule.
+
+Le rôle `superadmin` s'attribue d'après `LEMLEARN_SUPERADMINS`, posée au
+déploiement, et se retire de la même façon : il n'est pas modifiable depuis
+l'application, sans quoi un accès inter-organisations se donnerait tout seul.
+
+## Satisfaction à froid
+
+Clore une session programme la relance à trois mois pour chaque inscrit. Une
+règle EventBridge quotidienne relit les échéances du jour **et du mois
+précédent** : une panne décale la relance, elle ne la perd pas. Le lien porte
+un jeton tiré à l'envoi — trois mois après, exiger un mot de passe oublié
+ferait tomber le taux de retour, qui est justement l'indicateur audité.
 
 ## Tests
 

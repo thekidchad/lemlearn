@@ -115,7 +115,15 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/", handleListContacts(deps))
 					r.Post("/", handleCreateContact(deps))
 					r.Get("/{contactID}", handleGetContact(deps))
+					r.Patch("/{contactID}", handleUpdateContact(deps))
 					r.Post("/{contactID}/anonymize", handleAnonymize(deps))
+
+					// Pièce d'identité : elle ne transite jamais par l'API,
+					// et son lien de lecture vit une minute.
+					r.Post("/{contactID}/piece-identite", handlePrepareIdentityDoc(deps))
+					r.Put("/{contactID}/piece-identite", handleAttachIdentityDoc(deps))
+					r.Get("/{contactID}/piece-identite", handleIdentityDocURL(deps))
+					r.Delete("/{contactID}/piece-identite", handleDeleteIdentityDoc(deps))
 				})
 
 				r.Route("/courses", func(r chi.Router) {

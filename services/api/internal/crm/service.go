@@ -12,8 +12,9 @@ import (
 
 // Service porte les cas d'usage du CRM.
 type Service struct {
-	db  *ddb.Client
-	now func() time.Time
+	db   *ddb.Client
+	docs DocStore
+	now  func() time.Time
 }
 
 // NewService construit le service.

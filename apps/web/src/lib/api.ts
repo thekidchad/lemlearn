@@ -185,7 +185,13 @@ export interface Contact {
   email?: string;
   phone?: string;
   birthDate?: string;
-  address?: { line1?: string; postalCode?: string; city?: string };
+  birthPlace?: string;
+  siret?: string;
+  position?: string;
+  notes?: string;
+  anonymized?: boolean;
+  identityDocKey?: string;
+  address?: { line1?: string; postalCode?: string; city?: string; country?: string };
 }
 
 /** Libellé d'un contact : raison sociale pour une entreprise, nom sinon. */

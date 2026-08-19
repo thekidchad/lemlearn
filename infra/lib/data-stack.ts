@@ -22,6 +22,12 @@ export interface DataStackProps extends StackProps {
    * diffuser, et le reste du produit ne doit pas en dépendre.
    */
   readonly cloudFrontPublicKey?: string;
+  /**
+   * Origines autorisées à déposer un fichier depuis un navigateur. Les pièces
+   * d'identité montent en direct : sans règle CORS, le navigateur refuse la
+   * requête avant même que S3 ne la voie.
+   */
+  readonly appOrigins: string[];
 }
 
 /**
@@ -135,6 +141,18 @@ export class DataStack extends Stack {
       bucketKeyEnabled: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
+      cors: [
+        {
+          // Dépôt direct depuis le navigateur, par URL présignée. Les origines
+          // sont nommées plutôt qu'ouvertes : la signature reste
+          // l'autorisation, mais un compartiment qui contient des cartes
+          // d'identité n'a pas à répondre à n'importe quelle page.
+          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET, s3.HttpMethods.HEAD],
+          allowedOrigins: props.appOrigins,
+          allowedHeaders: ["*"],
+          maxAge: 3000,
+        },
+      ],
       lifecycleRules: [
         {
           // Recommandation CNIL : une pièce d'identité ne se conserve que le

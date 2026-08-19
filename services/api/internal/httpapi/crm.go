@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -244,4 +245,173 @@ func respondNotFound(w http.ResponseWriter, err error, message string) {
 		return
 	}
 	writeError(w, http.StatusInternalServerError, "erreur interne")
+}
+
+// handleUpdateContact modifie une fiche.
+//
+// Les champs absents ne sont pas touchés : un PATCH qui remettrait à zéro ce
+// qu'il ne mentionne pas effacerait une date de naissance au premier
+// changement de numéro de téléphone.
+func handleUpdateContact(deps Deps) http.HandlerFunc {
+	type request struct {
+		FirstName   *string      `json:"firstName"`
+		LastName    *string      `json:"lastName"`
+		BirthDate   *string      `json:"birthDate"`
+		BirthPlace  *string      `json:"birthPlace"`
+		CompanyName *string      `json:"companyName"`
+		SIRET       *string      `json:"siret"`
+		LegalForm   *string      `json:"legalForm"`
+		Email       *string      `json:"email"`
+		Phone       *string      `json:"phone"`
+		Position    *string      `json:"position"`
+		Notes       *string      `json:"notes"`
+		Address     *crm.Address `json:"address"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+
+		var body request
+		if !decodeJSON(w, r, &body) {
+			return
+		}
+
+		contact, err := deps.CRM.GetContact(r.Context(), session.OrgID, chi.URLParam(r, "contactID"))
+		if err != nil {
+			respondNotFound(w, err, "contact introuvable")
+			return
+		}
+		if contact.Anonymized {
+			// Réécrire une fiche anonymisée ferait réapparaître des données
+			// qu'une personne a demandé d'effacer.
+			writeError(w, http.StatusConflict, "cette fiche a été anonymisée : elle ne se modifie plus")
+			return
+		}
+
+		set := func(target *string, value *string) {
+			if value != nil {
+				*target = strings.TrimSpace(*value)
+			}
+		}
+		set(&contact.FirstName, body.FirstName)
+		set(&contact.LastName, body.LastName)
+		set(&contact.BirthDate, body.BirthDate)
+		set(&contact.BirthPlace, body.BirthPlace)
+		set(&contact.CompanyName, body.CompanyName)
+		set(&contact.SIRET, body.SIRET)
+		set(&contact.LegalForm, body.LegalForm)
+		set(&contact.Email, body.Email)
+		set(&contact.Phone, body.Phone)
+		set(&contact.Position, body.Position)
+		set(&contact.Notes, body.Notes)
+		if body.Address != nil {
+			contact.Address = *body.Address
+		}
+
+		updated, err := deps.CRM.UpdateContact(r.Context(), contact)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, updated)
+	}
+}
+
+// handlePrepareIdentityDoc renvoie l'URL de dépôt d'une pièce d'identité.
+func handlePrepareIdentityDoc(deps Deps) http.HandlerFunc {
+	type request struct {
+		Filename    string `json:"filename"`
+		ContentType string `json:"contentType"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+
+		var body request
+		if !decodeJSON(w, r, &body) {
+			return
+		}
+
+		url, key, err := deps.CRM.PrepareIdentityDoc(r.Context(), session.OrgID,
+			chi.URLParam(r, "contactID"), body.Filename, body.ContentType)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"uploadUrl": url, "key": key,
+			"expiresInSeconds": int(crm.IdentityUploadTTL.Seconds()),
+		})
+	}
+}
+
+// handleAttachIdentityDoc enregistre la pièce déposée.
+func handleAttachIdentityDoc(deps Deps) http.HandlerFunc {
+	type request struct {
+		Key string `json:"key"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		user, err := deps.Identity.LoadUser(r.Context(), session)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "session invalide")
+			return
+		}
+
+		var body request
+		if !decodeJSON(w, r, &body) {
+			return
+		}
+
+		contact, err := deps.CRM.AttachIdentityDoc(r.Context(), session.OrgID,
+			chi.URLParam(r, "contactID"), body.Key, actorFrom(r, user.FullName()))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, contact)
+	}
+}
+
+// handleIdentityDocURL délivre un lien de consultation d'une minute.
+func handleIdentityDocURL(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		user, err := deps.Identity.LoadUser(r.Context(), session)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "session invalide")
+			return
+		}
+
+		url, err := deps.CRM.IdentityDocURL(r.Context(), session.OrgID,
+			chi.URLParam(r, "contactID"), actorFrom(r, user.FullName()))
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"url": url, "expiresInSeconds": int(crm.IdentityDocTTL.Seconds()),
+		})
+	}
+}
+
+// handleDeleteIdentityDoc efface la pièce avant l'échéance automatique.
+func handleDeleteIdentityDoc(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		user, err := deps.Identity.LoadUser(r.Context(), session)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "session invalide")
+			return
+		}
+
+		contact, err := deps.CRM.DeleteIdentityDoc(r.Context(), session.OrgID,
+			chi.URLParam(r, "contactID"), actorFrom(r, user.FullName()))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, contact)
+	}
 }

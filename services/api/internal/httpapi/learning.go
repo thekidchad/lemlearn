@@ -307,7 +307,10 @@ func handleLearnerDashboard(deps Deps) http.HandlerFunc {
 			}
 			entries = append(entries, entry{
 				Enrollment: enrollment, Session: trainingSession, Course: course,
-				Modules: modules, Percent: enrollment.CompletionPercent(modules),
+				// Une formation sans module existe — elle vient d'être créée —
+				// et son parcours doit s'afficher vide plutôt que de faire
+				// tomber l'écran de l'apprenant.
+				Modules: list(modules), Percent: enrollment.CompletionPercent(modules),
 			})
 		}
 

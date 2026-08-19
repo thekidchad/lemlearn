@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError, contactName, type Contact } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Mon parcours" };
 
@@ -22,10 +22,10 @@ interface Progress {
 }
 
 interface Entry {
-  enrollment: { sessionId: string; progress?: Progress[]; finalPassed: boolean };
+  enrollment: { sessionId: string; progress?: Progress[] | null; finalPassed: boolean };
   session: { id: string; title: string; startsAt: string; endsAt: string };
   course: { id: string; title: string; durationHours: number };
-  modules: Module[];
+  modules: Module[] | null;
   percent: number;
 }
 
@@ -33,10 +33,23 @@ export default async function LearnerPage({ searchParams }: PageProps<"/apprenan
   const params = await searchParams;
   const contactId = typeof params.contactId === "string" ? params.contactId : undefined;
 
-  const { enrollments } = await apiFetch<{ enrollments: Entry[] | null }>(
-    `/v1/learn${contactId ? `?contactId=${encodeURIComponent(contactId)}` : ""}`,
-  );
-  const rows = enrollments ?? [];
+  // Un administrateur n'a pas de fiche apprenant : l'API le dit, et sans ce
+  // rattrapage l'écran affichait une erreur au lieu de proposer de choisir un
+  // apprenant. C'est la même page, vue depuis l'autre côté du bureau.
+  let rows: Entry[];
+  try {
+    const { enrollments } = await apiFetch<{ enrollments: Entry[] | null }>(
+      `/v1/learn${contactId ? `?contactId=${encodeURIComponent(contactId)}` : ""}`,
+    );
+    rows = enrollments ?? [];
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 403) throw error;
+
+    const { contacts } = await apiFetch<{ contacts: Contact[] | null }>(
+      "/v1/contacts?kind=learner",
+    ).catch(() => ({ contacts: null }));
+    return <LearnerPicker learners={contacts ?? []} />;
+  }
 
   return (
     <>
@@ -76,7 +89,7 @@ export default async function LearnerPage({ searchParams }: PageProps<"/apprenan
               </div>
 
               <ol className="mt-5 divide-y divide-line border-t border-line">
-                {entry.modules.map((module) => {
+                {(entry.modules ?? []).map((module) => {
                   const progress = entry.enrollment.progress?.find(
                     (p) => p.moduleId === module.id,
                   );
@@ -172,4 +185,54 @@ function formatDuration(ms: number): string {
   if (!ms) return "—";
   const minutes = Math.round(ms / 60000);
   return `${minutes} min`;
+}
+
+/**
+ * Choix de l'apprenant, pour un compte qui n'en est pas un.
+ *
+ * L'espace apprenant se consulte alors « à la place de » : c'est ce que fait
+ * une assistante de formation au téléphone quand un stagiaire demande où il en
+ * est.
+ */
+function LearnerPicker({ learners }: { learners: Contact[] }) {
+  return (
+    <>
+      <header className="flex h-14 items-center border-b border-line px-6">
+        <h1 className="text-sm font-medium">Espace apprenant</h1>
+      </header>
+
+      <div className="mx-auto max-w-2xl px-6 py-6">
+        <p className="text-xs text-ink-2">
+          Votre compte n&apos;est pas rattaché à une fiche apprenant : il gère
+          l&apos;organisme. Choisissez un apprenant pour voir son parcours tel
+          qu&apos;il le voit — assiduité réelle, questionnaires, attestation.
+        </p>
+
+        {learners.length === 0 ? (
+          <p className="mt-6 text-xs text-ink-3">
+            Aucun apprenant enregistré. Ils se créent dans{" "}
+            <Link href="/contacts?kind=learner" className="underline hover:text-ink">
+              Contacts
+            </Link>
+            .
+          </p>
+        ) : (
+          <div className="mt-5 space-y-px overflow-hidden rounded-xl border border-line bg-line">
+            {learners.map((learner) => (
+              <Link
+                key={learner.id}
+                href={`/apprenant?contactId=${learner.id}`}
+                className="flex items-center justify-between bg-surface-1 px-4 py-3 text-sm hover:bg-surface-2"
+              >
+                <span className="truncate">{contactName(learner)}</span>
+                <span className="truncate font-mono text-2xs text-ink-3">
+                  {learner.email ?? ""}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
 }

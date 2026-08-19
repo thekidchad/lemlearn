@@ -128,6 +128,20 @@ func (s *S3) PresignedPut(ctx context.Context, key, contentType string, ttl time
 	return request.URL, nil
 }
 
+// Delete retire un objet.
+//
+// Réservé aux compartiments sans Object Lock : sur les documents scellés,
+// c'est la politique de rétention qui refuse, et elle a raison.
+func (s *S3) Delete(ctx context.Context, key string) error {
+	if _, err := s.api.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	}); err != nil {
+		return fmt.Errorf("blob: suppression de %s: %w", key, err)
+	}
+	return nil
+}
+
 // Size renvoie la taille d'un objet, sans le télécharger.
 //
 // Sert à constater le volume déposé par une organisation : lire le fichier

@@ -80,6 +80,19 @@ func main() {
 	} else {
 		deps.Identity = identity.NewService(db, nil)
 		deps.CRM = crm.NewService(db, nil)
+
+		// Le compartiment des pièces d'identité est chiffré par une clé KMS
+		// dédiée et purgé au bout de quatre-vingt-dix jours. Sans lui, la
+		// fiche accepte tout le reste et refuse la pièce avec un motif :
+		// mieux vaut un dossier incomplet qu'une carte d'identité rangée dans
+		// un compartiment ordinaire.
+		if cfg.IdentityBucket != "" {
+			if bucket, err := blob.NewS3(context.Background(), cfg.IdentityBucket); err != nil {
+				log.Warn("dépôt des pièces d'identité indisponible", "err", err)
+			} else {
+				deps.CRM = deps.CRM.WithDocs(bucket)
+			}
+		}
 		deps.Catalog = catalog.NewService(db, nil)
 		deps.Learning = learning.NewService(db, deps.Catalog, nil)
 		deps.Attendance = attendance.NewService(db, deps.Catalog, nil)

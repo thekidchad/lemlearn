@@ -227,3 +227,56 @@ export async function countersign(_: FormState, form: FormData): Promise<FormSta
     `/sessions/${sessionId}`,
   );
 }
+
+/** Mise à jour d'une fiche contact. */
+export async function updateContact(_: FormState, form: FormData): Promise<FormState> {
+  const contactId = text(form, "contactId");
+  try {
+    await apiFetch(`/v1/contacts/${contactId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        firstName: text(form, "firstName"),
+        lastName: text(form, "lastName"),
+        birthDate: text(form, "birthDate"),
+        birthPlace: text(form, "birthPlace"),
+        companyName: text(form, "companyName"),
+        siret: text(form, "siret"),
+        email: text(form, "email"),
+        phone: text(form, "phone"),
+        position: text(form, "position"),
+        notes: text(form, "notes"),
+        address: {
+          line1: text(form, "line1"),
+          postalCode: text(form, "postalCode"),
+          city: text(form, "city"),
+          country: text(form, "country") || "France",
+        },
+      }),
+    });
+    revalidatePath(`/contacts/${contactId}`);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof ApiError) return { error: error.message };
+    return { error: "erreur interne" };
+  }
+}
+
+/**
+ * Anonymisation d'un apprenant au titre du RGPD.
+ *
+ * Les pièces probatoires survivent sous pseudonyme : les effacer priverait
+ * l'organisme de la preuve d'une formation qu'il a réellement dispensée, et
+ * qu'il doit pouvoir justifier pendant dix ans.
+ */
+export async function anonymizeContact(_: FormState, form: FormData): Promise<FormState> {
+  const contactId = text(form, "contactId");
+  const reason = text(form, "reason");
+  if (!reason) {
+    return { error: "Le motif est obligatoire : il figure au journal d'audit." };
+  }
+  return submit(
+    `/v1/contacts/${contactId}/anonymize`,
+    { reason },
+    `/contacts/${contactId}`,
+  );
+}

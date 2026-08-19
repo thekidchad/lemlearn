@@ -107,7 +107,14 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                 key={contact.id}
                 className="border-b border-line/60 text-sm transition-colors duration-[120ms] hover:bg-surface-1"
               >
-                <td className="px-6 py-2.5">{displayName(contact)}</td>
+                <td className="px-6 py-2.5">
+                  <Link
+                    href={`/contacts/${contact.id}`}
+                    className="hover:text-accent-ink hover:underline"
+                  >
+                    {displayName(contact)}
+                  </Link>
+                </td>
                 <td className="px-6 py-2.5 text-xs text-ink-2">
                   {contact.email ?? "—"}
                   {contact.phone ? ` · ${contact.phone}` : ""}

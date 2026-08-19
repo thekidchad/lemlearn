@@ -24,12 +24,20 @@ func ComputeProof(events []audit.Event, learner Contact) ProofStatus {
 	// l'indicateur.
 	kindByReference := map[string]string{}
 	signedKinds := map[string]bool{}
+	// Les questionnaires portent leur usage dans l'événement de soumission :
+	// c'est ce qui distingue un positionnement d'une satisfaction à froid, et
+	// deux des treize pièces attendues ne sont rien d'autre que cela.
+	quizKinds := map[string]bool{}
 
 	for _, event := range events {
 		seen[event.Action] = true
 
 		reference, _ := event.Payload["reference"].(string)
 		switch event.Action {
+		case audit.ActionQuizSubmitted:
+			if kind, ok := event.Payload["kind"].(string); ok {
+				quizKinds[kind] = true
+			}
 		case audit.ActionDocumentSent:
 			if kind, ok := event.Payload["kind"].(string); ok && reference != "" {
 				kindByReference[reference] = kind
@@ -51,13 +59,13 @@ func ComputeProof(events []audit.Event, learner Contact) ProofStatus {
 		{"Devis", signedKinds["quote"]},
 		{"Convention signée", signedKinds["convention"]},
 		{"Programme de formation", seen[audit.ActionDocumentGenerated]},
-		{"Évaluation de positionnement", seen[audit.ActionQuizSubmitted]},
+		{"Évaluation de positionnement", quizKinds["positioning"]},
 		{"Relevés de connexion", seen[audit.ActionWatchProgress] || seen[audit.ActionModuleCompleted]},
-		{"Questionnaires post-module", seen[audit.ActionQuizSubmitted]},
-		{"Évaluation finale", seen[audit.ActionModuleCompleted]},
+		{"Questionnaires post-module", quizKinds["post_module"]},
+		{"Évaluation finale", quizKinds["final"]},
 		{"Feuilles d'émargement", seen[audit.ActionAttendanceSigned]},
-		{"Satisfaction à chaud", false},
-		{"Satisfaction à froid", false},
+		{"Satisfaction à chaud", quizKinds["satisfaction_hot"]},
+		{"Satisfaction à froid", quizKinds["satisfaction_cold"]},
 		{"Attestation de fin de formation", seen[audit.ActionCertificateIssued]},
 	}
 

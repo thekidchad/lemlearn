@@ -66,7 +66,21 @@ AWS_PROFILE=learnaly AWS_REGION=eu-west-3 \
 ```
 
 La clé privée correspondante se pose ensuite en variable `LEMLEARN_CDN_KEY` sur
-la fonction. Sans les trois valeurs, l'hébergement vidéo reste actif pour le
+la fonction. **Rangez-la ailleurs que dans un dossier temporaire** : elle n'est
+pas régénérable — une nouvelle paire invalide les liens en cours et demande de
+remplacer la clé publique dans la distribution. En dépannage, elle se relit sur
+la fonction déployée, et la clé publique s'en dérive :
+
+```bash
+AWS_PROFILE=learnaly AWS_REGION=eu-west-3 aws lambda get-function-configuration \
+  --function-name lemlearn-api-dev \
+  --query 'Environment.Variables.LEMLEARN_CDN_KEY' --output text > cloudfront.pem
+openssl rsa -pubout -in cloudfront.pem -out cloudfront.pub
+```
+
+Déployer la pile de calcul **sans** ces variables retire la diffusion vidéo de
+la fonction : les vidéos cessent d'être lisibles sans qu'aucune erreur ne le
+signale au déploiement. Sans les trois valeurs, l'hébergement vidéo reste actif pour le
 dépôt et le transcodage, et les routes de lecture répondent 409 avec un motif —
 un organisme qui ne fait que du présentiel n'a pas de vidéo à diffuser, et le
 reste du produit ne doit pas en dépendre.

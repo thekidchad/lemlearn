@@ -10,6 +10,7 @@ const nav = [
   { href: "/catalogue", label: "Catalogue" },
   { href: "/sessions", label: "Sessions" },
   { href: "/questionnaires", label: "Questionnaires" },
+  { href: "/qualiopi", label: "Conformité" },
   { href: "/apprenant", label: "Espace apprenant" },
   { href: "/abonnement", label: "Abonnement" },
 ];

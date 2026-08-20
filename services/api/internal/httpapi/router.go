@@ -84,6 +84,10 @@ func NewRouter(deps Deps) http.Handler {
 			r.Use(requireAuth(deps))
 
 			r.Get("/me", handleMe(deps))
+			// L'état de conformité de l'organisation : ce que regarde un
+			// dirigeant avant un audit, et la seule vue qui agrège les
+			// dossiers plutôt que de les lister.
+			r.Get("/qualiopi", handleQualiopiDashboard(deps))
 			// Souscrire est un acte du dirigeant, pas du support : ces routes
 			// vivent dans l'espace client, pas dans la vue de l'équipe.
 			r.Get("/abonnement", handleSubscription(deps))

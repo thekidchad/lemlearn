@@ -27,6 +27,7 @@ import (
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/learning"
 	"github.com/lemlearn/api/internal/platform/doc"
+	"github.com/lemlearn/api/internal/platform/mail"
 	"github.com/lemlearn/api/internal/signature"
 	"github.com/lemlearn/api/internal/video"
 )
@@ -47,8 +48,12 @@ type Deps struct {
 	Video      *video.Service
 	FollowUp   *followup.Service
 	Billing    *billing.Service
-	Stripe     *billing.Stripe
-	Clock      func() time.Time
+	// Mailer sert les courriels qui n'appartiennent à aucun domaine : ceux de
+	// la signature partent du service de signature, ceux de la relance à
+	// froid du sien.
+	Mailer mail.Sender
+	Stripe *billing.Stripe
+	Clock  func() time.Time
 }
 
 // Now renvoie l'heure courante, injectable pour les tests.
@@ -103,6 +108,7 @@ func NewRouter(deps Deps) http.Handler {
 			r.Route("/learn", func(r chi.Router) {
 				r.Get("/", handleLearnerDashboard(deps))
 				r.Route("/{sessionID}/courses/{courseID}", func(r chi.Router) {
+					r.Get("/", handleLearnerCourse(deps))
 					r.Get("/modules/{moduleID}/progress", handleModuleProgress(deps))
 					r.Post("/modules/{moduleID}/beat", handleHeartbeat(deps))
 					r.Post("/modules/{moduleID}/playback", handlePlayback(deps))
@@ -121,6 +127,9 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/{contactID}", handleGetContact(deps))
 					r.Patch("/{contactID}", handleUpdateContact(deps))
 					r.Post("/{contactID}/anonymize", handleAnonymize(deps))
+					// L'apprenant ne s'inscrit pas lui-même : c'est
+					// l'organisme qui lui ouvre un accès.
+					r.Post("/{contactID}/invitation", handleInviteLearner(deps))
 
 					// Pièce d'identité : elle ne transite jamais par l'API,
 					// et son lien de lecture vit une minute.
@@ -199,6 +208,13 @@ func NewRouter(deps Deps) http.Handler {
 			r.Post("/otp", handleSignOTP(deps))
 			r.Post("/confirm", handleSignConfirm(deps))
 			r.Get("/sealed", handleSignSealed(deps))
+		})
+
+		// Invitation d'un apprenant : il n'a pas encore de compte, sa
+		// légitimité vient du jeton reçu par courriel.
+		r.Route("/invitation/{token}", func(r chi.Router) {
+			r.Get("/", handleInvitationOpen(deps))
+			r.Post("/", handleInvitationAccept(deps))
 		})
 
 		// Satisfaction à froid : même principe que la signature — la personne

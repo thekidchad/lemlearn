@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContactForm } from "@/components/app/contact-form";
 import { IdentityDoc } from "@/components/app/identity-doc";
+import { LearnerAccess } from "@/components/app/learner-access";
 import { apiFetch, ApiError, contactName, type Contact, type FileRecord } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Fiche contact" };
@@ -59,7 +60,10 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[cont
         <ContactForm contact={contact} />
 
         {contact.kind === "learner" && !contact.anonymized && (
-          <IdentityDoc contactId={contactId} present={Boolean(contact.identityDocKey)} />
+          <>
+            <LearnerAccess contactId={contactId} email={contact.email} />
+            <IdentityDoc contactId={contactId} present={Boolean(contact.identityDocKey)} />
+          </>
         )}
 
         <section className="surface-card p-5">

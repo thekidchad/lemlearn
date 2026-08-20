@@ -23,10 +23,22 @@ const data = new DataStack(app, `Lemlearn-Data-${envName}`, {
   env,
   envName,
   retain: isProd,
-  // L'application déployée, et le poste du développeur hors production : les
-  // pièces d'identité se déposent depuis le navigateur, et une origine
-  // oubliée donne un bouton qui tourne sans jamais aboutir.
-  appOrigins: isProd ? [appUrl] : [appUrl, "http://localhost:3000"],
+  // Les pièces d'identité se déposent depuis le navigateur : une origine
+  // oubliée donne un bouton qui tourne sans jamais aboutir, et le message
+  // d'erreur du navigateur ne nomme que S3, pas la règle qui manque.
+  // LEMLEARN_APP_ORIGINS permet d'en ajouter sans toucher au code.
+  appOrigins: [
+    ...new Set([
+      appUrl,
+      ...(process.env.LEMLEARN_APP_ORIGINS ?? "")
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+      // Hors production : le poste du développeur — Next bascule sur 3001 si
+      // 3000 est pris — et les déploiements de prévisualisation.
+      ...(isProd ? [] : ["http://localhost:3000", "http://localhost:3001", "https://*.vercel.app"]),
+    ]),
+  ],
   cloudFrontPublicKey: process.env.LEMLEARN_CDN_PUBLIC_KEY,
   description: "lemlearn — tables DynamoDB et compartiments S3",
 });

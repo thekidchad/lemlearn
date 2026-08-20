@@ -191,3 +191,27 @@ func (s *Service) auditOnFiles(ctx context.Context, orgID, contactID string,
 			})
 	}
 }
+
+// RecordAccess journalise l'ouverture d'un accès à l'espace apprenant.
+//
+// Depuis quand un apprenant pouvait se connecter éclaire une contestation
+// d'assiduité : « il n'a jamais reçu ses accès » se vérifie.
+func (s *Service) RecordAccess(ctx context.Context, orgID, contactID string,
+	actor audit.Actor, payload map[string]any) (int, error) {
+	files, err := s.filesOfLearner(ctx, orgID, contactID)
+	if err != nil {
+		return 0, err
+	}
+
+	now := s.now()
+	for _, fileID := range files {
+		subject := FileSubject(fileID)
+		if _, err := s.db.WriteWithAudit(ctx, subject, nil,
+			func(prev audit.Event) (audit.Event, error) {
+				return audit.Append(prev, subject, now, audit.ActionConsentGiven, actor, payload)
+			}); err != nil {
+			return 0, err
+		}
+	}
+	return len(files), nil
+}

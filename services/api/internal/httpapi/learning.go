@@ -48,6 +48,49 @@ func learnerTarget(deps Deps, r *http.Request) (learning.Target, identity.User, 
 	}, user, nil
 }
 
+// handleLearnerCourse sert la formation et ses modules à un inscrit.
+//
+// L'espace apprenant ne peut pas passer par la route du catalogue : elle est
+// réservée à l'équipe de l'organisme, et un apprenant y recevrait un 403 sur
+// l'écran même de son module. Ce qu'il obtient ici est borné à la session où
+// il est inscrit.
+func handleLearnerCourse(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		if deps.Catalog == nil {
+			writeError(w, http.StatusServiceUnavailable, "catalogue indisponible")
+			return
+		}
+
+		target, _, err := learnerTarget(deps, r)
+		if err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		if _, err := deps.Catalog.GetEnrollment(r.Context(), session.OrgID,
+			target.SessionID, target.ContactID); err != nil {
+			writeError(w, http.StatusForbidden, "aucune inscription à cette session")
+			return
+		}
+
+		course, err := deps.Catalog.GetCourse(r.Context(), session.OrgID, target.CourseID)
+		if err != nil {
+			respondNotFound(w, err, "formation introuvable")
+			return
+		}
+		modules, err := deps.Catalog.ListModules(r.Context(), session.OrgID, course.ID)
+		if err != nil {
+			deps.Log.Error("modules", "err", err)
+			writeError(w, http.StatusInternalServerError, "erreur interne")
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"course": course, "modules": list(modules),
+		})
+	}
+}
+
 // handleHeartbeat intègre un signal du lecteur vidéo.
 //
 // Appelée toutes les cinq secondes pendant la lecture : c'est la route la plus

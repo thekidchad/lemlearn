@@ -4,6 +4,7 @@ import { Logo } from "@/components/brand/logo";
 import { SignOutButton } from "@/components/app/sign-out";
 import { apiFetch, ApiError, type Me } from "@/lib/api";
 
+/** Ce que voit l'équipe de l'organisme. */
 const nav = [
   { href: "/pipeline", label: "Pipeline", hint: "G puis P" },
   { href: "/contacts", label: "Contacts", hint: "G puis C" },
@@ -43,12 +44,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
 
         <nav className="flex flex-col gap-0.5 px-2">
-          {/* La vue de l'équipe lemlearn n'apparaît que pour l'équipe : un
-              lien mort vers un écran interdit n'apprend rien d'utile au
-              client, sinon qu'il existe. */}
-          {(me.user.role === "superadmin"
-            ? [...nav, { href: "/admin", label: "Organisations", hint: undefined }]
-            : nav
+          {/* Un apprenant ne voit que son parcours : les autres écrans lui
+              répondraient 403, et un lien mort vers un écran interdit
+              n'apprend rien d'utile — sinon qu'il existe. Même raison pour la
+              vue de l'équipe lemlearn, réservée à l'équipe. */}
+          {(me.user.role === "learner"
+            ? [{ href: "/apprenant", label: "Mon parcours", hint: undefined }]
+            : me.user.role === "superadmin"
+              ? [...nav, { href: "/admin", label: "Organisations", hint: undefined }]
+              : nav
           ).map((item) => (
             <Link
               key={item.href}

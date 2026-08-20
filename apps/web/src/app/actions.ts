@@ -42,6 +42,11 @@ export async function signIn(_: { error?: string } | undefined, form: FormData) 
 
   // Le cookie arrive dans Set-Cookie ; on le recopie sur notre domaine avec
   // les mêmes garanties : httpOnly, SameSite, et Secure hors développement.
+  const body = (await response.json().catch(() => ({}))) as {
+    user?: { role?: string };
+  };
+  const role = body.user?.role;
+
   const raw = response.headers.get("set-cookie");
   // Le nom vient de l'API, qui le choisit selon son propre environnement.
   const token = raw?.match(new RegExp(`(?:^|[;, ])${API_COOKIE}=([^;]+)`))?.[1];
@@ -58,7 +63,9 @@ export async function signIn(_: { error?: string } | undefined, form: FormData) 
     maxAge: 12 * 60 * 60,
   });
 
-  redirect("/pipeline");
+  // Un apprenant n'a rien à faire sur le pipeline : il y recevrait un 403.
+  // Le rôle décide de la porte d'entrée.
+  redirect(role === "learner" ? "/apprenant" : "/pipeline");
 }
 
 /**

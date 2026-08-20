@@ -116,6 +116,7 @@ func main() {
 		// La satisfaction à froid ne dépend ni du compilateur ni du
 		// scellement : elle poste un lien de questionnaire, trois mois après.
 		deps.FollowUp = followup.NewService(db, mailer, cfg.AppURL, nil)
+		deps.Mailer = mailer
 
 		// La vue super-admin non plus : elle doit rester consultable
 		// précisément quand une brique manque, puisque c'est ce qu'on

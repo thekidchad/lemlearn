@@ -37,7 +37,12 @@ export default async function ModulePage({
 
   let course: { course: { id: string; title: string }; modules: Module[] };
   try {
-    course = await apiFetch(`/v1/courses/${courseId}`);
+    // La route de l'espace apprenant, pas celle du catalogue : cette
+    // dernière est réservée à l'équipe de l'organisme, et l'apprenant y
+    // recevrait un 403 sur l'écran même de son module.
+    course = await apiFetch(
+      `/v1/learn/${sessionId}/courses/${courseId}${suffix}`,
+    );
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound();
     throw error;

@@ -225,3 +225,37 @@ func StringValues(values map[string]string) map[string]types.AttributeValue {
 	}
 	return out
 }
+
+// Write écrit plusieurs articles en une transaction, sans journal.
+//
+// Réservé à ce qui n'appartient à aucune chaîne de preuve : l'ouverture d'un
+// compte, la réservation d'une adresse. Tout ce qui touche un dossier passe
+// par WriteWithAudit — un fait probatoire écrit sans son événement serait
+// invisible à l'audit.
+func (c *Client) Write(ctx context.Context, writes []Write) error {
+	if len(writes) == 0 {
+		return nil
+	}
+
+	items := make([]types.TransactWriteItem, 0, len(writes))
+	for _, write := range writes {
+		av, err := attributevalue.MarshalMap(write.Item)
+		if err != nil {
+			return fmt.Errorf("ddb: encodage: %w", err)
+		}
+		put := &types.Put{TableName: aws.String(c.table), Item: av}
+		if write.Condition != "" {
+			put.ConditionExpression = aws.String(write.Condition)
+			put.ExpressionAttributeValues = write.Values
+			put.ExpressionAttributeNames = write.Names
+		}
+		items = append(items, types.TransactWriteItem{Put: put})
+	}
+
+	if _, err := c.api.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
+		TransactItems: items,
+	}); err != nil {
+		return wrapErr(err)
+	}
+	return nil
+}

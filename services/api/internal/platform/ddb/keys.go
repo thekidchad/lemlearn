@@ -95,6 +95,13 @@ func SurveyTokenPK(tokenHash string) string { return prefixToken + tokenHash }
 // ne collisionne jamais avec l'autre.
 const SurveyTokenSK = "SURVEY"
 
+// InvitationPK indexe une invitation par l'empreinte de son jeton.
+func InvitationPK(tokenHash string) string { return prefixToken + tokenHash }
+
+// InvitationSK distingue le pointeur d'une invitation de ceux d'une signature
+// ou d'une relance, qui vivent sous la même partition.
+const InvitationSK = "INVITE"
+
 // --- Index secondaires ----------------------------------------------------
 
 // GSI1 sert les listes : contacts d'une organisation par type, dossiers par

@@ -15,6 +15,7 @@ Deux comptes, pour deux points de vue :
 |---|---|---|
 | `marie@vulcain.fr` | `correcte-agrafe-cheval-pile` | Organisme **Institut Vulcain**, avec de la matière : une convention scellée, une vidéo, des questionnaires. Aussi `superadmin`, donc la vue équipe. |
 | celui que vous créerez | le vôtre | Un organisme **vide**, pour éprouver le parcours d'entrée et les états vides. |
+| `lea@example.fr` | `barque-tilleul-orage-72` | Une **apprenante** de l'Institut Vulcain : elle ne voit que son parcours. |
 
 Aucun courriel ne part en recette : ils sont journalisés. Pour lire un code de
 signature :
@@ -113,7 +114,38 @@ après signature (usage unique).
 
 ---
 
-## 3. Le parcours conformité et RGPD
+## 3. Le parcours de l'apprenant — son compte, pas le vôtre
+
+*Un apprenant ne s'inscrit pas lui-même : un espace en libre inscription
+laisserait n'importe qui se déclarer stagiaire de l'organisme. C'est
+l'organisme qui lui ouvre l'accès.*
+
+1. **Fiche d'un apprenant → « Ouvrir l'accès »** (il lui faut une adresse).
+   → Un courriel part avec un lien personnel valable quatorze jours. En
+   recette, récupérez-le dans les journaux :
+
+   ```bash
+   AWS_PROFILE=learnaly AWS_REGION=eu-west-3 aws logs filter-log-events      --log-group-name /aws/lambda/lemlearn-api-dev      --start-time $(( ($(date +%s) - 600) * 1000 ))      --query 'events[*].message' --output text      | grep -oE 'invitation/[A-Za-z0-9_-]+' | tail -1
+   ```
+
+2. **Ouvrez `/invitation/{jeton}` dans une fenêtre privée**, choisissez un mot
+   de passe.
+   → Vous entrez directement dans l'espace : demander de se reconnecter juste
+   après avoir choisi un mot de passe est une étape que personne ne comprend.
+3. **Regardez la barre latérale.**
+   → Un seul lien : « Mon parcours ». Les écrans de l'organisme ne lui sont pas
+   seulement cachés, ils lui sont fermés — tapez `/pipeline` dans la barre
+   d'adresse pour le vérifier : « Cet écran n'est pas pour vous ».
+4. **Ouvrez un module et regardez la vidéo.**
+   → Le temps est enregistré sous son propre compte, plus sous un `contactId`
+   passé dans l'URL par un administrateur.
+5. **Réinvitez la même personne depuis sa fiche.**
+   → Le lien précédent cesse de valoir, et aucun second compte n'est créé.
+
+Ou, tout simplement : `lea@example.fr` / `barque-tilleul-orage-72`, déjà
+ouverte sur l'Institut Vulcain.
+
+## 4. Le parcours conformité et RGPD
 
 *Compte : `marie@vulcain.fr`.*
 
@@ -136,7 +168,7 @@ après signature (usage unique).
 
 ---
 
-## 4. Le parcours de l'équipe lemlearn
+## 5. Le parcours de l'équipe lemlearn
 
 *Compte : `marie@vulcain.fr`, promu par `LEMLEARN_SUPERADMINS`.*
 

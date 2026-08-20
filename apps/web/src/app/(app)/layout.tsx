@@ -17,11 +17,15 @@ const nav = [
 ];
 
 /**
- * Coque de l'application.
+ * Coque de l'organisme.
  *
  * La session est vérifiée ici, une fois, plutôt que dans chaque page : une
  * page qui oublierait de le faire afficherait un écran vide au lieu de
  * rediriger, et le bug serait invisible en développement.
+ *
+ * Le rôle décide dès cette porte. Un apprenant n'entre pas : ses écrans sont
+ * dans une coque à part, et le laisser entrer ici ne produirait qu'un 403 sur
+ * la première requête — écran de plantage compris.
  */
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   let me: Me;
@@ -34,6 +38,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     throw error;
   }
 
+  if (me.user.role === "learner") {
+    redirect("/apprenant");
+  }
+
   return (
     <div className="flex min-h-full">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-surface-1/40 lg:flex">
@@ -44,15 +52,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
 
         <nav className="flex flex-col gap-0.5 px-2">
-          {/* Un apprenant ne voit que son parcours : les autres écrans lui
-              répondraient 403, et un lien mort vers un écran interdit
-              n'apprend rien d'utile — sinon qu'il existe. Même raison pour la
-              vue de l'équipe lemlearn, réservée à l'équipe. */}
-          {(me.user.role === "learner"
-            ? [{ href: "/apprenant", label: "Mon parcours", hint: undefined }]
-            : me.user.role === "superadmin"
-              ? [...nav, { href: "/admin", label: "Organisations", hint: undefined }]
-              : nav
+          {/* La vue de l'équipe lemlearn n'apparaît que pour l'équipe : un
+              lien mort vers un écran interdit n'apprend rien d'utile, sinon
+              qu'il existe. */}
+          {(me.user.role === "superadmin"
+            ? [...nav, { href: "/admin", label: "Organisations", hint: undefined }]
+            : nav
           ).map((item) => (
             <Link
               key={item.href}

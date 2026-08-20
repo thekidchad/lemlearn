@@ -133,9 +133,10 @@ l'organisme qui lui ouvre l'accès.*
    → Vous entrez directement dans l'espace : demander de se reconnecter juste
    après avoir choisi un mot de passe est une étape que personne ne comprend.
 3. **Regardez la barre latérale.**
-   → Un seul lien : « Mon parcours ». Les écrans de l'organisme ne lui sont pas
-   seulement cachés, ils lui sont fermés — tapez `/pipeline` dans la barre
-   d'adresse pour le vérifier : « Cet écran n'est pas pour vous ».
+   → Un seul lien : « Mon parcours ». L'espace apprenant a sa propre coque —
+   il n'y a rien à y cacher, puisqu'il n'y a que son parcours. Tapez
+   `/pipeline` dans la barre d'adresse : vous revenez à votre espace, sans
+   écran d'erreur ni page interdite.
 4. **Ouvrez un module et regardez la vidéo.**
    → Le temps est enregistré sous son propre compte, plus sous un `contactId`
    passé dans l'URL par un administrateur.

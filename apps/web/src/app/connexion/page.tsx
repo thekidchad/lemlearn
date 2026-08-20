@@ -34,8 +34,8 @@ export default async function SignInPage() {
 
         <p className="mt-6 text-2xs text-ink-3">
           Pas encore de compte ?{" "}
-          <Link href="/demo" className="text-accent-ink underline-offset-4 hover:underline">
-            Demander une démo
+          <Link href="/inscription" className="text-accent-ink underline-offset-4 hover:underline">
+            Créer votre organisme
           </Link>
         </p>
       </div>

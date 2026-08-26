@@ -15,6 +15,14 @@ import (
 	"strings"
 )
 
+// logoVariable est disponible dans tous les gabarits : le service l'injecte
+// sans que l'appelant ait à y penser.
+var logoVariable = Variable{
+	Name:    "LogoURL",
+	Purpose: "logo lemlearn, servi par l'application",
+	Sample:  "https://app.lemlearn.fr/brand/lemlearn-courriel.png",
+}
+
 // Variable documente un champ disponible dans un gabarit.
 type Variable struct {
 	Name    string `json:"name"`
@@ -63,7 +71,10 @@ const shell = `<!doctype html>
 <html lang="fr"><body style="margin:0;padding:24px;background:#f5f6f8;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#10131a">
 <table role="presentation" width="100%%" cellpadding="0" cellspacing="0"><tr><td align="center">
 <table role="presentation" width="100%%" style="max-width:520px;background:#ffffff;border:1px solid #e3e6ec;border-radius:12px" cellpadding="0" cellspacing="0">
-<tr><td style="padding:28px 28px 8px">%s</td></tr>
+<tr><td style="padding:24px 28px 0">
+<img src="{{.LogoURL}}" alt="lemlearn" width="100" height="20" style="display:block;border:0;height:20px;width:100px">
+</td></tr>
+<tr><td style="padding:20px 28px 8px">%s</td></tr>
 <tr><td style="padding:0 28px 28px;border-top:1px solid #eef0f4">
 <p style="margin:16px 0 0;font-size:11px;line-height:1.5;color:#8a90a0">%s</p>
 </td></tr>
@@ -82,6 +93,7 @@ func Defaults() []Definition {
 			Purpose: "Part à l'émission d'une demande de signature. C'est le premier contact avec un signataire qui n'a pas de compte.",
 			Subject: "Document à signer — {{.Reference}}",
 			Variables: []Variable{
+				logoVariable,
 				{"SignerName", "prénom du signataire", "Léa"},
 				{"Reference", "référence du document", "CONV-2026-0143"},
 				{"DocumentLabel", "libellé complet du document", "convention de formation CONV-2026-0143"},
@@ -112,6 +124,7 @@ Ce lien est personnel, à usage unique, et expire le {{.Deadline}}.
 			Purpose: "Transmet le code à six chiffres au moment de signer. C'est lui qui fait la valeur juridique de la signature : il prouve que le signataire tient l'adresse.",
 			Subject: "Votre code de signature : {{.Code}}",
 			Variables: []Variable{
+				logoVariable,
 				{"Code", "code à six chiffres", "482095"},
 				{"Reference", "référence du document", "CONV-2026-0143"},
 			},
@@ -134,6 +147,7 @@ Ce code est valable dix minutes et ne peut servir qu'une fois.
 			Purpose: "Ouvre l'accès d'un apprenant à ses modules. Envoyé par l'organisme depuis la fiche du contact.",
 			Subject: "Votre espace de formation — {{.OrgName}}",
 			Variables: []Variable{
+				logoVariable,
 				{"FirstName", "prénom de l'apprenant", "Léa"},
 				{"OrgName", "nom de l'organisme", "Institut Vulcain"},
 				{"Link", "lien pour choisir son mot de passe", "https://app.lemlearn.fr/invitation/jeton"},
@@ -161,6 +175,7 @@ Ce lien est personnel et expire dans quatorze jours.
 			Purpose: "Part trois mois après la fin de la session. Le taux de retour est un indicateur audité : la formulation compte.",
 			Subject: "Votre avis sur « {{.CourseTitle}} », trois mois après",
 			Variables: []Variable{
+				logoVariable,
 				{"FirstName", "prénom de l'apprenant", "Camille"},
 				{"CourseTitle", "intitulé de la formation", "Prévention des risques"},
 				{"Link", "lien vers le questionnaire", "https://app.lemlearn.fr/satisfaction/jeton"},

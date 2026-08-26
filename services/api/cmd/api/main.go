@@ -123,7 +123,7 @@ func main() {
 		// signature et des codes à usage unique.
 		mailer = mail.NewJournaled(mailer, db, provider, nil)
 		deps.MailJournal = mail.NewJournal(db)
-		deps.Emails = emailtpl.NewService(db, nil)
+		deps.Emails = emailtpl.NewService(db, nil).WithAssets(cfg.AssetsURL)
 		deps.Library = library.NewService(db, nil)
 
 		// La satisfaction à froid ne dépend ni du compilateur ni du

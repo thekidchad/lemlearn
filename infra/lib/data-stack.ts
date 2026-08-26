@@ -6,6 +6,7 @@ import {
   type StackProps,
 } from "aws-cdk-lib";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as kms from "aws-cdk-lib/aws-kms";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
@@ -43,6 +44,7 @@ export class DataStack extends Stack {
   readonly documentsBucket: s3.Bucket;
   readonly identityBucket: s3.Bucket;
   readonly videoBucket: s3.Bucket;
+  readonly assetsBucket: s3.Bucket;
   readonly identityKey: kms.Key;
   /** Renseignés si la diffusion vidéo est provisionnée. */
   readonly videoDomain?: string;
@@ -123,6 +125,41 @@ export class DataStack extends Stack {
         ? s3.ObjectLockRetention.compliance(Duration.days(3650))
         : s3.ObjectLockRetention.governance(Duration.days(1)),
       removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    // ---------------------------------------------------------------------
+    // Ressources publiques — le logo des courriels, et rien d'autre
+    // ---------------------------------------------------------------------
+    // Un compartiment à part, ouvert en lecture sur le seul préfixe `brand/`.
+    // Les trois autres restent fermés : l'un est sous Object Lock, l'autre
+    // chiffré par une clé dédiée, le troisième sert des vidéos derrière des
+    // URL signées. Ouvrir l'un d'eux pour une image de vingt kilo-octets
+    // reviendrait à percer une porte dans un mur qui protège autre chose.
+    this.assetsBucket = new s3.Bucket(this, "AssetsBucket", {
+      bucketName: `lemlearn-public-${props.envName}-${this.account}`,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      // BLOCK_ACLS et non BLOCK_ALL : la politique ci-dessous doit pouvoir
+      // s'appliquer. Les ACL, elles, restent interdites — c'est par elles que
+      // se produisent les fuites de compartiment.
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ACLS,
+      enforceSSL: true,
+      removalPolicy,
+      autoDeleteObjects: !props.retain,
+    });
+
+    this.assetsBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.AnyPrincipal()],
+        actions: ["s3:GetObject"],
+        // Le préfixe est nommé : un jour où quelqu'un déposera autre chose
+        // dans ce compartiment, ce ne sera pas public par accident.
+        resources: [this.assetsBucket.arnForObjects("brand/*")],
+      }),
+    );
+
+    new CfnOutput(this, "AssetsUrl", {
+      value: `https://${this.assetsBucket.bucketName}.s3.${this.region}.amazonaws.com`,
     });
 
     // ---------------------------------------------------------------------

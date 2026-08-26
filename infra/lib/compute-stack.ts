@@ -18,6 +18,8 @@ export interface ComputeStackProps extends StackProps {
   readonly documentsBucket: s3.Bucket;
   readonly identityBucket: s3.Bucket;
   readonly videoBucket: s3.Bucket;
+  /** Compartiment des ressources publiques : le logo des courriels. */
+  readonly assetsBucket: s3.Bucket;
   readonly appUrl: string;
   /**
    * Domaine et identifiant de clé de la distribution vidéo, produits par la
@@ -79,6 +81,7 @@ export class ComputeStack extends Stack {
       TYPST_PATH: "/opt/bin/typst",
       TYPST_FONT_PATH: "/opt/fonts",
       LEMLEARN_SUPERADMINS: props.superAdmins ?? "",
+      LEMLEARN_ASSETS_URL: `https://${props.assetsBucket.bucketName}.s3.${Stack.of(props.assetsBucket).region}.amazonaws.com`,
     };
 
     // Groupes de logs déclarés explicitement : `logRetention` crée une Lambda

@@ -51,6 +51,7 @@ new ComputeStack(app, `Lemlearn-Compute-${envName}`, {
   documentsBucket: data.documentsBucket,
   identityBucket: data.identityBucket,
   videoBucket: data.videoBucket,
+  assetsBucket: data.assetsBucket,
   // Elle sert aux liens des courriels — signature, satisfaction à froid — et
   // à l'origine autorisée en CORS. Une valeur fausse ici donne des liens qui
   // tombent en 404 chez le signataire, qui est la dernière personne à qui on

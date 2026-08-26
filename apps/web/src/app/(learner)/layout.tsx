@@ -2,7 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SignOutButton } from "@/components/app/sign-out";
 import { Logo } from "@/components/brand/logo";
+import { cookies } from "next/headers";
+import { ThemeSwitch } from "@/components/app/theme-switch";
 import { apiFetch, ApiError, type Me } from "@/lib/api";
+import { THEME_COOKIE, type Theme } from "@/lib/theme";
 
 /**
  * Coque de l'espace apprenant.
@@ -28,43 +31,52 @@ export default async function LearnerLayout({ children }: LayoutProps<"/">) {
 
   const staff = me.user.role !== "learner";
 
+  const theme = ((await cookies()).get(THEME_COOKIE)?.value ?? "system") as Theme;
+
   return (
-    <div className="flex min-h-full">
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-surface-1/40 lg:flex">
-        <div className="flex h-14 items-center px-4">
-          <Link href="/apprenant" aria-label="lemlearn, accueil">
+    <div className="flex min-h-dvh">
+      {/* La colonne reste en place pendant que le contenu défile : c'est ce
+          qui fait qu'on ne se perd pas dans un écran long. */}
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface-1 lg:flex">
+        <div className="flex h-12 items-center px-3">
+          <Link href="/apprenant" aria-label="lemlearn, accueil" className="px-1">
             <Logo />
           </Link>
         </div>
 
-        <nav className="flex flex-col gap-0.5 px-2">
-          <Link
-            href="/apprenant"
-            className="rounded-md px-2.5 py-1.5 text-sm text-ink-2 transition-colors duration-[120ms] hover:bg-surface-2 hover:text-ink"
-          >
+        <nav className="flex flex-1 flex-col gap-0.5 px-2">
+          <Link href="/apprenant" className="nav-item">
+            <span aria-hidden className="w-4 text-center text-ink-3">
+              ▷
+            </span>
             Mon parcours
           </Link>
           {staff && (
-            <Link
-              href="/pipeline"
-              className="rounded-md px-2.5 py-1.5 text-sm text-ink-3 transition-colors duration-[120ms] hover:bg-surface-2 hover:text-ink"
-            >
-              ← Retour à l&apos;organisme
+            <Link href="/pipeline" className="nav-item">
+              <span aria-hidden className="w-4 text-center text-ink-3">
+                ←
+              </span>
+              Retour à l&apos;organisme
             </Link>
           )}
         </nav>
 
-        <div className="mt-auto border-t border-line p-3">
+        <div className="border-t border-line p-3">
           {me.impersonatedBy && (
             <p className="mb-2 rounded-md border border-warn/40 bg-warn/10 px-2 py-1.5 text-2xs text-warn">
               Session ouverte au nom de cet organisme par l&apos;équipe lemlearn.
             </p>
           )}
-          <p className="truncate text-xs text-ink">{me.org.name}</p>
+          <p className="truncate text-xs font-medium">{me.org.name}</p>
           <p className="truncate text-2xs text-ink-3">
             {me.user.firstName} {me.user.lastName}
           </p>
-          <SignOutButton />
+          <div className="mt-2.5 flex items-center gap-2">
+            <ThemeSwitch current={theme} />
+            <div className="flex-1">
+              <SignOutButton />
+            </div>
+          </div>
         </div>
       </aside>
 

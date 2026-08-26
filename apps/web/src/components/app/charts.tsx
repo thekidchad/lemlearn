@@ -151,15 +151,19 @@ export function Columns({
         <div
           key={bar.x}
           title={`${bar.x} — ${bar.y}`}
-          className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
+          className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"
         >
           <span className="font-mono text-2xs text-ink-2" data-numeric>
             {bar.y}
           </span>
-          <div
-            className="w-full max-w-6 rounded-t bg-accent"
-            style={{ height: `${Math.max((bar.y / max) * 100, 2)}%` }}
-          />
+          {/* La piste porte la hauteur : un pourcentage dans un parent sans
+              hauteur définie s'effondre à zéro, et la colonne disparaît. */}
+          <div className="flex w-full max-w-6 flex-1 items-end">
+            <div
+              className="w-full rounded-t bg-accent"
+              style={{ height: `${Math.max((bar.y / max) * 100, 2)}%` }}
+            />
+          </div>
           <span className="truncate font-mono text-2xs text-ink-3">{bar.x}</span>
         </div>
       ))}

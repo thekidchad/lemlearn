@@ -82,19 +82,28 @@ export function DossierPreview() {
               </p>
             </div>
 
-            {/* Jauge de complétude Qualiopi */}
-            <div className="w-44">
-              <div className="flex items-baseline justify-between">
-                <span className="text-2xs text-ink-3">Dossier de preuve</span>
-                <span className="text-sm font-semibold text-ok" data-numeric>
-                  83 %
+            {/* Le bordereau des pièces, tel qu'il apparaît dans le produit :
+                une case par pièce attendue, parce qu'aucune n'est à moitié
+                présente. */}
+            <div>
+              <p className="eyebrow mb-1.5">Bordereau des pièces</p>
+              <span className="flex items-center gap-1.5">
+                <span className="flex gap-1" aria-hidden>
+                  {Array.from({ length: 13 }, (_, index) => (
+                    <span
+                      key={index}
+                      className={`block h-4 w-1.5 rounded-[1px] ${
+                        index < 11 ? "bg-accent" : "bg-surface-3"
+                      }`}
+                    />
+                  ))}
                 </span>
-              </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3">
-                <div className="h-full w-[83%] rounded-full bg-ok" />
-              </div>
+                <span className="font-mono text-2xs text-ink-3" data-numeric>
+                  11/13
+                </span>
+              </span>
               <p className="mt-1.5 text-2xs text-ink-3">
-                2 pièces manquantes sur 12
+                Manque : satisfaction à froid, attestation
               </p>
             </div>
           </div>

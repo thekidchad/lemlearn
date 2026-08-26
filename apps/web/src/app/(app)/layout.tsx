@@ -2,30 +2,55 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
 import { SignOutButton } from "@/components/app/sign-out";
+import { cookies } from "next/headers";
+import { ThemeSwitch } from "@/components/app/theme-switch";
 import { apiFetch, ApiError, type Me } from "@/lib/api";
+import { THEME_COOKIE, type Theme } from "@/lib/theme";
+
+/**
+ * La navigation, groupée par moment de travail plutôt que par entité.
+ *
+ * On ne se demande pas « où sont les contacts » mais « où j'en suis avec ce
+ * client » : vendre, former, prouver. La conformité ferme la marche parce que
+ * c'est là qu'on va la veille d'un audit.
+ */
+const groups: { title?: string; items: { href: string; label: string; glyph: string }[] }[] = [
+  {
+    items: [
+      { href: "/pipeline", label: "Pipeline", glyph: "◧" },
+      { href: "/contacts", label: "Contacts", glyph: "◍" },
+    ],
+  },
+  {
+    title: "Former",
+    items: [
+      { href: "/catalogue", label: "Catalogue", glyph: "▤" },
+      { href: "/sessions", label: "Sessions", glyph: "◷" },
+      { href: "/questionnaires", label: "Questionnaires", glyph: "◇" },
+      { href: "/apprenant", label: "Espace apprenant", glyph: "▷" },
+    ],
+  },
+  {
+    title: "Prouver",
+    items: [{ href: "/qualiopi", label: "Conformité", glyph: "✓" }],
+  },
+  {
+    title: "Compte",
+    items: [{ href: "/abonnement", label: "Abonnement", glyph: "◈" }],
+  },
+];
 
 /** Ce que voit l'équipe lemlearn, et elle seule. */
-const team = [
-  { href: "/admin", label: "Organisations", hint: undefined },
-  { href: "/admin/emails", label: "Journal des envois", hint: undefined },
-  { href: "/admin/gabarits", label: "Gabarits de courriels", hint: undefined },
-  { href: "/admin/apprenants", label: "Retrouver un apprenant", hint: undefined },
-];
-
-/** Marque la coupure entre les deux jeux d'écrans. */
-const separator = { href: "", label: "Mon organisation", hint: undefined };
-
-/** Ce que voit l'équipe de l'organisme. */
-const nav = [
-  { href: "/pipeline", label: "Pipeline", hint: "G puis P" },
-  { href: "/contacts", label: "Contacts", hint: "G puis C" },
-  { href: "/catalogue", label: "Catalogue" },
-  { href: "/sessions", label: "Sessions" },
-  { href: "/questionnaires", label: "Questionnaires" },
-  { href: "/qualiopi", label: "Conformité" },
-  { href: "/apprenant", label: "Espace apprenant" },
-  { href: "/abonnement", label: "Abonnement" },
-];
+const teamGroup = {
+  title: "Équipe lemlearn",
+  items: [
+    { href: "/admin", label: "Tableau de bord", glyph: "◰" },
+    { href: "/admin/emails", label: "Journal des envois", glyph: "✉" },
+    { href: "/admin/gabarits", label: "Gabarits", glyph: "❏" },
+    { href: "/admin/bibliotheque", label: "Bibliothèque", glyph: "▥" },
+    { href: "/admin/apprenants", label: "Rechercher", glyph: "⌕" },
+  ],
+};
 
 /**
  * Coque de l'organisme.
@@ -53,46 +78,37 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     redirect("/apprenant");
   }
 
+  const theme = ((await cookies()).get(THEME_COOKIE)?.value ?? "system") as Theme;
+  const sections = me.user.role === "superadmin" ? [teamGroup, ...groups] : groups;
+
   return (
-    <div className="flex min-h-full">
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-surface-1/40 lg:flex">
-        <div className="flex h-14 items-center px-4">
-          <Link href="/pipeline" aria-label="lemlearn, accueil">
+    <div className="flex min-h-dvh">
+      {/* La colonne reste en place pendant que le contenu défile : c'est ce
+          qui fait qu'on ne se perd pas dans un écran long. */}
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface-1 lg:flex">
+        <div className="flex h-12 items-center px-3">
+          <Link href="/pipeline" aria-label="lemlearn, accueil" className="px-1">
             <Logo />
           </Link>
         </div>
 
-        <nav className="flex flex-col gap-0.5 px-2">
-          {/* Le compte d'équipe voit ses écrans en premier : il possède bien
-              une organisation — vide — mais ce n'est pas ce qu'il vient
-              faire. Un client, lui, n'a aucune raison de savoir que ces
-              écrans existent. */}
-          {(me.user.role === "superadmin" ? [...team, separator, ...nav] : nav).map((item) =>
-            item.href === "" ? (
-              <p
-                key="separator"
-                className="mt-3 mb-1 px-2.5 font-mono text-2xs tracking-wide text-ink-3 uppercase"
-              >
-                {item.label}
-              </p>
-            ) : (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm text-ink-2 transition-colors duration-[120ms] hover:bg-surface-2 hover:text-ink"
-              >
-                {item.label}
-                {item.hint && (
-                  <span className="font-mono text-2xs text-ink-3 opacity-0 transition-opacity group-hover:opacity-100">
-                    {item.hint}
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-3">
+          {sections.map((section, index) => (
+            <div key={section.title ?? index} className={index > 0 ? "mt-4" : ""}>
+              {section.title && <p className="eyebrow mb-1 px-2">{section.title}</p>}
+              {section.items.map((item) => (
+                <Link key={item.href} href={item.href} className="nav-item">
+                  <span aria-hidden className="w-4 text-center text-ink-3">
+                    {item.glyph}
                   </span>
-                )}
-              </Link>
-            ),
-          )}
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          ))}
         </nav>
 
-        <div className="mt-auto border-t border-line p-3">
+        <div className="border-t border-line p-3">
           {me.impersonatedBy && (
             // Une impersonation ne peut pas être discrète : elle est visible à
             // l'écran autant qu'au journal.
@@ -100,15 +116,34 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               Session ouverte au nom de cet organisme par l&apos;équipe lemlearn.
             </p>
           )}
-          <p className="truncate text-xs text-ink">{me.org.name}</p>
-          <p className="truncate text-2xs text-ink-3">
-            {me.user.firstName} {me.user.lastName} · {me.user.role}
-          </p>
-          <SignOutButton />
+
+          <div className="flex items-center gap-2">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-dim text-2xs font-medium text-accent-ink">
+              {initials(me.user.firstName, me.user.lastName)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium">{me.org.name}</p>
+              <p className="truncate text-2xs text-ink-3">
+                {me.user.firstName} {me.user.lastName}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-2.5 flex items-center gap-2">
+            <ThemeSwitch current={theme} />
+            <div className="flex-1">
+              <SignOutButton />
+            </div>
+          </div>
         </div>
       </aside>
 
       <main className="min-w-0 flex-1">{children}</main>
     </div>
   );
+}
+
+/** initials compose la pastille du compte : deux lettres, pas d'avatar. */
+function initials(firstName: string, lastName: string): string {
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "—";
 }

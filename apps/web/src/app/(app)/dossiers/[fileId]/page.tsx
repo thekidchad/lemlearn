@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CreatePanel, Field, Select } from "@/components/app/form";
 import { ExportButton } from "@/components/app/export-button";
+import { ProofMarks } from "@/components/app/proof-marks";
 import { StagePicker } from "@/components/app/stage-picker";
 import { issueSignature } from "@/app/actions/crm";
 import { notFound } from "next/navigation";
 import {
   apiFetch,
   ApiError,
-  proofPercent,
   type AuditEvent,
   type Contact,
   type FileRecord,
@@ -74,7 +74,6 @@ export default async function FilePage({ params }: PageProps<"/dossiers/[fileId]
       : Promise.resolve(null),
   ]);
 
-  const percent = proofPercent(file.proof);
 
   return (
     <>
@@ -139,25 +138,15 @@ export default async function FilePage({ params }: PageProps<"/dossiers/[fileId]
             <p className="mt-1 text-xs text-ink-2">{file.title}</p>
           </div>
 
-          <div className="w-52">
-            <div className="flex items-baseline justify-between">
-              <span className="text-2xs text-ink-3">Dossier de preuve</span>
-              <span
-                className={`text-sm font-semibold ${percent >= 80 ? "text-ok" : percent >= 40 ? "text-warn" : "text-ink-2"}`}
-                data-numeric
-              >
-                {percent} %
-              </span>
-            </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3">
-              <div
-                className={`h-full rounded-full ${percent >= 80 ? "bg-ok" : percent >= 40 ? "bg-warn" : "bg-ink-3"}`}
-                style={{ width: `${percent}%` }}
-              />
-            </div>
-            <p className="mt-1.5 text-2xs text-ink-3">
-              {file.proof.present} pièce{file.proof.present > 1 ? "s" : ""} sur{" "}
-              {file.proof.expected}
+          <div>
+            <p className="eyebrow mb-1.5">Bordereau des pièces</p>
+            <ProofMarks proof={file.proof} size="md" />
+            <p className="mt-1.5 max-w-56 text-2xs text-ink-3">
+              {(file.proof.missing?.length ?? 0) === 0
+                ? "Toutes les pièces attendues sont là."
+                : `Manque : ${(file.proof.missing ?? []).slice(0, 3).join(", ")}${
+                    (file.proof.missing?.length ?? 0) > 3 ? "…" : ""
+                  }`}
             </p>
           </div>
         </div>

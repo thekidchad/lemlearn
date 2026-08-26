@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CreatePanel, Field } from "@/components/app/form";
 import { createFile } from "@/app/actions/crm";
+import { ProofMarks } from "@/components/app/proof-marks";
 import {
   apiFetch,
   contactName,
-  proofPercent,
   STAGES,
   type Contact,
   type FileRecord,
@@ -97,8 +97,6 @@ export default async function PipelinePage() {
 }
 
 function FileCard({ file }: { file: FileRecord }) {
-  const percent = proofPercent(file.proof);
-
   return (
     <Link
       href={`/dossiers/${file.id}`}
@@ -124,16 +122,10 @@ function FileCard({ file }: { file: FileRecord }) {
         <span className="font-mono text-2xs text-ink-2" data-numeric>
           {formatEUR(file.priceHT)}
         </span>
-        {/* La complétude du dossier de preuve se lit dès le pipeline : c'est
-            ce qui permet de repérer un dossier à trous avant l'audit. */}
-        <span className="flex items-center gap-1.5" title={`Dossier de preuve : ${percent} %`}>
-          <span className="h-1 w-10 overflow-hidden rounded-full bg-surface-3">
-            <span className={`block h-full rounded-full ${proofColor(percent)}`} style={{ width: `${percent}%` }} />
-          </span>
-          <span className="font-mono text-2xs text-ink-3" data-numeric>
-            {percent}%
-          </span>
-        </span>
+        {/* La complétude se lit dès le pipeline : c'est ce qui permet de
+            repérer un dossier à trous avant l'audit, et le survol dit quelle
+            pièce manque. */}
+        <ProofMarks proof={file.proof} />
       </div>
     </Link>
   );
@@ -164,11 +156,6 @@ function stageDot(stage: Stage): string {
   }
 }
 
-function proofColor(percent: number): string {
-  if (percent >= 80) return "bg-ok";
-  if (percent >= 40) return "bg-warn";
-  return "bg-ink-3";
-}
 
 function formatEUR(amount: number): string {
   return new Intl.NumberFormat("fr-FR", {

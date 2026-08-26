@@ -18,6 +18,21 @@ type Sender interface {
 	Send(ctx context.Context, to, subject, html string) error
 }
 
+// Composed est un courriel prêt à partir.
+type Composed struct {
+	Subject string `json:"subject"`
+	HTML    string `json:"html"`
+}
+
+// Composer rend un courriel depuis un gabarit nommé.
+//
+// L'interface vit ici plutôt que dans le paquet des gabarits : les domaines
+// qui envoient — signature, relances, invitations — dépendent de l'envoi, pas
+// du magasin qui garde les réécritures.
+type Composer interface {
+	Compose(ctx context.Context, key string, data map[string]any) (Composed, error)
+}
+
 // Resend appelle l'API Resend directement en HTTP.
 //
 // Pas de SDK : l'appel tient en une requête JSON, et une dépendance de plus

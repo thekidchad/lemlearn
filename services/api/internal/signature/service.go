@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lemlearn/api/internal/emailtpl"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/platform/audit"
 	"github.com/lemlearn/api/internal/platform/ddb"
 	"github.com/lemlearn/api/internal/platform/doc"
+	"github.com/lemlearn/api/internal/platform/mail"
 	"github.com/lemlearn/api/internal/platform/seal"
 )
 
@@ -56,6 +58,7 @@ type Service struct {
 	renderer Renderer
 	blobs    BlobStore
 	mailer   Mailer
+	composer mail.Composer
 	sealer   Sealer
 	appURL   string
 	now      func() time.Time
@@ -67,6 +70,9 @@ type Deps struct {
 	Renderer Renderer
 	Blobs    BlobStore
 	Mailer   Mailer
+	// Composer rend les courriels depuis les gabarits modifiables. Absent, le
+	// service utilise ceux du code.
+	Composer mail.Composer
 	Sealer   Sealer
 	AppURL   string
 	Now      func() time.Time
@@ -80,7 +86,7 @@ func NewService(deps Deps) *Service {
 	}
 	return &Service{
 		db: deps.DB, renderer: deps.Renderer, blobs: deps.Blobs,
-		mailer: deps.Mailer, sealer: deps.Sealer,
+		mailer: deps.Mailer, composer: deps.Composer, sealer: deps.Sealer,
 		appURL: strings.TrimRight(deps.AppURL, "/"), now: now,
 	}
 }
@@ -167,9 +173,16 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (Request, string, er
 
 	if s.mailer != nil {
 		link := fmt.Sprintf("%s/signer/%s", s.appURL, token)
-		if err := s.mailer.Send(ctx, req.SignerEmail,
-			fmt.Sprintf("Document à signer — %s", req.Reference),
-			invitationEmail(req, link)); err != nil {
+		message := s.compose(ctx, emailtpl.KeySignatureInvitation, map[string]any{
+			"SignerName":    firstName(req.SignerName),
+			"Reference":     req.Reference,
+			"DocumentLabel": documentLabel(req),
+			"Link":          link,
+			"Deadline":      formatDeadline(req),
+		}, fmt.Sprintf("Document à signer — %s", req.Reference), invitationEmail(req, link))
+
+		if err := s.mailer.Send(mail.WithContext(ctx, req.OrgID, emailtpl.KeySignatureInvitation),
+			req.SignerEmail, message.Subject, message.HTML); err != nil {
 			// L'envoi échoue mais la demande existe : la relance est
 			// possible, alors qu'une demande perdue ne l'est pas. L'erreur
 			// remonte quand même pour être affichée à l'organisme.
@@ -281,9 +294,13 @@ func (s *Service) SendOTP(ctx context.Context, token, ip, userAgent string) (Req
 	}
 
 	if s.mailer != nil {
-		if err := s.mailer.Send(ctx, req.SignerEmail,
-			fmt.Sprintf("Votre code de signature : %s", code),
-			otpEmail(req, code)); err != nil {
+		message := s.compose(ctx, emailtpl.KeySignatureOTP, map[string]any{
+			"Code":      code,
+			"Reference": req.Reference,
+		}, fmt.Sprintf("Votre code de signature : %s", code), otpEmail(req, code))
+
+		if err := s.mailer.Send(mail.WithContext(ctx, req.OrgID, emailtpl.KeySignatureOTP),
+			req.SignerEmail, message.Subject, message.HTML); err != nil {
 			return req, fmt.Errorf("envoi du code: %w", err)
 		}
 	}
@@ -570,4 +587,19 @@ func safeReference(reference string) string {
 		}
 	}, strings.TrimSpace(reference))
 	return strings.Trim(cleaned, ".-")
+}
+
+// compose rend le courriel depuis le gabarit, avec repli sur celui du code.
+//
+// Le repli n'est pas de la prudence excessive : les gabarits sont modifiables
+// par l'équipe, et un lien de signature ne doit pas rester bloqué parce que
+// quelqu'un a laissé une accolade ouverte trois semaines plus tôt.
+func (s *Service) compose(ctx context.Context, key string, data map[string]any,
+	fallbackSubject, fallbackHTML string) mail.Composed {
+	if s.composer != nil {
+		if message, err := s.composer.Compose(ctx, key, data); err == nil {
+			return message
+		}
+	}
+	return mail.Composed{Subject: fallbackSubject, HTML: fallbackHTML}
 }

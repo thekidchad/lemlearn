@@ -46,7 +46,12 @@ export function OrgRow({ org, plans }: { org: Org; plans: Plan[] }) {
     <div className="bg-surface-1 px-4 py-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{org.name}</p>
+          <a
+            href={`/admin/${org.orgId}`}
+            className="truncate text-sm font-medium hover:text-accent-ink hover:underline"
+          >
+            {org.name}
+          </a>
           <p className="truncate text-2xs text-ink-3">
             {org.owner ?? "aucun contact"} · depuis le{" "}
             {new Date(org.createdAt).toLocaleDateString("fr-FR")}

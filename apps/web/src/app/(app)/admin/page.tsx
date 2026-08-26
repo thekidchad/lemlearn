@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrgRow } from "@/components/app/org-row";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -51,9 +52,20 @@ export default async function AdminPage() {
 
   return (
     <>
-      <header className="flex h-14 items-center justify-between border-b border-line px-6">
+      <header className="flex h-14 items-center gap-4 border-b border-line px-6">
         <h1 className="text-sm font-medium">Organisations</h1>
-        <p className="font-mono text-2xs text-ink-3" data-numeric>
+        <nav className="flex items-center gap-3 text-2xs text-ink-3">
+          <Link href="/admin/emails" className="hover:text-ink">
+            Journal des envois
+          </Link>
+          <Link href="/admin/gabarits" className="hover:text-ink">
+            Gabarits
+          </Link>
+          <Link href="/admin/apprenants" className="hover:text-ink">
+            Retrouver un apprenant
+          </Link>
+        </nav>
+        <p className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
           {data.orgs.length} client{data.orgs.length > 1 ? "s" : ""} ·{" "}
           {euros(data.mrrCents)} / mois
         </p>

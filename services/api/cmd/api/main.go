@@ -27,6 +27,7 @@ import (
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/docflow"
+	"github.com/lemlearn/api/internal/emailtpl"
 	"github.com/lemlearn/api/internal/export"
 	"github.com/lemlearn/api/internal/followup"
 	"github.com/lemlearn/api/internal/httpapi"
@@ -105,17 +106,27 @@ func main() {
 		// jeton d'accès — ce qui serait une fuite en production, où l'absence
 		// de clé fait échouer le démarrage.
 		var mailer mail.Sender = mail.NewLogVerbose(log)
+		provider := "journal"
 		if cfg.ResendAPIKey != "" {
 			mailer = mail.NewResend(cfg.ResendAPIKey, cfg.MailFrom)
+			provider = "resend"
 		} else if cfg.Env == config.EnvProd {
 			log.Error("RESEND_API_KEY est requise en production : " +
 				"sans expéditeur réel, aucun lien de signature ne part")
 			os.Exit(1)
 		}
 
+		// Tout envoi laisse une trace : « ce message est-il parti, quand, à
+		// qui » est la première question posée quand un apprenant dit n'avoir
+		// rien reçu. Le corps n'y figure pas — il porte des liens de
+		// signature et des codes à usage unique.
+		mailer = mail.NewJournaled(mailer, db, provider, nil)
+		deps.MailJournal = mail.NewJournal(db)
+		deps.Emails = emailtpl.NewService(db, nil)
+
 		// La satisfaction à froid ne dépend ni du compilateur ni du
 		// scellement : elle poste un lien de questionnaire, trois mois après.
-		deps.FollowUp = followup.NewService(db, mailer, cfg.AppURL, nil)
+		deps.FollowUp = followup.NewService(db, mailer, cfg.AppURL, nil).WithComposer(deps.Emails)
 		deps.Mailer = mailer
 
 		// La vue super-admin non plus : elle doit rester consultable
@@ -158,6 +169,7 @@ func main() {
 				Renderer: docflow.NewRenderer(deps.Identity, deps.CRM, compiler),
 				Blobs:    store,
 				Mailer:   mailer,
+				Composer: deps.Emails,
 				Sealer:   sealer,
 				AppURL:   cfg.AppURL,
 			})

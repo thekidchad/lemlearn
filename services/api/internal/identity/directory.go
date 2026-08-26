@@ -193,3 +193,44 @@ func (s *Service) Promote(ctx context.Context, user User, role Role, token strin
 	}
 	return user, nil
 }
+
+// ListUsers renvoie les comptes d'une organisation.
+func (s *Service) ListUsers(ctx context.Context, orgID string) ([]PublicUser, error) {
+	users, err := ddb.Query[User](ctx, s.db, ddb.QuerySpec{
+		PK: ddb.OrgPK(orgID), SKPrefix: "USER#",
+	})
+	if err != nil {
+		return nil, err
+	}
+	public := make([]PublicUser, 0, len(users))
+	for _, user := range users {
+		public = append(public, user.Public())
+	}
+	return public, nil
+}
+
+// UserByEmail retrouve un compte par son adresse, toutes organisations
+// confondues.
+func (s *Service) UserByEmail(ctx context.Context, email string) (User, error) {
+	pointer, err := ddb.Get[EmailPointer](ctx, s.db, ddb.EmailPointerPK(ddb.NormalizeEmail(email)), ddb.EmailPointerSK)
+	if err != nil {
+		return User{}, err
+	}
+	return ddb.Get[User](ctx, s.db, ddb.OrgPK(pointer.OrgID), ddb.UserSK(pointer.UserID))
+}
+
+// OrgTimeline relit la chaîne d'audit de l'organisation elle-même.
+func (s *Service) OrgTimeline(ctx context.Context, orgID string, limit int) ([]audit.Event, error) {
+	events, err := s.db.AuditChain(ctx, "org/"+orgID)
+	if err != nil {
+		return nil, err
+	}
+	// Le plus récent d'abord : c'est ce qu'on vient voir.
+	for i, j := 0, len(events)-1; i < j; i, j = i+1, j-1 {
+		events[i], events[j] = events[j], events[i]
+	}
+	if len(events) > limit {
+		events = events[:limit]
+	}
+	return events, nil
+}

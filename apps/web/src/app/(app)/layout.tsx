@@ -4,6 +4,17 @@ import { Logo } from "@/components/brand/logo";
 import { SignOutButton } from "@/components/app/sign-out";
 import { apiFetch, ApiError, type Me } from "@/lib/api";
 
+/** Ce que voit l'équipe lemlearn, et elle seule. */
+const team = [
+  { href: "/admin", label: "Organisations", hint: undefined },
+  { href: "/admin/emails", label: "Journal des envois", hint: undefined },
+  { href: "/admin/gabarits", label: "Gabarits de courriels", hint: undefined },
+  { href: "/admin/apprenants", label: "Retrouver un apprenant", hint: undefined },
+];
+
+/** Marque la coupure entre les deux jeux d'écrans. */
+const separator = { href: "", label: "Mon organisation", hint: undefined };
+
 /** Ce que voit l'équipe de l'organisme. */
 const nav = [
   { href: "/pipeline", label: "Pipeline", hint: "G puis P" },
@@ -52,26 +63,33 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
 
         <nav className="flex flex-col gap-0.5 px-2">
-          {/* La vue de l'équipe lemlearn n'apparaît que pour l'équipe : un
-              lien mort vers un écran interdit n'apprend rien d'utile, sinon
-              qu'il existe. */}
-          {(me.user.role === "superadmin"
-            ? [...nav, { href: "/admin", label: "Organisations", hint: undefined }]
-            : nav
-          ).map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm text-ink-2 transition-colors duration-[120ms] hover:bg-surface-2 hover:text-ink"
-            >
-              {item.label}
-              {item.hint && (
-                <span className="font-mono text-2xs text-ink-3 opacity-0 transition-opacity group-hover:opacity-100">
-                  {item.hint}
-                </span>
-              )}
-            </Link>
-          ))}
+          {/* Le compte d'équipe voit ses écrans en premier : il possède bien
+              une organisation — vide — mais ce n'est pas ce qu'il vient
+              faire. Un client, lui, n'a aucune raison de savoir que ces
+              écrans existent. */}
+          {(me.user.role === "superadmin" ? [...team, separator, ...nav] : nav).map((item) =>
+            item.href === "" ? (
+              <p
+                key="separator"
+                className="mt-3 mb-1 px-2.5 font-mono text-2xs tracking-wide text-ink-3 uppercase"
+              >
+                {item.label}
+              </p>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm text-ink-2 transition-colors duration-[120ms] hover:bg-surface-2 hover:text-ink"
+              >
+                {item.label}
+                {item.hint && (
+                  <span className="font-mono text-2xs text-ink-3 opacity-0 transition-opacity group-hover:opacity-100">
+                    {item.hint}
+                  </span>
+                )}
+              </Link>
+            ),
+          )}
         </nav>
 
         <div className="mt-auto border-t border-line p-3">

@@ -14,6 +14,7 @@ Deux comptes, pour deux points de vue :
 | Compte | Mot de passe | À quoi il sert |
 |---|---|---|
 | `marie@vulcain.fr` | `correcte-agrafe-cheval-pile` | Organisme **Institut Vulcain**, avec de la matière : une convention scellée, une vidéo, des questionnaires. Aussi `superadmin`, donc la vue équipe. |
+| `equipe@lemlearn.fr` | `pupitre-alizes-charbon-19` | Le compte de **l'équipe lemlearn** : organisations clientes, journal des envois, gabarits de courriels. |
 | celui que vous créerez | le vôtre | Un organisme **vide**, pour éprouver le parcours d'entrée et les états vides. |
 | `lea@example.fr` | `barque-tilleul-orage-72` | Une **apprenante** de l'Institut Vulcain : elle ne voit que son parcours. |
 
@@ -171,19 +172,34 @@ ouverte sur l'Institut Vulcain.
 
 ## 5. Le parcours de l'équipe lemlearn
 
-*Compte : `marie@vulcain.fr`, promu par `LEMLEARN_SUPERADMINS`.*
+*Compte : `equipe@lemlearn.fr`. C'est un compte à part, dans son propre
+organisme — vide — et sa barre latérale ouvre sur ses écrans avant ceux d'un
+organisme de formation.*
 
-1. **`/abonnement`** — la formule vue par le client, avec sa consommation face
-   aux quotas.
-2. **`/admin`** — la même chose vue de l'autre côté : revenu mensuel,
-   organisations, dépassements.
-3. **Changez la formule** d'une organisation dans le sélecteur.
-   → Le revenu mensuel en tête se met à jour ; le changement est journalisé sur
-   la chaîne de l'organisation.
-4. **« Ouvrir la session »** sur l'autre organisation.
+1. **`/admin`** — revenu mensuel, organisations clientes, dépassements. La
+   propre organisation de l'équipe n'y figure pas : la compter gonflerait un
+   revenu qu'on se vend à soi-même.
+2. **Ouvrez une organisation.**
+   → Sa consommation face aux quotas, ses comptes, et le journal de la
+   relation : changements de formule et accès de l'équipe, chaînés.
+3. **Changez sa formule** dans le sélecteur.
+   → Le revenu se met à jour, et le changement apparaît au journal de
+   l'organisation avec son auteur.
+4. **« Ouvrir la session ».**
    → Vous basculez dans *ses* données, et un bandeau orange s'affiche dans sa
    barre latérale : « Session ouverte au nom de cet organisme par l'équipe
    lemlearn ». Une impersonation ne peut pas être discrète.
+5. **`/admin/emails`** — le journal des envois : ce qui est parti, à qui,
+   quand, et si l'expéditeur l'a accepté. C'est la réponse à « je n'ai rien
+   reçu ». Le corps des messages n'y est pas : il porte des liens de signature
+   et des codes à usage unique.
+6. **`/admin/gabarits`** — les quatre courriels transactionnels, modifiables
+   avec aperçu en direct. Changez l'objet de la satisfaction à froid : l'aperçu
+   se rend avec de vraies valeurs d'exemple. Cassez volontairement une
+   accolade — l'enregistrement est refusé avec la ligne fautive. Puis
+   « Revenir au gabarit d'origine ».
+7. **`/admin/apprenants`** — retrouver quelqu'un à son adresse, à travers les
+   organisations. La recherche est journalisée chez le client concerné.
 
 ---
 

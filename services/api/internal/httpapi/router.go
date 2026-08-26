@@ -22,6 +22,7 @@ import (
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
+	"github.com/lemlearn/api/internal/emailtpl"
 	"github.com/lemlearn/api/internal/export"
 	"github.com/lemlearn/api/internal/followup"
 	"github.com/lemlearn/api/internal/identity"
@@ -52,8 +53,12 @@ type Deps struct {
 	// la signature partent du service de signature, ceux de la relance à
 	// froid du sien.
 	Mailer mail.Sender
-	Stripe *billing.Stripe
-	Clock  func() time.Time
+	// Emails porte les gabarits modifiables par l'équipe lemlearn, et
+	// MailJournal la trace de ce qui est parti.
+	Emails      *emailtpl.Service
+	MailJournal *mail.Journal
+	Stripe      *billing.Stripe
+	Clock       func() time.Time
 }
 
 // Now renvoie l'heure courante, injectable pour les tests.
@@ -193,8 +198,23 @@ func NewRouter(deps Deps) http.Handler {
 
 				r.Route("/admin", func(r chi.Router) {
 					r.Get("/orgs", handleListOrgs(deps))
+					r.Get("/orgs/{orgID}", handleOrgDetail(deps))
 					r.Post("/orgs/{orgID}/plan", handleSetPlan(deps))
 					r.Post("/orgs/{orgID}/impersonate", handleImpersonate(deps))
+
+					// Traçabilité : ce qui est parti, et à qui.
+					r.Get("/emails", handleMailJournal(deps))
+
+					// Gabarits des courriels transactionnels.
+					r.Route("/gabarits", func(r chi.Router) {
+						r.Get("/", handleListEmailTemplates(deps))
+						r.Put("/{key}", handleSaveEmailTemplate(deps))
+						r.Delete("/{key}", handleResetEmailTemplate(deps))
+						r.Post("/{key}/apercu", handlePreviewEmailTemplate(deps))
+					})
+
+					// Retrouver un apprenant à travers les organisations.
+					r.Get("/apprenants", handleFindLearner(deps))
 				})
 			})
 		})

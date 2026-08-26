@@ -12,9 +12,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lemlearn/api/internal/emailtpl"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/platform/audit"
 	"github.com/lemlearn/api/internal/platform/ddb"
+	"github.com/lemlearn/api/internal/platform/mail"
 )
 
 // Delay est le décalage par défaut : trois mois après la fin de la session.
@@ -92,10 +94,11 @@ type Mailer interface {
 
 // Service programme et traite les relances.
 type Service struct {
-	db     *ddb.Client
-	mailer Mailer
-	appURL string
-	now    func() time.Time
+	db       *ddb.Client
+	mailer   Mailer
+	composer mail.Composer
+	appURL   string
+	now      func() time.Time
 }
 
 // NewService construit le service.
@@ -104,6 +107,12 @@ func NewService(db *ddb.Client, mailer Mailer, appURL string, now func() time.Ti
 		now = func() time.Time { return time.Now().UTC() }
 	}
 	return &Service{db: db, mailer: mailer, appURL: appURL, now: now}
+}
+
+// WithComposer branche les gabarits modifiables.
+func (s *Service) WithComposer(composer mail.Composer) *Service {
+	s.composer = composer
+	return s
 }
 
 // ScheduleInput décrit une relance à programmer.
@@ -191,9 +200,22 @@ func (s *Service) Run(ctx context.Context, at time.Time) (sent int, failed int, 
 		}
 		link := s.appURL + "/satisfaction/" + token
 		if s.mailer != nil {
-			if err := s.mailer.Send(ctx, task.Email,
-				fmt.Sprintf("Votre avis sur « %s », trois mois après", task.CourseTitle),
-				coldSurveyEmail(task, link)); err != nil {
+			message := mail.Composed{
+				Subject: fmt.Sprintf("Votre avis sur « %s », trois mois après", task.CourseTitle),
+				HTML:    coldSurveyEmail(task, link),
+			}
+			if s.composer != nil {
+				if rendered, err := s.composer.Compose(ctx, emailtpl.KeySurveyCold, map[string]any{
+					"FirstName":   firstName(task.LearnerName),
+					"CourseTitle": task.CourseTitle,
+					"Link":        link,
+				}); err == nil {
+					message = rendered
+				}
+			}
+
+			if err := s.mailer.Send(mail.WithContext(ctx, task.OrgID, emailtpl.KeySurveyCold),
+				task.Email, message.Subject, message.HTML); err != nil {
 				failed++
 				continue
 			}

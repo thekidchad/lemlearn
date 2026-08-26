@@ -8,7 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/lemlearn/api/internal/emailtpl"
 	"github.com/lemlearn/api/internal/identity"
+	"github.com/lemlearn/api/internal/platform/mail"
 )
 
 // handleInviteLearner ouvre un accès à l'espace apprenant.
@@ -50,9 +52,24 @@ func handleInviteLearner(deps Deps) http.HandlerFunc {
 
 		link := strings.TrimSuffix(deps.Config.AppURL, "/") + "/invitation/" + token
 		if deps.Mailer != nil {
-			if err := deps.Mailer.Send(r.Context(), user.Email,
-				fmt.Sprintf("Votre espace de formation — %s", org.Name),
-				invitationEmail(contact.FirstName, org.Name, link)); err != nil {
+			message := mail.Composed{
+				Subject: fmt.Sprintf("Votre espace de formation — %s", org.Name),
+				HTML:    invitationEmail(contact.FirstName, org.Name, link),
+			}
+			if deps.Emails != nil {
+				if rendered, err := deps.Emails.Compose(r.Context(), emailtpl.KeyLearnerInvitation,
+					map[string]any{
+						"FirstName": contact.FirstName,
+						"OrgName":   org.Name,
+						"Link":      link,
+					}); err == nil {
+					message = rendered
+				}
+			}
+
+			if err := deps.Mailer.Send(
+				mail.WithContext(r.Context(), session.OrgID, emailtpl.KeyLearnerInvitation),
+				user.Email, message.Subject, message.HTML); err != nil {
 				deps.Log.Error("envoi de l'invitation", "err", err)
 				writeJSON(w, http.StatusAccepted, map[string]any{
 					"user":    user.Public(),

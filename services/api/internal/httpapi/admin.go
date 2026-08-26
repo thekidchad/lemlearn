@@ -26,6 +26,7 @@ func handleListOrgs(deps Deps) http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
 		if deps.Identity == nil {
 			writeError(w, http.StatusServiceUnavailable, "annuaire indisponible")
 			return
@@ -41,6 +42,12 @@ func handleListOrgs(deps Deps) http.HandlerFunc {
 		rows := make([]row, 0, len(entries))
 		mrr := 0
 		for _, entry := range entries {
+			// L'organisation de l'équipe lemlearn n'est pas un client : la
+			// compter gonflerait le revenu d'un abonnement qu'on se vend à
+			// soi-même, et le premier chiffre de l'écran serait faux.
+			if entry.OrgID == session.OrgID {
+				continue
+			}
 			plan, err := billing.PlanByCode(entry.Plan)
 			if err != nil {
 				// Un plan inconnu — renommé, retiré du catalogue — ne doit

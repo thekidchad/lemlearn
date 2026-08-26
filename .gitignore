@@ -34,3 +34,6 @@ infra/.cdk.staging/
 
 # Artefacts de build Go
 services/api/dist/
+
+# Identifiants des comptes de recette : ils ouvrent un environnement réel.
+comptes.txt

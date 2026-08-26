@@ -33,6 +33,7 @@ import (
 	"github.com/lemlearn/api/internal/httpapi"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/learning"
+	"github.com/lemlearn/api/internal/library"
 	"github.com/lemlearn/api/internal/platform/blob"
 	"github.com/lemlearn/api/internal/platform/ddb"
 	"github.com/lemlearn/api/internal/platform/doc"
@@ -123,6 +124,7 @@ func main() {
 		mailer = mail.NewJournaled(mailer, db, provider, nil)
 		deps.MailJournal = mail.NewJournal(db)
 		deps.Emails = emailtpl.NewService(db, nil)
+		deps.Library = library.NewService(db, nil)
 
 		// La satisfaction à froid ne dépend ni du compilateur ni du
 		// scellement : elle poste un lien de questionnaire, trois mois après.

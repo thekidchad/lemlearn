@@ -14,7 +14,7 @@ Deux comptes, pour deux points de vue :
 | Compte | Mot de passe | À quoi il sert |
 |---|---|---|
 | `marie@vulcain.fr` | `correcte-agrafe-cheval-pile` | Organisme **Institut Vulcain**, avec de la matière : une convention scellée, une vidéo, des questionnaires. Aussi `superadmin`, donc la vue équipe. |
-| `equipe@lemlearn.fr` | `pupitre-alizes-charbon-19` | Le compte de **l'équipe lemlearn** : organisations clientes, journal des envois, gabarits de courriels. |
+| `equipe@lemlearn.fr` | `pupitre-alizes-charbon-19` | Le compte de **l'équipe lemlearn** : tableau de bord, clients, journal des envois, gabarits, bibliothèque de formations. |
 | celui que vous créerez | le vôtre | Un organisme **vide**, pour éprouver le parcours d'entrée et les états vides. |
 | `lea@example.fr` | `barque-tilleul-orage-72` | Une **apprenante** de l'Institut Vulcain : elle ne voit que son parcours. |
 
@@ -176,9 +176,13 @@ ouverte sur l'Institut Vulcain.
 organisme — vide — et sa barre latérale ouvre sur ses écrans avant ceux d'un
 organisme de formation.*
 
-1. **`/admin`** — revenu mensuel, organisations clientes, dépassements. La
-   propre organisation de l'équipe n'y figure pas : la compter gonflerait un
-   revenu qu'on se vend à soi-même.
+1. **`/admin`** — le tableau de bord : revenu, clients, apprenants suivis,
+   signatures du mois, puis quatre lectures — courriels partis jour par jour,
+   signatures par mois, répartition par formule, volumes hébergés. Tout y est
+   calculé sur des données réelles ; ce qui n'existe pas (l'historique des
+   encaissements, faute de prestataire de paiement branché) est absent plutôt
+   qu'estimé. La propre organisation de l'équipe n'y figure pas : la compter
+   gonflerait un revenu qu'on se vend à soi-même.
 2. **Ouvrez une organisation.**
    → Sa consommation face aux quotas, ses comptes, et le journal de la
    relation : changements de formule et accès de l'équipe, chaînés.
@@ -200,6 +204,15 @@ organisme de formation.*
    « Revenir au gabarit d'origine ».
 7. **`/admin/apprenants`** — retrouver quelqu'un à son adresse, à travers les
    organisations. La recherche est journalisée chez le client concerné.
+8. **`/admin/bibliotheque`** — les formations que vous mettez à disposition.
+   Publiez-en une, puis connectez-vous en `marie@vulcain.fr` et ouvrez
+   **`/catalogue` → Bibliothèque lemlearn** : elle y est, avec son bouton
+   d'import.
+   → La copie arrive **en brouillon** dans son catalogue. Remaniez ensuite la
+   formation côté équipe : celle de l'organisme ne bouge pas. C'est le point
+   de la copie — la convention qu'il signe décrit ce qu'il dispense, et une
+   formation qui changerait sous ses pieds rendrait ses documents faux
+   rétroactivement.
 
 ---
 

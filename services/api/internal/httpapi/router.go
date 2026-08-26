@@ -27,6 +27,7 @@ import (
 	"github.com/lemlearn/api/internal/followup"
 	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/learning"
+	"github.com/lemlearn/api/internal/library"
 	"github.com/lemlearn/api/internal/platform/doc"
 	"github.com/lemlearn/api/internal/platform/mail"
 	"github.com/lemlearn/api/internal/signature"
@@ -57,6 +58,7 @@ type Deps struct {
 	// MailJournal la trace de ce qui est parti.
 	Emails      *emailtpl.Service
 	MailJournal *mail.Journal
+	Library     *library.Service
 	Stripe      *billing.Stripe
 	Clock       func() time.Time
 }
@@ -144,6 +146,14 @@ func NewRouter(deps Deps) http.Handler {
 					r.Delete("/{contactID}/piece-identite", handleDeleteIdentityDoc(deps))
 				})
 
+				// La bibliothèque lemlearn : consultable et importable par
+				// l'organisme, modifiable par la seule équipe.
+				r.Route("/bibliotheque", func(r chi.Router) {
+					r.Get("/", handleListLibrary(deps, true))
+					r.Get("/{courseID}", handleGetLibraryCourse(deps))
+					r.Post("/{courseID}/importer", handleImportLibraryCourse(deps))
+				})
+
 				r.Route("/courses", func(r chi.Router) {
 					r.Get("/", handleListCourses(deps))
 					r.Post("/", handleCreateCourse(deps))
@@ -197,6 +207,7 @@ func NewRouter(deps Deps) http.Handler {
 				}, "réservé à l'équipe lemlearn"))
 
 				r.Route("/admin", func(r chi.Router) {
+					r.Get("/tableau", handleAdminDashboard(deps))
 					r.Get("/orgs", handleListOrgs(deps))
 					r.Get("/orgs/{orgID}", handleOrgDetail(deps))
 					r.Post("/orgs/{orgID}/plan", handleSetPlan(deps))
@@ -215,6 +226,17 @@ func NewRouter(deps Deps) http.Handler {
 
 					// Retrouver un apprenant à travers les organisations.
 					r.Get("/apprenants", handleFindLearner(deps))
+
+					// La bibliothèque de formations mise à disposition des
+					// organismes.
+					r.Route("/bibliotheque", func(r chi.Router) {
+						r.Get("/", handleListLibrary(deps, false))
+						r.Post("/", handleSaveLibraryCourse(deps))
+						r.Get("/{courseID}", handleGetLibraryCourse(deps))
+						r.Put("/{courseID}", handleSaveLibraryCourse(deps))
+						r.Delete("/{courseID}", handleDeleteLibraryCourse(deps))
+						r.Post("/{courseID}/modules", handleSaveLibraryModule(deps))
+					})
 				})
 			})
 		})

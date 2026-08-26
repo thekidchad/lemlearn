@@ -63,9 +63,12 @@ export async function signIn(_: { error?: string } | undefined, form: FormData) 
     maxAge: 12 * 60 * 60,
   });
 
-  // Un apprenant n'a rien à faire sur le pipeline : il y recevrait un 403.
-  // Le rôle décide de la porte d'entrée.
-  redirect(role === "learner" ? "/apprenant" : "/pipeline");
+  // Le rôle décide de la porte d'entrée : un apprenant n'a rien à faire sur
+  // le pipeline — il y recevrait un 403 — et l'équipe lemlearn arrive sur ses
+  // clients, pas sur le pipeline vide de sa propre organisation.
+  redirect(
+    role === "learner" ? "/apprenant" : role === "superadmin" ? "/admin" : "/pipeline",
+  );
 }
 
 /**

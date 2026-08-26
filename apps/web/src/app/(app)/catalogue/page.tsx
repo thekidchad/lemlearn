@@ -29,7 +29,14 @@ export default async function CataloguePage() {
           {rows.length}
         </span>
 
-        <div className="ml-auto">
+        <Link
+          href="/catalogue/bibliotheque"
+          className="ml-auto text-2xs text-ink-3 underline hover:text-ink"
+        >
+          Bibliothèque lemlearn
+        </Link>
+
+        <div>
           <CreatePanel
             label="Nouvelle formation"
             title="Nouvelle formation"

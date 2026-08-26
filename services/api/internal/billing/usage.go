@@ -125,3 +125,19 @@ func (s *Service) Usage(ctx context.Context, orgID string) (Usage, error) {
 
 	return usage, nil
 }
+
+// SignaturesIn relit le compteur d'un mois donné.
+//
+// Renvoie zéro plutôt qu'une erreur : un mois sans compteur est un mois sans
+// signature, et faire échouer un tableau de bord entier pour cela serait
+// disproportionné.
+func (s *Service) SignaturesIn(ctx context.Context, orgID string, at time.Time) int {
+	if s.db == nil {
+		return 0
+	}
+	month, err := ddb.Get[counter](ctx, s.db, ddb.OrgPK(orgID), CounterSK(at))
+	if err != nil {
+		return 0
+	}
+	return month.Signatures
+}

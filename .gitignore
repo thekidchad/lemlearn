@@ -37,3 +37,7 @@ services/api/dist/
 
 # Identifiants des comptes de recette : ils ouvrent un environnement réel.
 comptes.txt
+
+# Configuration de déploiement : secrets par compte AWS.
+scripts/.env.*
+!scripts/env.example

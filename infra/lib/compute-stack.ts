@@ -81,6 +81,16 @@ export class ComputeStack extends Stack {
       TYPST_PATH: "/opt/bin/typst",
       TYPST_FONT_PATH: "/opt/fonts",
       LEMLEARN_SUPERADMINS: props.superAdmins ?? "",
+      // Envoi de courriels et facturation : absents en recette, où rien ne
+      // part et où le journal des envois suffit. On ne pose que ce qui est
+      // fourni — une variable vide vaudrait une clé invalide.
+      ...(process.env.RESEND_API_KEY ? { RESEND_API_KEY: process.env.RESEND_API_KEY } : {}),
+      ...(process.env.LEMLEARN_MAIL_FROM ? { LEMLEARN_MAIL_FROM: process.env.LEMLEARN_MAIL_FROM } : {}),
+      ...(process.env.STRIPE_SECRET_KEY ? { STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY } : {}),
+      ...(process.env.STRIPE_WEBHOOK_SECRET
+        ? { STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET }
+        : {}),
+      ...(process.env.STRIPE_PRICES ? { STRIPE_PRICES: process.env.STRIPE_PRICES } : {}),
       LEMLEARN_ASSETS_URL: `https://${props.assetsBucket.bucketName}.s3.${Stack.of(props.assetsBucket).region}.amazonaws.com`,
     };
 

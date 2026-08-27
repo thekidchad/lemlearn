@@ -232,7 +232,16 @@ func handleLogin(deps Deps) http.HandlerFunc {
 		// son accès inter-organisations à sa connexion suivante. La liste est
 		// la seule source de vérité, sans quoi un rôle accordé une fois
 		// resterait acquis pour toujours.
-		if wanted, actual := slices.Contains(deps.Config.SuperAdmins, user.Email),
+		//
+		// Une liste vide est la seule exception. Elle veut dire « la variable
+		// n'a pas été transmise » bien plus souvent que « plus personne dans
+		// l'équipe » : un déploiement qui l'oublie retirerait sinon l'accès à
+		// tout le monde, sans rien dire et sans qu'on sache pourquoi. Pour
+		// révoquer réellement quelqu'un, on retire son adresse d'une liste qui
+		// en contient encore une autre.
+		if len(deps.Config.SuperAdmins) == 0 && user.Role == identity.RoleSuperAdmin {
+			deps.Log.Warn("liste de l'équipe vide : rôle conservé", "email", user.Email)
+		} else if wanted, actual := slices.Contains(deps.Config.SuperAdmins, user.Email),
 			user.Role == identity.RoleSuperAdmin; wanted != actual {
 			role := identity.RoleOwner
 			if wanted {

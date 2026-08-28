@@ -2,10 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrgActions } from "@/components/app/org-actions";
-import { apiFetch, ApiError } from "@/lib/api";
+import { BrandForm } from "@/components/app/brand-form";
+import { apiFetch, ApiError, type Brand } from "@/lib/api";
 import type { Plan, Usage } from "@/app/(app)/admin/page";
 
 export const metadata: Metadata = { title: "Organisation" };
+
+interface BrandState {
+  brand: {
+    name?: string;
+    logoKey?: string;
+    accent?: string;
+    supportEmail?: string;
+    theme?: string;
+  };
+  resolved: Brand;
+  orgName: string;
+}
 
 interface Detail {
   org: { id: string; name: string; plan: string; siret?: string; createdAt: string };
@@ -42,6 +55,16 @@ export default async function OrgPage({ params }: PageProps<"/admin/[orgId]">) {
 
   const usage = detail.usage;
 
+  // La marque est chargée à part : l'équipe doit pouvoir habiller un organisme
+  // même quand son tableau d'usage est vide, c'est-à-dire le jour où on
+  // l'ouvre. Un échec ici ne prive que de ce bloc.
+  let marque: BrandState | null = null;
+  try {
+    marque = await apiFetch<BrandState>(`/v1/admin/orgs/${orgId}/marque`);
+  } catch {
+    marque = null;
+  }
+
   return (
     <>
       <header className="flex h-14 items-center gap-3 border-b border-line px-6">
@@ -56,6 +79,18 @@ export default async function OrgPage({ params }: PageProps<"/admin/[orgId]">) {
       </header>
 
       <div className="mx-auto max-w-4xl space-y-6 px-6 py-6">
+        {marque && (
+          <section>
+            <h2 className="text-sm font-medium">Marque blanche</h2>
+            <p className="mt-1.5 mb-4 max-w-2xl text-xs text-ink-2">
+              L&apos;enseigne que voient les apprenants et les signataires de cet
+              organisme. Vous pouvez la régler pour lui : c&apos;est ce qui permet
+              d&apos;ouvrir un client sans rien lui demander.
+            </p>
+            <BrandForm base={`/api/admin/orgs/${orgId}/marque`} initial={marque} />
+          </section>
+        )}
+
         <section className="surface-card p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>

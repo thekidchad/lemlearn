@@ -93,12 +93,11 @@ func TestEveryDefaultCarriesTheLogo(t *testing.T) {
 	}
 }
 
-// L'URL du logo est injectée par le service : aucun appelant n'a à s'en
-// souvenir, et un oubli enverrait un courriel à l'image cassée.
-func TestLogoIsInjectedWithoutTheCallerAskingForIt(t *testing.T) {
-	service := emailtpl.NewService(nil, nil).WithAssets(
-		"https://lemlearn-public-dev-986446886308.s3.eu-west-3.amazonaws.com/",
-	)
+// L'identité de l'organisme est complétée par le service : aucun appelant n'a
+// à s'en souvenir, et un oubli laisserait partir un message sans enseigne — ou
+// ferait échouer le rendu sur un champ manquant.
+func TestIdentiteCompleteeSansQueLAppelantLaDemande(t *testing.T) {
+	service := emailtpl.NewService(nil, nil)
 
 	message, err := service.Compose(context.Background(), emailtpl.KeySignatureOTP, map[string]any{
 		"Code": "482095", "Reference": "CONV-1",
@@ -106,7 +105,37 @@ func TestLogoIsInjectedWithoutTheCallerAskingForIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(message.HTML, "/brand/lemlearn-courriel.png") {
-		t.Errorf("le logo n'a pas été injecté : %s", message.HTML[:200])
+	if strings.Contains(message.HTML, "lemlearn") {
+		t.Error("le nom de l'outil ne doit jamais apparaître dans un message adressé à un signataire")
+	}
+	if !strings.Contains(message.HTML, "Votre organisme de formation") {
+		t.Errorf("enseigne de repli absente : %s", message.HTML[:300])
+	}
+}
+
+// Quand l'organisme est connu, c'est son nom, son logo et sa couleur qui
+// partent — c'est tout l'objet de la marque blanche.
+func TestIdentiteDeLOrganisme(t *testing.T) {
+	message, err := emailtpl.NewService(nil, nil).Compose(context.Background(),
+		emailtpl.KeySignatureInvitation, map[string]any{
+			"SignerName": "Léa", "Reference": "CONV-1", "DocumentLabel": "convention",
+			"Link": "https://exemple/signer/x", "Deadline": "26/08/2026",
+			"LogoURL":   "https://assets.test/brand/ORG1/logo.png",
+			"BrandName": "Vulcain Formation", "BrandAccent": "#0A7C5A", "BrandInk": "#FFFFFF",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, attendu := range []string{
+		"https://assets.test/brand/ORG1/logo.png",
+		"Vulcain Formation",
+		"#0A7C5A",
+	} {
+		if !strings.Contains(message.HTML, attendu) {
+			t.Errorf("%q absent du message", attendu)
+		}
+	}
+	if strings.Contains(message.HTML, "lemlearn") {
+		t.Error("le nom de l'outil apparaît encore dans le message")
 	}
 }

@@ -55,9 +55,15 @@ type Config struct {
 	StripeWebhookSecret string
 	StripePrices        string
 
-	// AssetsURL sert les ressources publiques — le logo des courriels. Vide,
-	// les messages partent sans logo plutôt qu'avec une image cassée.
+	// AssetsURL sert les ressources publiques — les logos des organismes,
+	// dans les courriels comme dans l'application. Vide, les messages partent
+	// sans logo plutôt qu'avec une image cassée.
 	AssetsURL string
+	// AssetsBucket est le même compartiment, côté écriture : c'est là que
+	// monte le logo d'un organisme. Séparé de l'adresse parce qu'on lit par
+	// URL publique et qu'on écrit par API — les deux ne se déduisent pas
+	// l'une de l'autre dès qu'un domaine propre sert les ressources.
+	AssetsBucket string
 
 	// Autorité d'horodatage RFC 3161. FreeTSA en développement, une autorité
 	// qualifiée eIDAS en production.
@@ -102,6 +108,7 @@ func Load() (Config, error) {
 		StripeWebhookSecret: os.Getenv("STRIPE_WEBHOOK_SECRET"),
 		StripePrices:        os.Getenv("STRIPE_PRICES"),
 		AssetsURL:           os.Getenv("LEMLEARN_ASSETS_URL"),
+		AssetsBucket:        os.Getenv("LEMLEARN_ASSETS_BUCKET"),
 		TSAURL:              orDefault("LEMLEARN_TSA_URL", "https://freetsa.org/tsr"),
 		SealCertPEM:         os.Getenv("LEMLEARN_SEAL_CERT"),
 		SealKeyPEM:          os.Getenv("LEMLEARN_SEAL_KEY"),

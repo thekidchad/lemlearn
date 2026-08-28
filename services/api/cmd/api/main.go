@@ -23,6 +23,7 @@ import (
 
 	"github.com/lemlearn/api/internal/attendance"
 	"github.com/lemlearn/api/internal/billing"
+	"github.com/lemlearn/api/internal/brand"
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
@@ -123,12 +124,43 @@ func main() {
 		// signature et des codes à usage unique.
 		mailer = mail.NewJournaled(mailer, db, provider, nil)
 		deps.MailJournal = mail.NewJournal(db)
-		deps.Emails = emailtpl.NewService(db, nil).WithAssets(cfg.AssetsURL)
+		deps.Emails = emailtpl.NewService(db, nil)
+
+		// L'identité visible de chaque organisme. Le service est monté même
+		// sans compartiment : sans lui on ne peut pas déposer de logo, mais le
+		// nom, la couleur et le monogramme suffisent déjà à ne plus afficher
+		// notre marque chez un client.
+		deps.Brand = brand.NewService(db, nil).WithAssets(cfg.AssetsURL)
+		if cfg.AssetsBucket != "" {
+			if bucket, err := blob.NewS3(context.Background(), cfg.AssetsBucket); err != nil {
+				log.Warn("dépôt des logos indisponible", "err", err)
+			} else {
+				deps.Assets = bucket
+			}
+		}
+		// Un seul résolveur d'identité, partagé par tout ce qui écrit à un
+		// apprenant. Il échoue en silence vers une enseigne neutre : un logo
+		// illisible ne doit jamais empêcher un courriel de partir.
+		branding := func(ctx context.Context, orgID string) map[string]any {
+			org, err := deps.Identity.LoadOrg(ctx, orgID)
+			if err != nil {
+				log.Warn("identité de l'organisme illisible", "err", err, "org", orgID)
+				return nil
+			}
+			resolved, err := deps.Brand.Resolve(ctx, orgID, org.Name)
+			if err != nil {
+				log.Warn("marque illisible", "err", err, "org", orgID)
+				return nil
+			}
+			return resolved.MailData()
+		}
+
 		deps.Library = library.NewService(db, nil)
 
 		// La satisfaction à froid ne dépend ni du compilateur ni du
 		// scellement : elle poste un lien de questionnaire, trois mois après.
-		deps.FollowUp = followup.NewService(db, mailer, cfg.AppURL, nil).WithComposer(deps.Emails)
+		deps.FollowUp = followup.NewService(db, mailer, cfg.AppURL, nil).
+			WithComposer(deps.Emails).WithBranding(branding)
 		deps.Mailer = mailer
 
 		// La vue super-admin non plus : elle doit rester consultable
@@ -172,6 +204,7 @@ func main() {
 				Blobs:    store,
 				Mailer:   mailer,
 				Composer: deps.Emails,
+				Branding: branding,
 				Sealer:   sealer,
 				AppURL:   cfg.AppURL,
 			})

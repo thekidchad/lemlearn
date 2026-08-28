@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
+import { OrgBrand, brandStyle } from "@/components/brand/org-brand";
 import { SignOutButton } from "@/components/app/sign-out";
 import { cookies } from "next/headers";
 import { ThemeSwitch } from "@/components/app/theme-switch";
@@ -36,7 +38,10 @@ const groups: { title?: string; items: { href: string; label: string; glyph: str
   },
   {
     title: "Compte",
-    items: [{ href: "/abonnement", label: "Abonnement", glyph: "◈" }],
+    items: [
+      { href: "/organisme", label: "Votre organisme", glyph: "◉" },
+      { href: "/abonnement", label: "Abonnement", glyph: "◈" },
+    ],
   },
 ];
 
@@ -63,6 +68,28 @@ const teamGroup = {
  * dans une coque à part, et le laisser entrer ici ne produirait qu'un 403 sur
  * la première requête — écran de plantage compris.
  */
+/**
+ * Le titre et l'icône de l'onglet suivent l'organisme.
+ *
+ * C'est le dernier endroit où notre nom transparaissait : un apprenant qui
+ * garde son onglet ouvert toute la journée y lirait « lemlearn » sans jamais
+ * comprendre pourquoi. L'équipe, elle, reste chez elle.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const me = await apiFetch<Me>("/v1/me");
+    const team = me.user.role === "superadmin" && !me.impersonatedBy;
+    if (team) return { title: { default: "lemlearn", template: "%s · lemlearn" } };
+    return {
+      title: { default: me.brand.name, template: `%s · ${me.brand.name}` },
+      ...(me.brand.logoUrl ? { icons: { icon: me.brand.logoUrl } } : {}),
+    };
+  } catch {
+    // Sans session, la coque redirige de toute façon vers la connexion.
+    return {};
+  }
+}
+
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   let me: Me;
   try {
@@ -79,16 +106,25 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   }
 
   const theme = ((await cookies()).get(THEME_COOKIE)?.value ?? "system") as Theme;
+
+  // L'équipe lemlearn travaille sous sa propre enseigne : c'est elle qui gère
+  // les organismes, et lui afficher la marque d'un client la tromperait sur
+  // l'endroit où elle se trouve. Tous les autres voient la leur.
+  const team = me.user.role === "superadmin" && !me.impersonatedBy;
   const sections = me.user.role === "superadmin" ? [teamGroup, ...groups] : groups;
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex min-h-dvh" style={team ? undefined : brandStyle(me.brand)}>
       {/* La colonne reste en place pendant que le contenu défile : c'est ce
           qui fait qu'on ne se perd pas dans un écran long. */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface-1 lg:flex">
         <div className="flex h-12 items-center px-3">
-          <Link href="/pipeline" aria-label="lemlearn, accueil" className="px-1">
-            <Logo />
+          <Link
+            href="/pipeline"
+            aria-label={`${team ? "lemlearn" : me.brand.name}, accueil`}
+            className="min-w-0 px-1"
+          >
+            {team ? <Logo /> : <OrgBrand brand={me.brand} />}
           </Link>
         </div>
 

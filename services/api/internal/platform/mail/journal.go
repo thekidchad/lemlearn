@@ -56,6 +56,43 @@ func WithContext(ctx context.Context, orgID, template string) context.Context {
 	return context.WithValue(ctx, journalKey{}, journalContext{orgID: orgID, template: template})
 }
 
+// senderKey porte le nom d'expéditeur à afficher.
+type senderKey struct{}
+
+// WithSender fixe le nom sous lequel le message apparaît dans la boîte de
+// réception.
+//
+// L'adresse technique, elle, ne change pas : elle dépend d'un domaine vérifié
+// chez le fournisseur d'envoi, et un organisme ne peut pas en emprunter un
+// autre sans le prouver. Mais c'est le nom qui s'affiche dans la liste des
+// messages, et c'est lui que lit un stagiaire pour décider s'il ouvre.
+func WithSender(ctx context.Context, name string) context.Context {
+	if strings.TrimSpace(name) == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, senderKey{}, name)
+}
+
+// SenderFrom compose l'expéditeur à employer, à partir de celui configuré.
+//
+// Sans nom dans le contexte, l'adresse configurée part telle quelle.
+func SenderFrom(ctx context.Context, configured string) string {
+	name, _ := ctx.Value(senderKey{}).(string)
+	if name == "" {
+		return configured
+	}
+	// L'adresse est ce qui est entre chevrons, ou la chaîne entière quand
+	// aucun nom n'a été configuré.
+	adresse := configured
+	if ouvrant := strings.LastIndex(configured, "<"); ouvrant >= 0 {
+		adresse = strings.TrimSuffix(configured[ouvrant+1:], ">")
+	}
+	// Les guillemets et les chevrons casseraient l'en-tête : un nom
+	// d'organisme est une donnée saisie, pas une constante du code.
+	propre := strings.NewReplacer(`"`, "", "<", "", ">", "", "\r", "", "\n", "").Replace(name)
+	return fmt.Sprintf("%s <%s>", strings.TrimSpace(propre), strings.TrimSpace(adresse))
+}
+
 func fromContext(ctx context.Context) journalContext {
 	value, _ := ctx.Value(journalKey{}).(journalContext)
 	return value

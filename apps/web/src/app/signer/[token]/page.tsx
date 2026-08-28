@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SignatureFlow } from "@/components/app/signature-flow";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, type Brand } from "@/lib/api";
+import { OrgBrand, brandStyle } from "@/components/brand/org-brand";
 
 export const metadata: Metadata = {
   title: "Signature électronique",
@@ -18,6 +19,7 @@ interface SignRequest {
   status: string;
   expiresAt: string;
   sha256: string;
+  brand: Brand;
 }
 
 const KINDS: Record<string, string> = {
@@ -55,7 +57,13 @@ export default async function SignerPage({ params }: PageProps<"/signer/[token]"
   }
 
   return (
-    <main className="mx-auto min-h-dvh max-w-xl px-5 py-8">
+    // Le signataire n'a de relation qu'avec son organisme de formation. C'est
+    // la page la plus engageante du produit — on y appose une signature — et
+    // y voir une marque inconnue est le meilleur moyen de faire abandonner.
+    <main className="mx-auto min-h-dvh max-w-xl px-5 py-8" style={brandStyle(request.brand)}>
+      <div className="mb-8">
+        <OrgBrand brand={request.brand} />
+      </div>
       <p className="font-mono text-2xs tracking-wide text-ink-3 uppercase">
         {[KINDS[request.kind] ?? request.kind, request.reference]
           .filter(Boolean)

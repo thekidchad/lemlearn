@@ -262,7 +262,13 @@ func handleLogin(deps Deps) http.HandlerFunc {
 		}
 
 		setSessionCookie(w, deps.Config, token)
-		writeJSON(w, http.StatusOK, map[string]any{"user": user.Public()})
+		// La marque part dès la connexion : c'est elle qui porte le thème par
+		// défaut de l'organisme, et le poser plus tard ferait basculer
+		// l'interface sous les yeux de la personne qui vient d'arriver.
+		writeJSON(w, http.StatusOK, map[string]any{
+			"user":  user.Public(),
+			"brand": publicBrand(r, deps, user.OrgID),
+		})
 	}
 }
 
@@ -301,6 +307,10 @@ func handleMe(deps Deps) http.HandlerFunc {
 				"id": org.ID, "name": org.Name, "plan": org.Plan,
 				"qualiopiCertified": org.QualiopiCertified,
 			},
+			// La marque voyage avec la session : la coque, les titres d'onglet
+			// et la couleur d'accent en dépendent, et les charger séparément
+			// ferait clignoter l'enseigne de lemlearn à chaque page.
+			"brand":          publicBrand(r, deps, session.OrgID),
 			"impersonatedBy": session.ImpersonatedBy,
 		})
 	}

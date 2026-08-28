@@ -57,18 +57,23 @@ func handleInviteLearner(deps Deps) http.HandlerFunc {
 				HTML:    invitationEmail(contact.FirstName, org.Name, link),
 			}
 			if deps.Emails != nil {
-				if rendered, err := deps.Emails.Compose(r.Context(), emailtpl.KeyLearnerInvitation,
-					map[string]any{
-						"FirstName": contact.FirstName,
-						"OrgName":   org.Name,
-						"Link":      link,
-					}); err == nil {
+				data := map[string]any{
+					"FirstName": contact.FirstName,
+					"OrgName":   org.Name,
+					"Link":      link,
+				}
+				for champ, valeur := range publicBrand(r, deps, org.ID).MailData() {
+					data[champ] = valeur
+				}
+				if rendered, err := deps.Emails.Compose(r.Context(), emailtpl.KeyLearnerInvitation, data); err == nil {
 					message = rendered
 				}
 			}
 
-			if err := deps.Mailer.Send(
-				mail.WithContext(r.Context(), session.OrgID, emailtpl.KeyLearnerInvitation),
+			envoi := mail.WithSender(
+				mail.WithContext(r.Context(), org.ID, emailtpl.KeyLearnerInvitation),
+				publicBrand(r, deps, org.ID).Name)
+			if err := deps.Mailer.Send(envoi,
 				user.Email, message.Subject, message.HTML); err != nil {
 				deps.Log.Error("envoi de l'invitation", "err", err)
 				writeJSON(w, http.StatusAccepted, map[string]any{
@@ -112,6 +117,7 @@ func handleInvitationOpen(deps Deps) http.HandlerFunc {
 			"email":     maskEmail(invitation.Email),
 			"org":       org.Name,
 			"expiresAt": invitation.ExpiresOn,
+			"brand":     publicBrand(r, deps, invitation.OrgID),
 		})
 	}
 }

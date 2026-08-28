@@ -14,19 +14,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/**
+ * La racine ne nomme pas le produit.
+ *
+ * Elle habille aussi bien la vitrine que les pages de signature, et celles-ci
+ * sont vues par des gens qui ne connaissent que leur organisme de formation —
+ * jusque dans l'aperçu d'un lien partagé dans une conversation. Le nom, la
+ * description et les métadonnées de partage appartiennent donc à la vitrine,
+ * qui les déclare pour elle-même.
+ */
 export const metadata: Metadata = {
   metadataBase: new URL("https://lemlearn.fr"),
-  title: {
-    default: "lemlearn — le CRM des organismes de formation",
-    template: "%s · lemlearn",
-  },
-  description:
-    "CRM, LMS vidéo et chaîne de preuve horodatée dans un seul outil. Signature électronique intégrée, émargement numérique, exports Qualiopi en un clic.",
-  openGraph: {
-    type: "website",
-    locale: "fr_FR",
-    siteName: "lemlearn",
-  },
+  title: { default: "Formation professionnelle", template: "%s" },
+  openGraph: { type: "website", locale: "fr_FR" },
 };
 
 export const viewport: Viewport = {

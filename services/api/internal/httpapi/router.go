@@ -19,6 +19,7 @@ import (
 
 	"github.com/lemlearn/api/internal/attendance"
 	"github.com/lemlearn/api/internal/billing"
+	"github.com/lemlearn/api/internal/brand"
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
@@ -58,6 +59,11 @@ type Deps struct {
 	// MailJournal la trace de ce qui est parti.
 	Emails      *emailtpl.Service
 	MailJournal *mail.Journal
+	// Brand porte l'identité visible de chaque organisme, et Assets le
+	// compartiment public où vivent les logos. La marque blanche tient à ces
+	// deux-là : sans le second, on sait quoi afficher mais pas où le prendre.
+	Brand  *brand.Service
+	Assets Presigner
 	Library     *library.Service
 	Stripe      *billing.Stripe
 	Clock       func() time.Time
@@ -146,6 +152,18 @@ func NewRouter(deps Deps) http.Handler {
 					r.Delete("/{contactID}/piece-identite", handleDeleteIdentityDoc(deps))
 				})
 
+				// L'identité visible de l'organisme. En lecture pour tous les
+				// membres — chaque écran s'en sert pour s'habiller — et en
+				// écriture pour ceux qui administrent l'organisme.
+				r.Route("/marque", func(r chi.Router) {
+					r.Get("/", handleGetBrand(deps))
+					r.Group(func(r chi.Router) {
+						r.Use(requireRole(identity.Role.CanManageCRM, "réservé aux administrateurs de l'organisme"))
+						r.Put("/", handleSaveBrand(deps))
+						r.Post("/logo", handlePrepareLogo(deps))
+					})
+				})
+
 				// La bibliothèque lemlearn : consultable et importable par
 				// l'organisme, modifiable par la seule équipe.
 				r.Route("/bibliotheque", func(r chi.Router) {
@@ -212,6 +230,13 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/orgs/{orgID}", handleOrgDetail(deps))
 					r.Post("/orgs/{orgID}/plan", handleSetPlan(deps))
 					r.Post("/orgs/{orgID}/impersonate", handleImpersonate(deps))
+
+					// Habiller un client depuis la vue super-admin : c'est ce
+					// qui rend l'ouverture d'un organisme immédiate, sans rien
+					// lui demander ni rien redéployer.
+					r.Get("/orgs/{orgID}/marque", handleAdminGetBrand(deps))
+					r.Put("/orgs/{orgID}/marque", handleAdminSaveBrand(deps))
+					r.Post("/orgs/{orgID}/marque/logo", handlePrepareLogo(deps))
 
 					// Traçabilité : ce qui est parti, et à qui.
 					r.Get("/emails", handleMailJournal(deps))

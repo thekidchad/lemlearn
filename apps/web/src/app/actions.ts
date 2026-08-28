@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { API_COOKIE, SESSION_COOKIE } from "@/lib/api";
+import { THEME_COOKIE } from "@/lib/theme";
 
 const API_URL = process.env.LEMLEARN_API_URL ?? "http://localhost:8787";
 
@@ -44,6 +45,7 @@ export async function signIn(_: { error?: string } | undefined, form: FormData) 
   // les mêmes garanties : httpOnly, SameSite, et Secure hors développement.
   const body = (await response.json().catch(() => ({}))) as {
     user?: { role?: string };
+    brand?: { theme?: string };
   };
   const role = body.user?.role;
 
@@ -62,6 +64,22 @@ export async function signIn(_: { error?: string } | undefined, form: FormData) 
     path: "/",
     maxAge: 12 * 60 * 60,
   });
+
+  // Le thème par défaut de l'organisme, posé à la connexion et pas plus tard.
+  //
+  // C'est le seul moment où on peut le faire sans clignotement : la coque est
+  // rendue sous la racine du document, et seule la racine porte le thème. On
+  // ne l'écrit que si la personne n'a rien choisi — un réglage explicite ne se
+  // fait pas écraser par une préférence d'organisme.
+  const theme = body.brand?.theme;
+  if (!store.get(THEME_COOKIE) && (theme === "light" || theme === "dark")) {
+    store.set(THEME_COOKIE, theme, {
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 365 * 24 * 60 * 60,
+    });
+  }
 
   // Le rôle décide de la porte d'entrée : un apprenant n'a rien à faire sur
   // le pipeline — il y recevrait un 403 — et l'équipe lemlearn arrive sur ses

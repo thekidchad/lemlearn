@@ -128,6 +128,7 @@ func handleSurveyOpen(deps Deps) http.HandlerFunc {
 			"learner":       task.LearnerName,
 			"course":        task.CourseTitle,
 			"answered":      task.Status == followup.StatusAnswered,
+			"brand":         publicBrand(r, deps, task.OrgID),
 		})
 	}
 }

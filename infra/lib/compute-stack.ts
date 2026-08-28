@@ -92,6 +92,7 @@ export class ComputeStack extends Stack {
         : {}),
       ...(process.env.STRIPE_PRICES ? { STRIPE_PRICES: process.env.STRIPE_PRICES } : {}),
       LEMLEARN_ASSETS_URL: `https://${props.assetsBucket.bucketName}.s3.${Stack.of(props.assetsBucket).region}.amazonaws.com`,
+      LEMLEARN_ASSETS_BUCKET: props.assetsBucket.bucketName,
     };
 
     // Groupes de logs déclarés explicitement : `logRetention` crée une Lambda
@@ -144,6 +145,12 @@ export class ComputeStack extends Stack {
     props.identityBucket.grantReadWrite(apiFn);
     props.identityBucket.grantRead(exportFn);
     props.videoBucket.grantReadWrite(apiFn);
+    // Les logos des organismes, et eux seuls. Le préfixe est explicite : le
+    // compartiment est ouvert en lecture publique sur `brand/`, et une
+    // autorisation d'écriture plus large y ferait entrer n'importe quoi
+    // d'autre sous une adresse que tout le monde peut lire.
+    props.assetsBucket.grantPut(apiFn, "brand/*");
+    props.assetsBucket.grantDelete(apiFn, "brand/*");
 
     // ---------------------------------------------------------------------
     // Journal d'audit : ajout seul, au niveau IAM

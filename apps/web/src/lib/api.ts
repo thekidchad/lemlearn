@@ -140,6 +140,25 @@ export async function hasSession(): Promise<boolean> {
 
 export type Role = "owner" | "admin" | "trainer" | "learner" | "superadmin";
 
+/**
+ * L'identité visible d'un organisme de formation.
+ *
+ * Elle est toujours complète : l'API résout les valeurs par défaut avant de
+ * répondre, pour qu'aucun écran n'ait à se demander quoi afficher quand un
+ * champ manque. `logoUrl` seule peut être vide — c'est le cas d'un organisme
+ * qui n'a pas encore déposé de fichier, et le monogramme prend le relais.
+ */
+export interface Brand {
+  name: string;
+  logoUrl?: string;
+  monogram: string;
+  accent: string;
+  accentInk: string;
+  supportEmail?: string;
+  /** Thème par défaut de l'organisme : "system", "light" ou "dark". */
+  theme: string;
+}
+
 export interface Me {
   user: {
     id: string;
@@ -151,6 +170,7 @@ export interface Me {
     role: Role;
   };
   org: { id: string; name: string; plan: string; qualiopiCertified: boolean };
+  brand: Brand;
   impersonatedBy: string;
 }
 

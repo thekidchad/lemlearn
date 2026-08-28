@@ -15,12 +15,37 @@ import (
 	"strings"
 )
 
-// logoVariable est disponible dans tous les gabarits : le service l'injecte
-// sans que l'appelant ait à y penser.
+// logoVariable et brandVariable sont disponibles dans tous les gabarits : le
+// service les injecte sans que l'appelant ait à y penser.
+//
+// Elles portent l'organisme de formation, pas lemlearn. Un stagiaire ne
+// connaît que son organisme : un message signé d'un nom qu'il n'a jamais vu
+// part en indésirable, et c'est un dossier bloqué.
 var logoVariable = Variable{
 	Name:    "LogoURL",
-	Purpose: "logo lemlearn, servi par l'application",
-	Sample:  "https://app.lemlearn.fr/brand/lemlearn-courriel.png",
+	Purpose: "logo de l'organisme de formation, servi depuis le stockage public",
+	Sample:  "https://assets.exemple/brand/ORG/logo.png",
+}
+
+var brandVariable = Variable{
+	Name:    "BrandName",
+	Purpose: "nom de l'organisme de formation, tel qu'il s'affiche à l'apprenant",
+	Sample:  "Vulcain Formation",
+}
+
+// La couleur d'accent et son encre vont ensemble : la seconde est calculée
+// depuis la première pour que le texte du bouton reste lisible quel que soit
+// le choix de l'organisme.
+var accentVariable = Variable{
+	Name:    "BrandAccent",
+	Purpose: "couleur d'accent de l'organisme, employée par les boutons",
+	Sample:  "#6644E8",
+}
+
+var inkVariable = Variable{
+	Name:    "BrandInk",
+	Purpose: "couleur du texte posé sur l'accent, noire ou blanche selon la luminance",
+	Sample:  "#FFFFFF",
 }
 
 // Variable documente un champ disponible dans un gabarit.
@@ -72,7 +97,7 @@ const shell = `<!doctype html>
 <table role="presentation" width="100%%" cellpadding="0" cellspacing="0"><tr><td align="center">
 <table role="presentation" width="100%%" style="max-width:520px;background:#ffffff;border:1px solid #e3e6ec;border-radius:12px" cellpadding="0" cellspacing="0">
 <tr><td style="padding:24px 28px 0">
-<img src="{{.LogoURL}}" alt="lemlearn" width="100" height="20" style="display:block;border:0;height:20px;width:100px">
+{{if .LogoURL}}<img src="{{.LogoURL}}" alt="{{.BrandName}}" style="display:block;border:0;max-height:32px;max-width:180px">{{else}}<p style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.02em">{{.BrandName}}</p>{{end}}
 </td></tr>
 <tr><td style="padding:20px 28px 8px">%s</td></tr>
 <tr><td style="padding:0 28px 28px;border-top:1px solid #eef0f4">
@@ -94,6 +119,9 @@ func Defaults() []Definition {
 			Subject: "Document à signer — {{.Reference}}",
 			Variables: []Variable{
 				logoVariable,
+				brandVariable,
+				accentVariable,
+				inkVariable,
 				{"SignerName", "prénom du signataire", "Léa"},
 				{"Reference", "référence du document", "CONV-2026-0143"},
 				{"DocumentLabel", "libellé complet du document", "convention de formation CONV-2026-0143"},
@@ -110,12 +138,12 @@ Vous pourrez le lire intégralement avant de signer ; un code de vérification
 vous sera envoyé à cette même adresse au moment de la signature.
 </p>
 <p style="margin:0 0 24px">
-<a href="{{.Link}}" style="display:inline-block;background:#4b37b8;color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500">Lire et signer le document</a>
+<a href="{{.Link}}" style="display:inline-block;background:{{.BrandAccent}};color:{{.BrandInk}};text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500">Lire et signer le document</a>
 </p>
 <p style="margin:0;font-size:12px;line-height:1.6;color:#5b6170">
 Ce lien est personnel, à usage unique, et expire le {{.Deadline}}.
 </p>`,
-				"Ce message vous est adressé par lemlearn pour le compte de l'organisme de formation à l'origine du document. "+
+				"Ce message vous est adressé par {{.BrandName}}, organisme de formation à l'origine du document. "+
 					"Si vous n'êtes pas concerné, ignorez-le : sans signature, le lien expirera de lui-même."),
 		},
 		{
@@ -125,6 +153,7 @@ Ce lien est personnel, à usage unique, et expire le {{.Deadline}}.
 			Subject: "Votre code de signature : {{.Code}}",
 			Variables: []Variable{
 				logoVariable,
+				brandVariable,
 				{"Code", "code à six chiffres", "482095"},
 				{"Reference", "référence du document", "CONV-2026-0143"},
 			},
@@ -148,6 +177,9 @@ Ce code est valable dix minutes et ne peut servir qu'une fois.
 			Subject: "Votre espace de formation — {{.OrgName}}",
 			Variables: []Variable{
 				logoVariable,
+				brandVariable,
+				accentVariable,
+				inkVariable,
 				{"FirstName", "prénom de l'apprenant", "Léa"},
 				{"OrgName", "nom de l'organisme", "Institut Vulcain"},
 				{"Link", "lien pour choisir son mot de passe", "https://app.lemlearn.fr/invitation/jeton"},
@@ -161,7 +193,7 @@ modules vidéo, les questionnaires qui les accompagnent et votre progression —
 c'est aussi là que votre attestation deviendra disponible.
 </p>
 <p style="margin:0 0 24px">
-<a href="{{.Link}}" style="display:inline-block;background:#4b37b8;color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500">Choisir mon mot de passe</a>
+<a href="{{.Link}}" style="display:inline-block;background:{{.BrandAccent}};color:{{.BrandInk}};text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500">Choisir mon mot de passe</a>
 </p>
 <p style="margin:0;font-size:12px;line-height:1.6;color:#5b6170">
 Ce lien est personnel et expire dans quatorze jours.
@@ -176,6 +208,9 @@ Ce lien est personnel et expire dans quatorze jours.
 			Subject: "Votre avis sur « {{.CourseTitle}} », trois mois après",
 			Variables: []Variable{
 				logoVariable,
+				brandVariable,
+				accentVariable,
+				inkVariable,
 				{"FirstName", "prénom de l'apprenant", "Camille"},
 				{"CourseTitle", "intitulé de la formation", "Prévention des risques"},
 				{"Link", "lien vers le questionnaire", "https://app.lemlearn.fr/satisfaction/jeton"},
@@ -190,7 +225,7 @@ sait ce qui a réellement servi.
 </p>
 <p style="margin:0 0 24px;font-size:14px;line-height:1.6">Cinq questions, deux minutes.</p>
 <p style="margin:0 0 24px">
-<a href="{{.Link}}" style="display:inline-block;background:#4b37b8;color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500">Répondre au questionnaire</a>
+<a href="{{.Link}}" style="display:inline-block;background:{{.BrandAccent}};color:{{.BrandInk}};text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500">Répondre au questionnaire</a>
 </p>`,
 				"Vos réponses sont conservées avec votre dossier de formation et peuvent être consultées "+
 					"lors d'un contrôle de l'organisme."),

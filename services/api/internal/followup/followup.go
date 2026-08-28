@@ -97,6 +97,7 @@ type Service struct {
 	db       *ddb.Client
 	mailer   Mailer
 	composer mail.Composer
+	branding func(ctx context.Context, orgID string) map[string]any
 	appURL   string
 	now      func() time.Time
 }
@@ -112,6 +113,15 @@ func NewService(db *ddb.Client, mailer Mailer, appURL string, now func() time.Ti
 // WithComposer branche les gabarits modifiables.
 func (s *Service) WithComposer(composer mail.Composer) *Service {
 	s.composer = composer
+	return s
+}
+
+// WithBranding donne au service de quoi habiller ses messages aux couleurs de
+// l'organisme. Une relance arrive trois mois après la formation : c'est le
+// message le plus susceptible d'être pris pour un pourriel, et le nom de
+// l'organisme est ce qui le sauve.
+func (s *Service) WithBranding(resolve func(ctx context.Context, orgID string) map[string]any) *Service {
+	s.branding = resolve
 	return s
 }
 
@@ -205,16 +215,28 @@ func (s *Service) Run(ctx context.Context, at time.Time) (sent int, failed int, 
 				HTML:    coldSurveyEmail(task, link),
 			}
 			if s.composer != nil {
-				if rendered, err := s.composer.Compose(ctx, emailtpl.KeySurveyCold, map[string]any{
+				data := map[string]any{
 					"FirstName":   firstName(task.LearnerName),
 					"CourseTitle": task.CourseTitle,
 					"Link":        link,
-				}); err == nil {
+				}
+				if s.branding != nil {
+					for champ, valeur := range s.branding(ctx, task.OrgID) {
+						data[champ] = valeur
+					}
+				}
+				if rendered, err := s.composer.Compose(ctx, emailtpl.KeySurveyCold, data); err == nil {
 					message = rendered
 				}
 			}
 
-			if err := s.mailer.Send(mail.WithContext(ctx, task.OrgID, emailtpl.KeySurveyCold),
+			envoi := mail.WithContext(ctx, task.OrgID, emailtpl.KeySurveyCold)
+			if s.branding != nil {
+				if nom, ok := s.branding(ctx, task.OrgID)["BrandName"].(string); ok {
+					envoi = mail.WithSender(envoi, nom)
+				}
+			}
+			if err := s.mailer.Send(envoi,
 				task.Email, message.Subject, message.HTML); err != nil {
 				failed++
 				continue

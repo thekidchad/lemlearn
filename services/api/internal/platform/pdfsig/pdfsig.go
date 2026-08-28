@@ -96,7 +96,7 @@ func Sign(pdf []byte, opts Options) ([]byte, error) {
 	// dans le document, rendue par le gabarit dans sa zone. Superposer une
 	// apparence de widget ferait double emploi et masquerait le tracé.
 	out.WriteString("/Rect [0 0 0 0]\n/F 132\n")
-	fmt.Fprintf(&out, "/T (Signature lemlearn)\n/V %d 0 R\n/P %d 0 R\n", sigNum, doc.firstPage)
+	fmt.Fprintf(&out, "/T (Signature electronique)\n/V %d 0 R\n/P %d 0 R\n", sigNum, doc.firstPage)
 	out.WriteString(">>\nendobj\n")
 
 	page, err := doc.objectWithAnnot(doc.firstPage, fieldNum)

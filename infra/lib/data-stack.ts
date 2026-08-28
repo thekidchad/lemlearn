@@ -145,6 +145,17 @@ export class DataStack extends Stack {
       enforceSSL: true,
       removalPolicy,
       autoDeleteObjects: !props.retain,
+      // Le logo monte depuis le navigateur, par URL signée : sans ces règles,
+      // le dépôt échoue sur une erreur que le navigateur n'attribue qu'à S3,
+      // sans nommer la règle manquante.
+      cors: [
+        {
+          allowedOrigins: props.appOrigins,
+          allowedMethods: [s3.HttpMethods.PUT],
+          allowedHeaders: ["*"],
+          maxAge: 3000,
+        },
+      ],
     });
 
     this.assetsBucket.addToResourcePolicy(

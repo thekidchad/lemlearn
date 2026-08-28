@@ -151,6 +151,10 @@ func handleSignOpen(deps Deps) http.HandlerFunc {
 			"status":     req.Status,
 			"expiresAt":  req.ExpiresAt,
 			"sha256":     req.UnsignedSHA256,
+			// Le signataire ne connaît que son organisme de formation : c'est
+			// son enseigne qu'il doit voir au moment d'engager sa signature,
+			// pas celle de l'outil qui la recueille.
+			"brand": publicBrand(r, deps, req.OrgID),
 		})
 	}
 }

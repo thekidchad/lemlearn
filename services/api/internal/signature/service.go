@@ -59,6 +59,7 @@ type Service struct {
 	blobs    BlobStore
 	mailer   Mailer
 	composer mail.Composer
+	branding func(ctx context.Context, orgID string) map[string]any
 	sealer   Sealer
 	appURL   string
 	now      func() time.Time
@@ -73,6 +74,11 @@ type Deps struct {
 	// Composer rend les courriels depuis les gabarits modifiables. Absent, le
 	// service utilise ceux du code.
 	Composer mail.Composer
+	// Branding rend l'identité visible de l'organisme — nom, logo, couleur.
+	// Absente, les messages partent sous une enseigne neutre : le signataire
+	// ne doit jamais voir le nom de l'outil à la place de celui de son
+	// organisme de formation.
+	Branding func(ctx context.Context, orgID string) map[string]any
 	Sealer   Sealer
 	AppURL   string
 	Now      func() time.Time
@@ -86,7 +92,8 @@ func NewService(deps Deps) *Service {
 	}
 	return &Service{
 		db: deps.DB, renderer: deps.Renderer, blobs: deps.Blobs,
-		mailer: deps.Mailer, composer: deps.Composer, sealer: deps.Sealer,
+		mailer: deps.Mailer, composer: deps.Composer, branding: deps.Branding,
+		sealer: deps.Sealer,
 		appURL: strings.TrimRight(deps.AppURL, "/"), now: now,
 	}
 }
@@ -173,7 +180,7 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (Request, string, er
 
 	if s.mailer != nil {
 		link := fmt.Sprintf("%s/signer/%s", s.appURL, token)
-		message := s.compose(ctx, emailtpl.KeySignatureInvitation, map[string]any{
+		message := s.compose(ctx, req.OrgID, emailtpl.KeySignatureInvitation, map[string]any{
 			"SignerName":    firstName(req.SignerName),
 			"Reference":     req.Reference,
 			"DocumentLabel": documentLabel(req),
@@ -181,7 +188,7 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (Request, string, er
 			"Deadline":      formatDeadline(req),
 		}, fmt.Sprintf("Document à signer — %s", req.Reference), invitationEmail(req, link))
 
-		if err := s.mailer.Send(mail.WithContext(ctx, req.OrgID, emailtpl.KeySignatureInvitation),
+		if err := s.mailer.Send(s.envelope(ctx, req.OrgID, emailtpl.KeySignatureInvitation),
 			req.SignerEmail, message.Subject, message.HTML); err != nil {
 			// L'envoi échoue mais la demande existe : la relance est
 			// possible, alors qu'une demande perdue ne l'est pas. L'erreur
@@ -294,12 +301,12 @@ func (s *Service) SendOTP(ctx context.Context, token, ip, userAgent string) (Req
 	}
 
 	if s.mailer != nil {
-		message := s.compose(ctx, emailtpl.KeySignatureOTP, map[string]any{
+		message := s.compose(ctx, req.OrgID, emailtpl.KeySignatureOTP, map[string]any{
 			"Code":      code,
 			"Reference": req.Reference,
 		}, fmt.Sprintf("Votre code de signature : %s", code), otpEmail(req, code))
 
-		if err := s.mailer.Send(mail.WithContext(ctx, req.OrgID, emailtpl.KeySignatureOTP),
+		if err := s.mailer.Send(s.envelope(ctx, req.OrgID, emailtpl.KeySignatureOTP),
 			req.SignerEmail, message.Subject, message.HTML); err != nil {
 			return req, fmt.Errorf("envoi du code: %w", err)
 		}
@@ -589,13 +596,33 @@ func safeReference(reference string) string {
 	return strings.Trim(cleaned, ".-")
 }
 
+// envelope prépare le contexte d'envoi : journal et nom d'expéditeur.
+//
+// Dans une boîte de réception, le nom de l'expéditeur est la première colonne
+// lue. Un signataire qui y trouve un nom inconnu n'ouvre pas le message, et le
+// dossier reste bloqué sans que personne comprenne pourquoi.
+func (s *Service) envelope(ctx context.Context, orgID, key string) context.Context {
+	envoi := mail.WithContext(ctx, orgID, key)
+	if s.branding != nil {
+		if nom, ok := s.branding(ctx, orgID)["BrandName"].(string); ok {
+			envoi = mail.WithSender(envoi, nom)
+		}
+	}
+	return envoi
+}
+
 // compose rend le courriel depuis le gabarit, avec repli sur celui du code.
 //
 // Le repli n'est pas de la prudence excessive : les gabarits sont modifiables
 // par l'équipe, et un lien de signature ne doit pas rester bloqué parce que
 // quelqu'un a laissé une accolade ouverte trois semaines plus tôt.
-func (s *Service) compose(ctx context.Context, key string, data map[string]any,
+func (s *Service) compose(ctx context.Context, orgID, key string, data map[string]any,
 	fallbackSubject, fallbackHTML string) mail.Composed {
+	if s.branding != nil {
+		for champ, valeur := range s.branding(ctx, orgID) {
+			data[champ] = valeur
+		}
+	}
 	if s.composer != nil {
 		if message, err := s.composer.Compose(ctx, key, data); err == nil {
 			return message

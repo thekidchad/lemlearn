@@ -57,7 +57,9 @@ func NewResend(apiKey, from string) *Resend {
 // Send expédie un courriel.
 func (r *Resend) Send(ctx context.Context, to, subject, html string) error {
 	payload, err := json.Marshal(map[string]any{
-		"from":    r.from,
+		// Le nom d'expéditeur suit l'organisme quand il est connu : dans une
+		// boîte de réception, c'est la première colonne qu'on lit.
+		"from":    SenderFrom(ctx, r.from),
 		"to":      []string{to},
 		"subject": subject,
 		"html":    html,

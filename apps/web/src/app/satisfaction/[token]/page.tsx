@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SurveyForm, type Questionnaire } from "@/components/app/survey-form";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, type Brand } from "@/lib/api";
+import { OrgBrand, brandStyle } from "@/components/brand/org-brand";
 
 export const metadata: Metadata = {
   title: "Votre avis sur la formation",
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 interface Survey {
+  brand: Brand;
   questionnaire: Questionnaire;
   learner: string;
   course: string;
@@ -31,7 +33,10 @@ export default async function SatisfactionPage({
   }
 
   return (
-    <main className="mx-auto min-h-dvh max-w-xl px-5 py-10">
+    <main className="mx-auto min-h-dvh max-w-xl px-5 py-10" style={brandStyle(survey.brand)}>
+      <div className="mb-8">
+        <OrgBrand brand={survey.brand} />
+      </div>
       <p className="font-mono text-2xs tracking-wide text-ink-3 uppercase">
         Satisfaction à trois mois
       </p>

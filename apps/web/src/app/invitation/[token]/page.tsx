@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AcceptInvitation } from "@/components/app/accept-invitation";
-import { Logo } from "@/components/brand/logo";
-import { apiFetch, ApiError } from "@/lib/api";
+import { OrgBrand, brandStyle } from "@/components/brand/org-brand";
+import { apiFetch, ApiError, type Brand } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Votre espace de formation",
@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 interface Invitation {
+  brand: Brand;
   email: string;
   org: string;
   expiresAt: string;
@@ -42,8 +43,11 @@ export default async function InvitationPage({ params }: PageProps<"/invitation/
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-      <Logo />
+    <main
+      className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10"
+      style={brandStyle(invitation.brand)}
+    >
+      <OrgBrand brand={invitation.brand} />
 
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.03em]">
         Votre espace de formation

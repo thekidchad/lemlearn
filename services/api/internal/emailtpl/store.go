@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/lemlearn/api/internal/platform/ddb"
@@ -33,29 +32,8 @@ type Override struct {
 // Service résout un gabarit : la version réécrite si elle existe, celle du
 // code sinon.
 type Service struct {
-	db        *ddb.Client
-	assetsURL string
-	now       func() time.Time
-}
-
-// WithAssets indique où sont servies les ressources publiques.
-//
-// Le logo vit dans un compartiment S3 à part, ouvert en lecture sur le seul
-// préfixe `brand/`. Il ne dépend donc pas de la disponibilité de
-// l'application : un courriel se lit parfois des jours après son envoi, et
-// l'image doit être là même si le front est en cours de déploiement.
-func (s *Service) WithAssets(assetsURL string) *Service {
-	s.assetsURL = strings.TrimSuffix(assetsURL, "/")
-	return s
-}
-
-// logoURL compose l'adresse du logo. Vide, le gabarit rend une balise sans
-// source — le message part sans logo plutôt qu'avec une image cassée.
-func (s *Service) logoURL() string {
-	if s.assetsURL == "" {
-		return ""
-	}
-	return s.assetsURL + "/brand/lemlearn-courriel.png"
+	db  *ddb.Client
+	now func() time.Time
 }
 
 // NewService construit le service. Un db nil est accepté : le produit rend
@@ -80,13 +58,24 @@ func (s *Service) Compose(ctx context.Context, key string, data map[string]any) 
 		return mail.Composed{}, fmt.Errorf("gabarit %q inconnu", key)
 	}
 
-	// Le logo est commun à tous les messages : l'injecter ici évite que
-	// chaque appelant ait à s'en souvenir, et qu'un courriel parte sans.
+	// L'identité est commune à tous les messages : la compléter ici évite
+	// qu'un appelant l'oublie et qu'un courriel parte sans enseigne — ou pire,
+	// avec un gabarit qui échoue au rendu parce qu'un champ manque.
+	//
+	// Les valeurs de repli ne sont pas celles de lemlearn : un message dont
+	// l'organisme est inconnu vaut mieux neutre que faussement attribué.
 	if data == nil {
 		data = map[string]any{}
 	}
-	if _, given := data["LogoURL"]; !given {
-		data["LogoURL"] = s.logoURL()
+	for champ, repli := range map[string]any{
+		"LogoURL":     "",
+		"BrandName":   "Votre organisme de formation",
+		"BrandAccent": "#4B37B8",
+		"BrandInk":    "#FFFFFF",
+	} {
+		if valeur, given := data[champ]; !given || valeur == nil || valeur == "" {
+			data[champ] = repli
+		}
 	}
 
 	subject, body := definition.Subject, definition.Body

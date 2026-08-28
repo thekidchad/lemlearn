@@ -78,7 +78,7 @@ func (r *Renderer) buildConvention(ctx context.Context, req signature.Request) (
 		Prerequisites: "Aucun",
 		DurationHours: 14,
 		Modalities:    "Distanciel asynchrone (modules vidéo) et classe virtuelle",
-		Means:         "Plateforme lemlearn, supports téléchargeables, questionnaire après chaque module",
+		Means:         "Plateforme de formation en ligne, supports téléchargeables, questionnaire après chaque module",
 		Assessment:    "Évaluation de positionnement à l'entrée, questionnaire après chaque module, évaluation finale",
 		Sanction:      "Attestation de fin de formation",
 		PriceHT:       file.PriceHT,

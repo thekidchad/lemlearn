@@ -103,7 +103,7 @@ func demoConvention() documents.Convention {
 		Audience:        "Agents de sécurité et personnel technique",
 		DurationHours:   14,
 		Modalities:      "Distanciel asynchrone (modules vidéo) et classe virtuelle",
-		Means:           "Plateforme lemlearn, supports téléchargeables, questionnaire après chaque module, assistance par courriel sous 24 h ouvrées",
+		Means:           "Plateforme de formation en ligne, supports téléchargeables, questionnaire après chaque module, assistance par courriel sous 24 h ouvrées",
 		Assessment:      "Évaluation de positionnement à l'entrée, questionnaire après chaque module, évaluation finale notée sur 20. Seuil de validation : 14/20.",
 		Sanction:        "Attestation de fin de formation mentionnant les objectifs atteints",
 		AccessibilityPS: "Référent handicap joignable à accessibilite@institut-vulcain.fr ; adaptation des supports et du rythme sur demande.",

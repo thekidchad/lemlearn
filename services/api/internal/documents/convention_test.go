@@ -19,6 +19,8 @@ func sampleConvention() Convention {
 			Name: "Institut Vulcain", LegalForm: "SAS",
 			Address: "12 rue des Écoles", PostalCode: "75005", City: "Paris",
 			SIRET: "84291736500018", Represented: "Marie Dubreuil", Role: "présidente",
+			Capital: "10 000 €", RCS: "Paris B 842 917 365",
+			NDA: "11756789012", NDARegion: "Île-de-France",
 		},
 		Client: Party{
 			Name: "Groupe Aramis", LegalForm: "SARL",
@@ -32,7 +34,7 @@ func sampleConvention() Convention {
 		Audience:      "Agents de sécurité et personnel technique",
 		DurationHours: 14,
 		Modalities:    "Distanciel asynchrone (vidéo) et classe virtuelle",
-		Means:         "Plateforme lemlearn, supports téléchargeables, quiz après chaque module",
+		Means:         "Plateforme de formation en ligne, supports téléchargeables, quiz après chaque module",
 		Assessment:    "Évaluation de positionnement, quiz après chaque module, évaluation finale notée sur 20",
 		Sanction:      "Attestation de fin de formation",
 		Learners: []LearnerLine{
@@ -171,5 +173,91 @@ func TestFormatDateFrench(t *testing.T) {
 	}
 	if got := formatDate(time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)); !strings.Contains(got, "août") {
 		t.Errorf("mois accentué: %q", got)
+	}
+}
+
+// La forme de la mention de déclaration d'activité n'est pas libre : l'article
+// R.6351-6 la fixe mot pour mot, numéro compris. Une mention amputée de son
+// numéro ne remplit pas l'obligation, et c'est précisément ce que nous
+// imprimions.
+func TestLegalLineCarriesTheActivityDeclaration(t *testing.T) {
+	ligne := legalLine(Party{
+		Name: "Institut Vulcain", LegalForm: "SAS", Capital: "10 000 €",
+		SIRET: "84291736500018", RCS: "Paris B 842 917 365",
+		NDA: "11756789012", NDARegion: "Île-de-France",
+	})
+
+	for _, attendu := range []string{
+		"déclaration d'activité enregistrée sous le numéro 11756789012",
+		"auprès du préfet de région Île-de-France",
+		"Cet enregistrement ne vaut pas agrément de l'État.",
+		"SIRET 84291736500018",
+		"SAS au capital de 10 000 €",
+	} {
+		if !strings.Contains(ligne, attendu) {
+			t.Errorf("mention absente : %q\ndans : %s", attendu, ligne)
+		}
+	}
+}
+
+// Sans numéro de déclaration, on n'imprime pas une mention à trou : une phrase
+// réglementaire incomplète est pire qu'une phrase absente, parce qu'elle a
+// l'air d'être en règle.
+func TestLegalLineOmitsAnEmptyDeclaration(t *testing.T) {
+	ligne := legalLine(Party{Name: "Institut Vulcain"})
+	if strings.Contains(ligne, "enregistrée sous le numéro") {
+		t.Errorf("mention à trou imprimée : %s", ligne)
+	}
+	if strings.Contains(ligne, "SIRET") {
+		t.Errorf("libellé sans valeur : %s", ligne)
+	}
+}
+
+// Un organisme exonéré doit le dire, et ne facturer aucune TVA.
+func TestVATExemptionIsStatedAndNotCharged(t *testing.T) {
+	ligne := legalLine(Party{Name: "Institut Vulcain", VATExempt: true})
+	if !strings.Contains(ligne, "261-4-4° a du CGI") {
+		t.Errorf("mention d'exonération absente : %s", ligne)
+	}
+}
+
+// La mention réglementaire doit arriver jusqu'au document, pas seulement
+// exister dans une fonction. C'est le genre de règle qu'une refonte de gabarit
+// casse sans que personne ne le voie avant un contrôle.
+func TestConventionSourceCarriesTheLegalMention(t *testing.T) {
+	source := string(RenderConvention(sampleConvention()).Source)
+
+	for _, attendu := range []string{
+		"11756789012",
+		"préfet de région Île-de-France",
+		"ne vaut pas agrément de l'État",
+	} {
+		if !strings.Contains(source, attendu) {
+			t.Errorf("mention absente de la source rendue : %q", attendu)
+		}
+	}
+}
+
+// Un contrat financé par le bénéficiaire lui-même porte les protections que le
+// code du travail lui accorde. Les taire rend le contrat attaquable.
+func TestIndividualContractCarriesTheWithdrawalClause(t *testing.T) {
+	convention := sampleConvention()
+	convention.IndividualFunding = true
+	source := string(RenderConvention(convention).Source)
+
+	for _, attendu := range []string{
+		"délai de rétractation de dix jours",
+		"Aucune somme ne peut lui être exigée",
+		"30 % du prix convenu",
+	} {
+		if !strings.Contains(source, attendu) {
+			t.Errorf("protection absente du contrat : %q", attendu)
+		}
+	}
+
+	// Et une convention ordinaire ne doit pas la porter : elle s'adresse à un
+	// employeur ou à un financeur, à qui ce droit n'est pas ouvert.
+	if strings.Contains(string(RenderConvention(sampleConvention()).Source), "rétractation de dix jours") {
+		t.Error("la clause de rétractation apparaît sur une convention ordinaire")
 	}
 }

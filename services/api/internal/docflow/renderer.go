@@ -72,6 +72,12 @@ func (r *Renderer) buildConvention(ctx context.Context, req signature.Request) (
 		Org: documents.Party{
 			Name: org.Name, Address: org.Address,
 			PostalCode: org.PostalCode, City: org.City, SIRET: org.SIRET,
+			// L'identité juridique complète : elle ne sert qu'au pied de page,
+			// mais c'est ce pied de page qui rend le document opposable.
+			LegalForm: org.LegalForm, Capital: org.Capital, RCS: org.RCS,
+			VATNumber: org.VATNumber, VATExempt: org.VATExempt,
+			NDA: org.NDA, NDARegion: org.NDARegion,
+			Represented: org.RepName, Role: org.RepRole,
 		},
 		CourseTitle:   file.Title,
 		Audience:      "Salariés et personnes en formation professionnelle continue",

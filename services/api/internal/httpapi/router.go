@@ -172,6 +172,14 @@ func NewRouter(deps Deps) http.Handler {
 				// L'identité visible de l'organisme. En lecture pour tous les
 				// membres — chaque écran s'en sert pour s'habiller — et en
 				// écriture pour ceux qui administrent l'organisme.
+				// L'identité juridique de l'organisme : ce qui rend une
+				// convention opposable, et que la réglementation impose de
+				// faire figurer sur chaque pièce.
+				r.Route("/organisme", func(r chi.Router) {
+					r.Get("/", handleGetOrgLegal(deps))
+					r.Put("/", handleSaveOrgLegal(deps))
+				})
+
 				r.Route("/marque", func(r chi.Router) {
 					r.Get("/", handleGetBrand(deps))
 					r.Group(func(r chi.Router) {

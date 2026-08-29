@@ -86,6 +86,8 @@ func demoConvention() documents.Convention {
 			Name: "Institut Vulcain", LegalForm: "SAS",
 			Address: "12 rue des Écoles", PostalCode: "75005", City: "Paris",
 			SIRET: "84291736500018", Represented: "Marie Dubreuil", Role: "présidente",
+			Capital: "10 000 €", RCS: "Paris B 842 917 365", VATNumber: "FR12842917365",
+			NDA: "11756789012", NDARegion: "Île-de-France",
 		},
 		Client: documents.Party{
 			Name: "Groupe Aramis", LegalForm: "SARL",

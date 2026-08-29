@@ -105,6 +105,30 @@ func (s *Service) SetPlan(ctx context.Context, orgID, plan string) (Org, error) 
 	return org, nil
 }
 
+// UpdateOrg applique une modification à la fiche de l'organisation.
+//
+// La mutation est passée en fonction plutôt qu'en structure : l'appelant
+// décide de ce qu'il touche, et les champs qu'il ne nomme pas gardent leur
+// valeur. Une écriture entière effacerait le plan d'abonnement à chaque
+// enregistrement d'une adresse.
+func (s *Service) UpdateOrg(ctx context.Context, orgID string, apply func(*Org)) (Org, error) {
+	org, err := s.LoadOrg(ctx, orgID)
+	if err != nil {
+		return Org{}, err
+	}
+	apply(&org)
+	org.UpdatedAt = s.now()
+	if err := ddb.Put(ctx, s.db, org); err != nil {
+		return Org{}, err
+	}
+	// L'annuaire porte le nom : le changer sans le resynchroniser afficherait
+	// l'ancien dans la vue de l'équipe.
+	if err := s.SyncDirectory(ctx, org); err != nil {
+		return Org{}, err
+	}
+	return org, nil
+}
+
 // OpenSessionFor ouvre une session sur un compte, au nom d'un tiers.
 //
 // C'est le mécanisme d'impersonation : la session porte le nom de celui qui

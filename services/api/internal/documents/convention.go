@@ -22,6 +22,15 @@ type Party struct {
 	SIRET       string
 	Represented string // nom du représentant signataire
 	Role        string // qualité du représentant (gérant, DRH…)
+
+	// Ce qui suit ne concerne que l'organisme de formation, et n'apparaît
+	// qu'en pied de page.
+	NDA       string
+	NDARegion string
+	Capital   string
+	RCS       string
+	VATNumber string
+	VATExempt bool
 }
 
 // addressLine compose l'adresse sur une ligne en omettant ce qui manque.
@@ -84,6 +93,13 @@ type Convention struct {
 	FunderName   string // OPCO ou financeur ; vide si financement direct
 
 	SignedCity string
+
+	// IndividualFunding dit que le bénéficiaire finance lui-même sa formation.
+	// Le document change alors de nature : ce n'est plus une convention entre
+	// personnes morales mais un contrat de formation professionnelle, et le
+	// code du travail y attache des protections qu'aucune clause ne peut
+	// écarter.
+	IndividualFunding bool
 
 	// Signatures apposées. Vide, le gabarit rend des cadres vierges ; c'est
 	// le document présenté au signataire. Renseigné, il rend le document
@@ -175,13 +191,24 @@ func RenderConvention(c Convention) doc.Document {
 
 	// Article 4 — dispositions financières
 	s.Line(`#lem_h2[Article 4 — Dispositions financières]`)
-	ttc := c.PriceHT * (1 + c.VATRate/100)
-	s.Line(`#grid(columns: (1fr, 1fr, 1fr), column-gutter: 14pt,`)
-	s.Linef(`  [#lem_field(%s, %s)], [#lem_field(%s, %s)], [#lem_field(%s, %s)],`,
-		doc.Str("Prix net HT"), doc.Str(formatEUR(c.PriceHT)),
-		doc.Str(fmt.Sprintf("TVA %s %%", trimFloat(c.VATRate))), doc.Str(formatEUR(ttc-c.PriceHT)),
-		doc.Str("Total TTC"), doc.Str(formatEUR(ttc)))
-	s.Line(`)`)
+	// Un organisme exonéré ne facture pas de TVA, et sa facture doit le dire.
+	// Imprimer « TVA 0 % » laisserait croire à un taux nul appliqué, ce qui
+	// n'est pas la même chose qu'une opération hors champ.
+	if c.Org.VATExempt {
+		s.Line(`#grid(columns: (1fr, 1fr), column-gutter: 14pt,`)
+		s.Linef(`  [#lem_field(%s, %s)], [#lem_field(%s, %s)],`,
+			doc.Str("Prix net"), doc.Str(formatEUR(c.PriceHT)),
+			doc.Str("TVA"), doc.Str("exonérée — art. 261-4-4° a du CGI"))
+		s.Line(`)`)
+	} else {
+		ttc := c.PriceHT * (1 + c.VATRate/100)
+		s.Line(`#grid(columns: (1fr, 1fr, 1fr), column-gutter: 14pt,`)
+		s.Linef(`  [#lem_field(%s, %s)], [#lem_field(%s, %s)], [#lem_field(%s, %s)],`,
+			doc.Str("Prix net HT"), doc.Str(formatEUR(c.PriceHT)),
+			doc.Str(fmt.Sprintf("TVA %s %%", trimFloat(c.VATRate))), doc.Str(formatEUR(ttc-c.PriceHT)),
+			doc.Str("Total TTC"), doc.Str(formatEUR(ttc)))
+		s.Line(`)`)
+	}
 	s.Line(`#v(6pt)`)
 	s.Linef(`#lem_field(%s, %s)`, doc.Str("Modalités de règlement"), doc.Str(c.PaymentTerms))
 
@@ -193,8 +220,21 @@ func RenderConvention(c Convention) doc.Document {
 	s.Line(`#lem_h2[Article 6 — Dédit et abandon]`)
 	s.Line(`En cas de renoncement du bénéficiaire moins de dix jours ouvrés avant le début de l'action, l'organisme retient 30 % du prix convenu à titre de dédommagement. En cas d'abandon en cours de formation, seules les heures réellement suivies sont facturées au financeur ; le solde reste à la charge du bénéficiaire.`)
 
-	// Article 7 — données personnelles
-	s.Line(`#lem_h2[Article 7 — Données personnelles]`)
+	// Article 6 bis — protections du particulier qui finance lui-même.
+	//
+	// Elles ne sont pas négociables : l'article L.6353-5 du code du travail
+	// ouvre dix jours de rétractation au stagiaire qui contracte à titre
+	// individuel, l'article L.6353-6 interdit d'exiger quoi que ce soit avant
+	// l'expiration de ce délai, puis plafonne à 30 % du prix ce qui peut être
+	// demandé ensuite. Un contrat qui les tait est attaquable, et c'est le
+	// document même qui fonde la créance.
+	if c.IndividualFunding {
+		s.Line(`#lem_h2[Article 7 — Rétractation et échelonnement du paiement]`)
+		s.Line(`Le bénéficiaire finançant lui-même sa formation dispose d'un délai de rétractation de dix jours à compter de la signature du présent contrat. Il exerce ce droit par lettre recommandée avec accusé de réception. Aucune somme ne peut lui être exigée avant l'expiration de ce délai. À l'issue de celui-ci, il ne peut être demandé plus de 30 % du prix convenu ; le solde est réglé au fur et à mesure du déroulement de l'action, selon l'échéancier figurant à l'article 4.`)
+		s.Line(`#lem_h2[Article 8 — Données personnelles]`)
+	} else {
+		s.Line(`#lem_h2[Article 7 — Données personnelles]`)
+	}
 	s.Line(`Les données collectées sont traitées pour l'exécution de la présente convention et la justification de la réalisation de l'action. Elles sont conservées le temps requis par les obligations légales d'archivage puis anonymisées. Le bénéficiaire dispose d'un droit d'accès, de rectification, de portabilité et d'effacement, exerçable auprès de l'organisme.`)
 
 	// Signatures
@@ -275,15 +315,49 @@ func writeSessionsTable(s *doc.Source, sessions []SessionLine) {
 	s.Line(`)`)
 }
 
-// legalLine compose la mention de pied de page, sans laisser de « SIRET »
-// suivi du vide lorsque le numéro n'est pas renseigné.
+// legalLine compose la mention de pied de page.
+//
+// La forme de la mention de déclaration d'activité n'est pas libre :
+// l'article R.6351-6 du code du travail la fixe mot pour mot — « déclaration
+// d'activité enregistrée sous le numéro … auprès du préfet de région de … » —
+// et impose de la faire suivre de « Cet enregistrement ne vaut pas agrément de
+// l'État ». Une mention amputée de son numéro ne remplit pas l'obligation.
+//
+// Chaque élément est omis lorsqu'il manque plutôt que rendu avec un vide à la
+// suite : « SIRET  » sur une convention se remarque plus qu'une absence.
 func legalLine(org Party) string {
-	line := org.Name
-	if siret := strings.TrimSpace(org.SIRET); siret != "" {
-		line += " — SIRET " + siret
+	parts := []string{org.Name}
+	if forme := strings.TrimSpace(org.LegalForm); forme != "" {
+		mention := forme
+		if capital := strings.TrimSpace(org.Capital); capital != "" {
+			mention += " au capital de " + capital
+		}
+		parts = append(parts, mention)
 	}
-	return line + " — déclaration d'activité enregistrée auprès du préfet de région. " +
-		"Cet enregistrement ne vaut pas agrément de l'État."
+	if siret := strings.TrimSpace(org.SIRET); siret != "" {
+		parts = append(parts, "SIRET "+siret)
+	}
+	if rcs := strings.TrimSpace(org.RCS); rcs != "" {
+		parts = append(parts, "RCS "+rcs)
+	}
+	if tva := strings.TrimSpace(org.VATNumber); tva != "" {
+		parts = append(parts, "TVA "+tva)
+	}
+
+	line := strings.Join(parts, " — ")
+
+	if nda := strings.TrimSpace(org.NDA); nda != "" {
+		mention := " — déclaration d'activité enregistrée sous le numéro " + nda
+		if region := strings.TrimSpace(org.NDARegion); region != "" {
+			mention += " auprès du préfet de région " + region
+		}
+		line += mention + ". Cet enregistrement ne vaut pas agrément de l'État."
+	}
+
+	if org.VATExempt {
+		line += " Exonéré de TVA — art. 261-4-4° a du CGI."
+	}
+	return line
 }
 
 func partyBlock(p Party) string {

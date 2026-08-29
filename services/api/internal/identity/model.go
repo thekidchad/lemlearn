@@ -63,16 +63,44 @@ type Org struct {
 	// SIRET et NDA (numéro de déclaration d'activité) figurent sur tous les
 	// documents contractuels : ils sont portés par l'organisation, pas
 	// ressaisis à chaque convention.
-	SIRET      string `dynamodbav:"siret,omitempty"`
-	NDA        string `dynamodbav:"nda,omitempty"`
+	SIRET string `dynamodbav:"siret,omitempty"`
+	NDA   string `dynamodbav:"nda,omitempty"`
+	// NDARegion nomme la préfecture de région auprès de laquelle la
+	// déclaration est enregistrée. L'article R.6351-6 fixe la forme exacte de
+	// la mention : « déclaration d'activité enregistrée sous le numéro … auprès
+	// du préfet de région de … ». Sans la région, la mention est incomplète, et
+	// une mention incomplète sur une convention est une mention absente.
+	NDARegion string `dynamodbav:"ndaRegion,omitempty"`
+
+	// Identité juridique, imprimée en pied des documents contractuels.
+	LegalForm string `dynamodbav:"legalForm,omitempty"`
+	Capital   string `dynamodbav:"capital,omitempty"`
+	RCS       string `dynamodbav:"rcs,omitempty"`
+	VATNumber string `dynamodbav:"vatNumber,omitempty"`
+	// VATExempt dit que l'organisme bénéficie de l'exonération de l'article
+	// 261-4-4° a du CGI. Ce n'est pas un détail comptable : une facture
+	// d'organisme exonéré doit porter la mention et ne porter aucune TVA, et
+	// nous imprimions jusqu'ici « TVA 20 % » sur les documents de tout le
+	// monde.
+	VATExempt bool `dynamodbav:"vatExempt,omitempty"`
+
+	// Représentant légal : c'est lui qui engage l'organisme en signant une
+	// convention. Un document signé par personne de nommé se conteste.
+	RepName    string `dynamodbav:"repName,omitempty"`
+	RepRole    string `dynamodbav:"repRole,omitempty"`
 	Address    string `dynamodbav:"address,omitempty"`
 	PostalCode string `dynamodbav:"postalCode,omitempty"`
 	City       string `dynamodbav:"city,omitempty"`
 	// Plan de l'abonnement, piloté depuis la vue super-admin.
 	Plan string `dynamodbav:"plan"`
 	// QualiopiCertified conditionne l'affichage du tableau de bord de
-	// conformité et les relances de satisfaction à froid.
-	QualiopiCertified bool `dynamodbav:"qualiopiCertified"`
+	// conformité et les relances de satisfaction à froid. Les trois champs qui
+	// suivent sont ce qu'un financeur vérifie réellement : un certificat se
+	// cite par son numéro, son émetteur et sa date d'échéance.
+	QualiopiCertified bool   `dynamodbav:"qualiopiCertified"`
+	QualiopiNumber    string `dynamodbav:"qualiopiNumber,omitempty"`
+	QualiopiBody      string `dynamodbav:"qualiopiBody,omitempty"`
+	QualiopiExpiresOn string `dynamodbav:"qualiopiExpiresOn,omitempty"`
 }
 
 // PublicOrg est l'organisation telle qu'elle sort de l'API.
@@ -81,20 +109,44 @@ type Org struct {
 // façon dont on range les données, pas l'organisation, et les exposer
 // figerait un détail d'implémentation dans le contrat du client.
 type PublicOrg struct {
-	ID                string `json:"id"`
-	Name              string `json:"name"`
-	SIRET             string `json:"siret,omitempty"`
-	NDA               string `json:"nda,omitempty"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	SIRET string `json:"siret,omitempty"`
+	NDA   string `json:"nda,omitempty"`
+	// NDARegion complète la mention réglementaire de déclaration d'activité.
+	NDARegion string `json:"ndaRegion,omitempty"`
+
+	LegalForm string `json:"legalForm,omitempty"`
+	Capital   string `json:"capital,omitempty"`
+	RCS       string `json:"rcs,omitempty"`
+	VATNumber string `json:"vatNumber,omitempty"`
+	VATExempt bool   `json:"vatExempt"`
+	RepName   string `json:"repName,omitempty"`
+	RepRole   string `json:"repRole,omitempty"`
+
+	Address    string `json:"address,omitempty"`
+	PostalCode string `json:"postalCode,omitempty"`
+	City       string `json:"city,omitempty"`
+
 	Plan              string `json:"plan"`
 	QualiopiCertified bool   `json:"qualiopiCertified"`
+	QualiopiNumber    string `json:"qualiopiNumber,omitempty"`
+	QualiopiBody      string `json:"qualiopiBody,omitempty"`
+	QualiopiExpiresOn string `json:"qualiopiExpiresOn,omitempty"`
 	CreatedAt         string `json:"createdAt"`
 }
 
 // Public projette l'organisation.
 func (o Org) Public() PublicOrg {
 	return PublicOrg{
-		ID: o.ID, Name: o.Name, SIRET: o.SIRET, NDA: o.NDA,
+		ID: o.ID, Name: o.Name, SIRET: o.SIRET, NDA: o.NDA, NDARegion: o.NDARegion,
+		LegalForm: o.LegalForm, Capital: o.Capital, RCS: o.RCS,
+		VATNumber: o.VATNumber, VATExempt: o.VATExempt,
+		RepName: o.RepName, RepRole: o.RepRole,
+		Address: o.Address, PostalCode: o.PostalCode, City: o.City,
 		Plan: o.Plan, QualiopiCertified: o.QualiopiCertified,
+		QualiopiNumber: o.QualiopiNumber, QualiopiBody: o.QualiopiBody,
+		QualiopiExpiresOn: o.QualiopiExpiresOn,
 		CreatedAt: o.CreatedAt.Format(time.RFC3339),
 	}
 }

@@ -250,6 +250,51 @@
     color: var(--color-ink-3);
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Registre de l'espace apprenant                                       */
+  /* ------------------------------------------------------------------ */
+  /* Le CRM est dense parce qu'une assistante de formation y passe la
+     journée et compare des lignes. L'apprenant, lui, ouvre son espace le
+     soir, souvent sur un téléphone, pour une seule question : où j'en
+     étais. Même produit, même palette, même police — mais une échelle
+     entièrement différente, et beaucoup moins d'éléments par écran.
+
+     L'échelle est déclarée ici plutôt que dispersée en tailles arbitraires :
+     c'est ce qui garantit que les deux registres restent deux registres, et
+     ne dérivent pas l'un vers l'autre au fil des écrans. */
+  .learner-title {
+    font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.5rem);
+    line-height: 1.1;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+  }
+  .learner-heading {
+    font-size: clamp(1.125rem, 1rem + 0.6vw, 1.375rem);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  .learner-body {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--color-ink-2);
+  }
+
+  /* Une pastille de progression : un module fait, ou pas fait. Aucun module
+     n'est à moitié suivi, et une jauge continue laisserait croire le
+     contraire — c'est la même règle que le bordereau des pièces d'un
+     dossier, et le produit gagne à ne parler qu'une langue. */
+  .learner-mark {
+    display: block;
+    height: 0.375rem;
+    flex: 1 1 0;
+    border-radius: 999px;
+    background-color: var(--color-surface-3);
+  }
+  .learner-mark[data-done="true"] {
+    background-color: var(--color-accent);
+  }
+
   /* Grille de fond, très basse intensité — repère spatial, pas décoration. */
   .bg-grid {
     background-image:

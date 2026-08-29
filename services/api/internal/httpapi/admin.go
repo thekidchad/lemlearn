@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"sort"
@@ -148,8 +149,17 @@ func handleImpersonate(deps Deps) http.HandlerFunc {
 			return
 		}
 
-		token, err := deps.Identity.OpenSessionFor(r.Context(), target,
-			session.UserID, clientIP(r), truncateUA(r.UserAgent()))
+		// L'adresse de l'auteur est retenue avec son identifiant : c'est elle
+		// qui permettra de lui rendre la main, l'identifiant seul ne se
+		// résolvant pas depuis l'organisation d'un client.
+		author, err := deps.Identity.LoadUser(r.Context(), session)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "session invalide")
+			return
+		}
+
+		token, err := deps.Identity.Impersonate(r.Context(), target,
+			session.UserID, author.Email, clientIP(r), truncateUA(r.UserAgent()))
 		if err != nil {
 			deps.Log.Error("impersonation", "err", err)
 			writeError(w, http.StatusInternalServerError, "erreur interne")
@@ -314,5 +324,55 @@ func handleCheckout(deps Deps) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"url": url})
+	}
+}
+
+// handleEndImpersonation rend la main au membre de l'équipe.
+//
+// La route n'est pas sous la garde super-admin, et ne peut pas l'être : le
+// temps de l'impersonation, la session porte le rôle du client. C'est la
+// session elle-même qui autorise la sortie, en portant le nom de celui qui
+// l'a ouverte — personne ne peut donc revenir vers un compte qui ne l'a pas
+// prise.
+func handleEndImpersonation(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		if deps.Identity == nil {
+			writeError(w, http.StatusServiceUnavailable, "annuaire indisponible")
+			return
+		}
+
+		cookie, err := r.Cookie(sessionCookieName(deps.Config))
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "session invalide")
+			return
+		}
+
+		author, token, err := deps.Identity.EndImpersonation(r.Context(), session,
+			cookie.Value, clientIP(r), truncateUA(r.UserAgent()))
+		if err != nil {
+			if errors.Is(err, identity.ErrNotImpersonating) {
+				// Le cas d'une session ouverte avant que la sortie n'existe :
+				// on le nomme, pour que l'écran propose de se reconnecter
+				// plutôt que d'afficher une erreur sans issue.
+				writeError(w, http.StatusConflict, err.Error())
+				return
+			}
+			deps.Log.Error("fin d'impersonation", "err", err)
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+
+		// La sortie est journalisée comme l'entrée : un accès au dossier d'un
+		// client se lit d'un bout à l'autre, ou il ne prouve rien.
+		if _, err := deps.Identity.AuditOrg(r.Context(), session.OrgID, audit.ActionImpersonated,
+			actorFrom(r, session.UserID),
+			map[string]any{"fin": true, "compte": author.Email},
+		); err != nil {
+			deps.Log.Error("journal de la fin d'impersonation", "err", err)
+		}
+
+		setSessionCookie(w, deps.Config, token)
+		writeJSON(w, http.StatusOK, map[string]any{"user": author.Public()})
 	}
 }

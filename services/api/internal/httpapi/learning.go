@@ -87,6 +87,60 @@ func handleLearnerCourse(deps Deps) http.HandlerFunc {
 
 		writeJSON(w, http.StatusOK, map[string]any{
 			"course": course, "modules": list(modules),
+			"coverUrl": assetURL(deps, course.CoverKey),
+		})
+	}
+}
+
+// handleLearnerSession sert une session et son parcours à un inscrit.
+//
+// Une session n'a qu'une formation : la faire figurer dans l'adresse était une
+// redondance, et trois identifiants à la suite dans une URL sont surtout trois
+// occasions de se tromper. L'apprenant navigue désormais par session et par
+// numéro de module, et c'est ici que le reste se résout.
+func handleLearnerSession(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		if deps.Catalog == nil {
+			writeError(w, http.StatusServiceUnavailable, "catalogue indisponible")
+			return
+		}
+
+		target, _, err := learnerTarget(deps, r)
+		if err != nil {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		enrollment, err := deps.Catalog.GetEnrollment(r.Context(), session.OrgID,
+			target.SessionID, target.ContactID)
+		if err != nil {
+			writeError(w, http.StatusForbidden, "aucune inscription à cette session")
+			return
+		}
+
+		trainingSession, err := deps.Catalog.GetSession(r.Context(), session.OrgID, target.SessionID)
+		if err != nil {
+			respondNotFound(w, err, "session introuvable")
+			return
+		}
+		course, err := deps.Catalog.GetCourse(r.Context(), session.OrgID, trainingSession.CourseID)
+		if err != nil {
+			respondNotFound(w, err, "formation introuvable")
+			return
+		}
+		modules, err := deps.Catalog.ListModules(r.Context(), session.OrgID, course.ID)
+		if err != nil {
+			deps.Log.Error("modules", "err", err)
+			writeError(w, http.StatusInternalServerError, "erreur interne")
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"session":    trainingSession,
+			"course":     course,
+			"modules":    list(modules),
+			"enrollment": enrollment,
+			"coverUrl":   assetURL(deps, course.CoverKey),
 		})
 	}
 }
@@ -332,6 +386,14 @@ func handleLearnerDashboard(deps Deps) http.HandlerFunc {
 			Course     catalog.Course     `json:"course"`
 			Modules    []catalog.Module   `json:"modules"`
 			Percent    int                `json:"percent"`
+			// CoverURL est résolue ici : le front n'a pas à connaître le nom du
+			// compartiment, qui change d'un environnement à l'autre.
+			CoverURL string `json:"coverUrl,omitempty"`
+			// Done compte les modules achevés. C'est l'unité réelle d'un
+			// parcours — aucun module n'est à moitié fait — et c'est elle qu'on
+			// affiche à l'apprenant plutôt qu'un pourcentage inventé par
+			// division.
+			Done int `json:"done"`
 		}
 
 		entries := make([]entry, 0, len(enrollments))
@@ -348,8 +410,18 @@ func handleLearnerDashboard(deps Deps) http.HandlerFunc {
 			if err != nil {
 				continue
 			}
+			done := 0
+			for _, module := range modules {
+				for _, progress := range enrollment.Progress {
+					if progress.ModuleID == module.ID && progress.CompletedAt != nil {
+						done++
+					}
+				}
+			}
+
 			entries = append(entries, entry{
 				Enrollment: enrollment, Session: trainingSession, Course: course,
+				CoverURL: assetURL(deps, course.CoverKey), Done: done,
 				// Une formation sans module existe — elle vient d'être créée —
 				// et son parcours doit s'afficher vide plutôt que de faire
 				// tomber l'écran de l'apprenant.

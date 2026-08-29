@@ -113,11 +113,12 @@ func TestImpersonationNamesItsAuthor(t *testing.T) {
 		t.Fatalf("propriétaire: %v", err)
 	}
 
-	if _, err := s.OpenSessionFor(context.Background(), owner, "", "127.0.0.1", "test"); err == nil {
+	if _, err := s.Impersonate(context.Background(), owner, "", "", "127.0.0.1", "test"); err == nil {
 		t.Error("une impersonation anonyme a été acceptée")
 	}
 
-	token, err := s.OpenSessionFor(context.Background(), owner, "USR-support", "127.0.0.1", "test")
+	token, err := s.Impersonate(context.Background(), owner,
+		"USR-support", "equipe@lemlearn.fr", "127.0.0.1", "test")
 	if err != nil {
 		t.Fatalf("impersonation: %v", err)
 	}
@@ -128,8 +129,56 @@ func TestImpersonationNamesItsAuthor(t *testing.T) {
 	if session.ImpersonatedBy != "USR-support" {
 		t.Errorf("session.ImpersonatedBy = %q", session.ImpersonatedBy)
 	}
+	if session.ImpersonatorEmail != "equipe@lemlearn.fr" {
+		t.Errorf("session.ImpersonatorEmail = %q : sans elle, on ne peut pas ressortir",
+			session.ImpersonatorEmail)
+	}
 	if session.OrgID != org.ID {
 		t.Errorf("session ouverte sur %q au lieu de %q", session.OrgID, org.ID)
+	}
+}
+
+// Une session ordinaire ne porte aucune marque d'impersonation. Sans cela, un
+// apprenant qui vient d'accepter son invitation verrait un bandeau lui
+// annonçant que l'équipe agit à sa place.
+func TestOrdinarySessionCarriesNoImpersonation(t *testing.T) {
+	s := identity.NewService(ddb.NewTestClient(t), nil)
+	org := register(t, s, "Vulcain Formation", "marie@vulcain.fr")
+	owner, err := s.FirstOwner(context.Background(), org.ID)
+	if err != nil {
+		t.Fatalf("propriétaire: %v", err)
+	}
+
+	token, err := s.OpenSession(context.Background(), owner, "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("session: %v", err)
+	}
+	session, err := s.Authenticate(context.Background(), token)
+	if err != nil {
+		t.Fatalf("session inutilisable: %v", err)
+	}
+	if session.ImpersonatedBy != "" || session.ImpersonatorEmail != "" {
+		t.Errorf("session ordinaire marquée comme impersonation : %q / %q",
+			session.ImpersonatedBy, session.ImpersonatorEmail)
+	}
+}
+
+// On ne peut pas sortir d'une session qui n'est pas une impersonation : sinon
+// n'importe quel client pourrait demander à « revenir » vers un compte de
+// l'équipe.
+func TestEndImpersonationRefusesAnOrdinarySession(t *testing.T) {
+	s := identity.NewService(ddb.NewTestClient(t), nil)
+	org := register(t, s, "Vulcain Formation", "marie@vulcain.fr")
+	owner, _ := s.FirstOwner(context.Background(), org.ID)
+
+	token, err := s.OpenSession(context.Background(), owner, "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("session: %v", err)
+	}
+	session, _ := s.Authenticate(context.Background(), token)
+
+	if _, _, err := s.EndImpersonation(context.Background(), session, token, "127.0.0.1", "test"); err == nil {
+		t.Error("une session ordinaire a pu « revenir » vers un compte de l'équipe")
 	}
 }
 

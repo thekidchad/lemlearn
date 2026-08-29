@@ -102,6 +102,10 @@ func NewRouter(deps Deps) http.Handler {
 			r.Use(requireAuth(deps))
 
 			r.Get("/me", handleMe(deps))
+			// Quitter une impersonation. La route vit ici et non sous la garde
+			// super-admin : le temps de l'impersonation, la session porte le
+			// rôle du client, et la garde refuserait la sortie.
+			r.Post("/impersonation/fin", handleEndImpersonation(deps))
 			// L'état de conformité de l'organisation : ce que regarde un
 			// dirigeant avant un audit, et la seule vue qui agrège les
 			// dossiers plutôt que de les lister.
@@ -124,6 +128,10 @@ func NewRouter(deps Deps) http.Handler {
 				// L'émargement par l'apprenant lui-même. Une feuille signée du
 				// seul organisme n'atteste que ses propres déclarations : c'est
 				// la signature du stagiaire qui en fait une pièce opposable.
+				// La session résout sa formation : l'adresse d'un module n'a
+				// plus à porter trois identifiants.
+				r.Get("/{sessionID}", handleLearnerSession(deps))
+
 				r.Route("/{sessionID}/emargement", func(r chi.Router) {
 					r.Get("/", handleLearnerSheet(deps))
 					r.Post("/{slotID}", handleLearnerSign(deps))

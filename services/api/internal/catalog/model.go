@@ -67,6 +67,12 @@ type Course struct {
 	// FinalQuizID est l'évaluation de sortie, qui conditionne l'attestation.
 	FinalQuizID string `dynamodbav:"finalQuizId,omitempty" json:"finalQuizId,omitempty"`
 
+	// CoverKey est le visuel de la formation, dans le compartiment public.
+	// C'est la première chose que voit un stagiaire dans son espace : une
+	// liste de titres sans image se parcourt mal, et une formation se
+	// reconnaît à son sujet avant son intitulé.
+	CoverKey string `dynamodbav:"coverKey,omitempty" json:"coverKey,omitempty"`
+
 	Published bool `dynamodbav:"published" json:"published"`
 }
 

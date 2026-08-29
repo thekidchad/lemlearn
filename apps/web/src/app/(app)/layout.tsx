@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
 import { CommandPalette } from "@/components/app/command-palette";
+import { LeaveImpersonation } from "@/components/app/leave-impersonation";
 import { OrgBrand, brandStyle } from "@/components/brand/org-brand";
 import { SignOutButton } from "@/components/app/sign-out";
 import { cookies } from "next/headers";
@@ -158,6 +159,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             // l'écran autant qu'au journal.
             <p className="mb-2 rounded-md border border-warn/40 bg-warn/10 px-2 py-1.5 text-2xs text-warn">
               Session ouverte au nom de cet organisme par l&apos;équipe lemlearn.
+              <LeaveImpersonation />
             </p>
           )}
 

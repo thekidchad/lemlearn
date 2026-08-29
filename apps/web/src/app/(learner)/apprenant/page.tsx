@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { apiFetch, ApiError, contactName, type Contact } from "@/lib/api";
+import { CourseCover } from "@/components/app/course-cover";
+import { apiFetch, ApiError, contactName, type Contact, type Me } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Mon parcours" };
 
@@ -27,8 +28,19 @@ interface Entry {
   course: { id: string; title: string; durationHours: number };
   modules: Module[] | null;
   percent: number;
+  coverUrl?: string;
+  done: number;
 }
 
+/**
+ * L'espace apprenant.
+ *
+ * Il ne ressemble pas au reste du produit, et c'est délibéré. Le CRM est dense
+ * parce qu'une assistante de formation y compare des lignes toute la journée ;
+ * l'apprenant ouvre le sien le soir, souvent sur un téléphone, pour une seule
+ * question : où j'en étais. L'écran répond à celle-là d'abord — une formation,
+ * une action — et range le reste en dessous.
+ */
 export default async function LearnerPage({ searchParams }: PageProps<"/apprenant">) {
   const params = await searchParams;
   const contactId = typeof params.contactId === "string" ? params.contactId : undefined;
@@ -51,146 +63,149 @@ export default async function LearnerPage({ searchParams }: PageProps<"/apprenan
     return <LearnerPicker learners={contacts ?? []} />;
   }
 
+  const me = await apiFetch<Me>("/v1/me");
+  const suffix = contactId ? `?contactId=${encodeURIComponent(contactId)}` : "";
+
   return (
-    <>
-      <header className="flex h-14 items-center border-b border-line px-6">
-        <h1 className="text-sm font-medium">Mon parcours</h1>
-      </header>
+    <div className="mx-auto max-w-3xl px-5 py-12 sm:px-8 sm:py-16">
+      <h1 className="learner-title">{greeting(me.user.firstName)}</h1>
+      <p className="learner-body mt-3">
+        {rows.length === 0
+          ? "Aucune formation ne vous est encore ouverte."
+          : "Reprenez là où vous en étiez."}
+      </p>
 
       {rows.length === 0 ? (
-        <p className="px-6 py-16 text-center text-xs text-ink-3">
-          Aucune formation en cours.
+        <p className="mt-10 rounded-xl border border-line p-6 text-sm text-ink-2">
+          Votre organisme vous inscrira à une session : elle apparaîtra ici, avec
+          vos modules et votre attestation.
         </p>
       ) : (
-        <div className="space-y-6 p-6">
+        <div className="mt-10 space-y-8">
           {rows.map((entry) => (
-            <section key={entry.session.id} className="surface-card p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-base font-medium">{entry.course.title}</h2>
-                  <p className="mt-1 text-xs text-ink-2">
-                    {entry.session.title} · {entry.course.durationHours} h
-                  </p>
-                </div>
-                <div className="w-40">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-2xs text-ink-3">Progression</span>
-                    <span className="text-sm font-semibold text-ok" data-numeric>
-                      {entry.percent} %
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3">
-                    <div
-                      className="h-full rounded-full bg-ok"
-                      style={{ width: `${entry.percent}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* L'émargement se fait en début de séance : le lien doit être
-                  visible sans dérouler la liste des modules. */}
-              <Link
-                href={`/apprenant/${entry.session.id}/emargement${
-                  contactId ? `?contactId=${contactId}` : ""
-                }`}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs transition-colors duration-[120ms] hover:border-line-strong hover:bg-surface-2/60"
-              >
-                <span aria-hidden className="text-ink-3">✍</span>
-                Confirmer ma présence
-              </Link>
-
-              <ol className="mt-5 divide-y divide-line border-t border-line">
-                {(entry.modules ?? []).map((module) => {
-                  const progress = entry.enrollment.progress?.find(
-                    (p) => p.moduleId === module.id,
-                  );
-                  const done = Boolean(progress?.completedAt);
-
-                  return (
-                    <li key={module.id}>
-                      <Link
-                        href={`/apprenant/${entry.session.id}/${entry.course.id}/${module.id}${
-                          contactId ? `?contactId=${contactId}` : ""
-                        }`}
-                        className="flex items-center gap-4 py-3 transition-colors duration-[120ms] hover:bg-surface-2/60"
-                      >
-                        <span
-                          className={`flex size-6 shrink-0 items-center justify-center rounded-full border text-2xs ${
-                            done
-                              ? "border-ok/40 bg-ok/15 text-ok"
-                              : "border-line text-ink-3"
-                          }`}
-                        >
-                          {done ? "✓" : module.position}
-                        </span>
-
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm">{module.title}</span>
-                          <span className="block text-2xs text-ink-3">
-                            {formatDuration(module.durationMs)}
-                            {module.quizId ? " · questionnaire" : ""}
-                          </span>
-                        </span>
-
-                        {/* Les deux conditions de validation sont montrées
-                            séparément : un apprenant doit comprendre ce qui
-                            lui manque, pas seulement qu'il lui manque quelque
-                            chose. */}
-                        <span className="hidden items-center gap-3 sm:flex">
-                          <Gauge
-                            label="vu"
-                            value={progress?.coveragePercent ?? 0}
-                            target={module.minCoveragePercent}
-                          />
-                          {module.quizId && (
-                            <Gauge
-                              label="quiz"
-                              value={progress?.quizPercent ?? 0}
-                              target={progress?.quizPassed ? 0 : 100}
-                              ok={progress?.quizPassed}
-                            />
-                          )}
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
+            <CourseCard key={entry.session.id} entry={entry} suffix={suffix} />
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
-function Gauge({
-  label,
-  value,
-  target,
-  ok,
-}: {
-  label: string;
-  value: number;
-  target: number;
-  ok?: boolean;
-}) {
-  const reached = ok ?? value >= target;
+/**
+ * Une formation, et une seule action évidente.
+ *
+ * Le module à reprendre est mis en avant seul ; la liste complète se déplie en
+ * dessous. Un espace qui déballe d'emblée tous les modules oblige à chercher le
+ * sien à chaque visite — c'est le réflexe du tableau de bord, et ce n'est pas
+ * ce dont on a besoin ici.
+ */
+function CourseCard({ entry, suffix }: { entry: Entry; suffix: string }) {
+  const modules = entry.modules ?? [];
+  const done = (module: Module) =>
+    Boolean(entry.enrollment.progress?.find((p) => p.moduleId === module.id)?.completedAt);
+
+  const next = modules.find((module) => !done(module));
+
   return (
-    <span className="flex w-20 flex-col gap-1">
-      <span className="flex justify-between text-2xs text-ink-3">
-        <span>{label}</span>
-        <span data-numeric>{value} %</span>
-      </span>
-      <span className="h-1 overflow-hidden rounded-full bg-surface-3">
-        <span
-          className={`block h-full rounded-full ${reached ? "bg-ok" : "bg-warn"}`}
-          style={{ width: `${Math.min(value, 100)}%` }}
-        />
-      </span>
-    </span>
+    <section className="surface-card overflow-hidden">
+      <div className="p-5 sm:p-6">
+        <CourseCover title={entry.course.title} url={entry.coverUrl} />
+
+        <h2 className="learner-heading mt-5">{entry.course.title}</h2>
+        <p className="mt-1 text-sm text-ink-3">
+          {entry.session.title} · {entry.course.durationHours} h
+        </p>
+
+        {/* La progression se compte en modules. Aucun module n'est à moitié
+            suivi, et une jauge continue laisserait croire le contraire — c'est
+            la même règle que le bordereau des pièces d'un dossier. */}
+        {modules.length > 0 && (
+          <div className="mt-5">
+            <div className="flex gap-1" aria-hidden>
+              {modules.map((module) => (
+                <span key={module.id} className="learner-mark" data-done={done(module)} />
+              ))}
+            </div>
+            <p className="mt-2 text-sm text-ink-2" data-numeric>
+              {entry.done} module{entry.done > 1 ? "s" : ""} sur {modules.length}
+              {modules.length > 0 && !next ? " — parcours terminé" : ""}
+            </p>
+          </div>
+        )}
+
+        {next ? (
+          <Link
+            href={`/apprenant/${entry.session.id}/${next.position}${suffix}`}
+            className="mt-6 flex items-center gap-4 rounded-xl bg-accent px-5 py-4 text-accent-ink transition-opacity duration-[120ms] hover:opacity-90"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs opacity-80">
+                {entry.done === 0 ? "Commencer" : "Reprendre"} · module {next.position}
+              </span>
+              <span className="mt-0.5 block truncate text-base font-medium">{next.title}</span>
+            </span>
+            <span aria-hidden className="text-lg">
+              →
+            </span>
+          </Link>
+        ) : modules.length > 0 ? (
+          <p className="mt-6 rounded-xl border border-ok/40 bg-ok/10 px-5 py-4 text-sm text-ok">
+            Tous vos modules sont terminés.
+          </p>
+        ) : (
+          <p className="mt-6 text-sm text-ink-3">
+            Cette formation n&apos;a pas encore de module.
+          </p>
+        )}
+
+        <Link
+          href={`/apprenant/${entry.session.id}/emargement${suffix}`}
+          className="mt-4 inline-block text-sm text-ink-2 underline underline-offset-4 hover:text-ink"
+        >
+          Confirmer ma présence
+        </Link>
+      </div>
+
+      {modules.length > 1 && (
+        <details className="border-t border-line">
+          <summary className="cursor-pointer px-5 py-3.5 text-sm text-ink-2 hover:text-ink sm:px-6">
+            Tous les modules
+          </summary>
+          <ol className="border-t border-line">
+            {modules.map((module) => (
+              <li key={module.id}>
+                <Link
+                  href={`/apprenant/${entry.session.id}/${module.position}${suffix}`}
+                  className="flex items-center gap-4 px-5 py-3.5 transition-colors duration-[120ms] hover:bg-surface-2/60 sm:px-6"
+                >
+                  <span
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs ${
+                      done(module) ? "border-ok/40 bg-ok/15 text-ok" : "border-line text-ink-3"
+                    }`}
+                  >
+                    {done(module) ? "✓" : module.position}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm">{module.title}</span>
+                    <span className="block text-2xs text-ink-3">
+                      {formatDuration(module.durationMs)}
+                      {module.quizId ? " · questionnaire" : ""}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+    </section>
   );
+}
+
+/** Le prénom quand on l'a. Sinon on salue sans nommer, plutôt que « Bonjour , ». */
+function greeting(firstName?: string): string {
+  const prenom = (firstName ?? "").trim();
+  return prenom ? `Bonjour ${prenom}.` : "Bonjour.";
 }
 
 function formatDuration(ms: number): string {
@@ -208,43 +223,38 @@ function formatDuration(ms: number): string {
  */
 function LearnerPicker({ learners }: { learners: Contact[] }) {
   return (
-    <>
-      <header className="flex h-14 items-center border-b border-line px-6">
-        <h1 className="text-sm font-medium">Espace apprenant</h1>
-      </header>
+    <div className="mx-auto max-w-2xl px-5 py-12 sm:px-8">
+      <h1 className="learner-heading">Espace apprenant</h1>
+      <p className="learner-body mt-3">
+        Votre compte gère l&apos;organisme, il n&apos;est rattaché à aucune fiche
+        apprenant. Choisissez quelqu&apos;un pour voir son parcours tel qu&apos;il le
+        voit.
+      </p>
 
-      <div className="mx-auto max-w-2xl px-6 py-6">
-        <p className="text-xs text-ink-2">
-          Votre compte n&apos;est pas rattaché à une fiche apprenant : il gère
-          l&apos;organisme. Choisissez un apprenant pour voir son parcours tel
-          qu&apos;il le voit — assiduité réelle, questionnaires, attestation.
+      {learners.length === 0 ? (
+        <p className="mt-8 text-sm text-ink-3">
+          Aucun apprenant enregistré. Ils se créent dans{" "}
+          <Link href="/contacts?kind=learner" className="underline hover:text-ink">
+            Contacts
+          </Link>
+          .
         </p>
-
-        {learners.length === 0 ? (
-          <p className="mt-6 text-xs text-ink-3">
-            Aucun apprenant enregistré. Ils se créent dans{" "}
-            <Link href="/contacts?kind=learner" className="underline hover:text-ink">
-              Contacts
+      ) : (
+        <div className="mt-8 space-y-px overflow-hidden rounded-xl border border-line bg-line">
+          {learners.map((learner) => (
+            <Link
+              key={learner.id}
+              href={`/apprenant?contactId=${learner.id}`}
+              className="flex items-center justify-between gap-4 bg-surface-1 px-4 py-3.5 text-sm hover:bg-surface-2"
+            >
+              <span className="truncate">{contactName(learner)}</span>
+              <span className="truncate font-mono text-2xs text-ink-3">
+                {learner.email ?? ""}
+              </span>
             </Link>
-            .
-          </p>
-        ) : (
-          <div className="mt-5 space-y-px overflow-hidden rounded-xl border border-line bg-line">
-            {learners.map((learner) => (
-              <Link
-                key={learner.id}
-                href={`/apprenant?contactId=${learner.id}`}
-                className="flex items-center justify-between bg-surface-1 px-4 py-3 text-sm hover:bg-surface-2"
-              >
-                <span className="truncate">{contactName(learner)}</span>
-                <span className="truncate font-mono text-2xs text-ink-3">
-                  {learner.email ?? ""}
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

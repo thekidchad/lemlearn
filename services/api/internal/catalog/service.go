@@ -41,6 +41,22 @@ func (s *Service) GetCourse(ctx context.Context, orgID, courseID string) (Course
 	return ddb.Get[Course](ctx, s.db, ddb.OrgPK(orgID), ddb.CourseSK(courseID))
 }
 
+// SetCover rattache le visuel d'une formation, ou le retire quand la clé est
+// vide. Retirer est un usage à part entière : un organisme qui change de
+// charte veut pouvoir revenir à la bande unie de sa couleur.
+func (s *Service) SetCover(ctx context.Context, orgID, courseID, key string) (Course, error) {
+	course, err := s.GetCourse(ctx, orgID, courseID)
+	if err != nil {
+		return Course{}, err
+	}
+	course.CoverKey = key
+	course.UpdatedAt = s.now()
+	if err := ddb.Put(ctx, s.db, course); err != nil {
+		return Course{}, err
+	}
+	return course, nil
+}
+
 // ListCourses liste le catalogue par ordre alphabétique.
 func (s *Service) ListCourses(ctx context.Context, orgID string, limit int32) ([]Course, error) {
 	return ddb.Query[Course](ctx, s.db, ddb.QuerySpec{

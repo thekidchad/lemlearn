@@ -163,9 +163,14 @@ export class DataStack extends Stack {
         effect: iam.Effect.ALLOW,
         principals: [new iam.AnyPrincipal()],
         actions: ["s3:GetObject"],
-        // Le préfixe est nommé : un jour où quelqu'un déposera autre chose
-        // dans ce compartiment, ce ne sera pas public par accident.
-        resources: [this.assetsBucket.arnForObjects("brand/*")],
+        // Les préfixes sont nommés un par un : le jour où quelqu'un déposera
+        // autre chose dans ce compartiment, ce ne sera pas public par accident.
+        // `brand/` porte les logos des organismes, `covers/` les visuels des
+        // formations — publics tous deux, mais pour des raisons distinctes.
+        resources: [
+          this.assetsBucket.arnForObjects("brand/*"),
+          this.assetsBucket.arnForObjects("covers/*"),
+        ],
       }),
     );
 

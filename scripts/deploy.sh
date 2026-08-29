@@ -31,6 +31,14 @@ erreur() { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 
 # ---------------------------------------------------------------- configuration
 
+# Le fichier racine porte les secrets qui ne dépendent pas de l'environnement —
+# clés de fournisseurs, identifiants. Il est chargé en premier pour que la
+# configuration de l'environnement puisse le surcharger, jamais l'inverse.
+if [ -f "$RACINE/.env" ]; then
+  # shellcheck disable=SC1091
+  set -a && . "$RACINE/.env" && set +a
+fi
+
 FICHIER="$RACINE/scripts/.env.$ENVNAME"
 if [ -f "$FICHIER" ]; then
   # shellcheck disable=SC1090

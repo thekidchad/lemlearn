@@ -148,7 +148,7 @@ func handleInvitationAccept(deps Deps) http.HandlerFunc {
 		// La session s'ouvre dans la foulée : demander de se reconnecter
 		// juste après avoir choisi un mot de passe est une étape que personne
 		// ne comprend.
-		token, err := deps.Identity.OpenSessionFor(r.Context(), user, "invitation",
+		token, err := deps.Identity.OpenSession(r.Context(), user,
 			clientIP(r), truncateUA(r.UserAgent()))
 		if err != nil {
 			deps.Log.Error("ouverture de session", "err", err)

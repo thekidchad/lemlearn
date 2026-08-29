@@ -90,7 +90,10 @@ func handleGetCourse(deps Deps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"course": course, "modules": list(modules)})
+		writeJSON(w, http.StatusOK, map[string]any{
+			"course": course, "modules": list(modules),
+			"coverUrl": assetURL(deps, course.CoverKey),
+		})
 	}
 }
 

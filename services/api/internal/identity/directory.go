@@ -111,8 +111,8 @@ func (s *Service) SetPlan(ctx context.Context, orgID, plan string) (Org, error) 
 // l'a ouverte, et ce champ est recopié dans chaque événement d'audit. Une
 // impersonation ne peut donc pas être discrète, ce qui est le seul garde-fou
 // qui tienne quand un accès total est techniquement nécessaire au support.
-func (s *Service) OpenSessionFor(ctx context.Context, user User, by, ip, userAgent string) (string, error) {
-	if by == "" {
+func (s *Service) Impersonate(ctx context.Context, target User, byID, byEmail, ip, userAgent string) (string, error) {
+	if byID == "" || byEmail == "" {
 		return "", errors.New("une impersonation doit nommer son auteur")
 	}
 
@@ -120,10 +120,66 @@ func (s *Service) OpenSessionFor(ctx context.Context, user User, by, ip, userAge
 	if err != nil {
 		return "", err
 	}
-	if err := ddb.Put(ctx, s.db, NewSession(hash, user, ip, userAgent, by, s.now())); err != nil {
+	session := NewSession(hash, target, ip, userAgent, byID, s.now())
+	session.ImpersonatorEmail = byEmail
+	if err := ddb.Put(ctx, s.db, session); err != nil {
 		return "", err
 	}
 	return token, nil
+}
+
+// OpenSession ouvre une session ordinaire pour un compte.
+//
+// Elle sert là où l'utilisateur est bien lui-même sans venir de l'écran de
+// connexion : à l'acceptation d'une invitation, et au retour d'une
+// impersonation. Elle ne porte donc aucune marque d'impersonation — en poser
+// une afficherait à un apprenant qui vient de choisir son mot de passe un
+// bandeau lui annonçant que l'équipe agit à sa place.
+func (s *Service) OpenSession(ctx context.Context, user User, ip, userAgent string) (string, error) {
+	token, hash, err := NewToken()
+	if err != nil {
+		return "", err
+	}
+	if err := ddb.Put(ctx, s.db, NewSession(hash, user, ip, userAgent, "", s.now())); err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// ErrNotImpersonating signale une session qu'on ne peut pas quitter parce
+// qu'elle n'a jamais été ouverte au nom de quelqu'un d'autre.
+var ErrNotImpersonating = errors.New("cette session n'est pas une impersonation")
+
+// EndImpersonation rend la main au membre de l'équipe qui l'avait prise.
+//
+// Le rôle est revérifié : entre l'entrée et la sortie, l'adresse a pu être
+// retirée de la liste de l'équipe, et un accès inter-organisations ne se
+// retrouve pas par le simple fait d'y avoir eu droit tout à l'heure.
+//
+// La session d'impersonation est révoquée en sortant. La laisser vivre
+// laisserait un jeton actif sur les données d'un client, dans un onglet
+// oublié, pendant douze heures.
+func (s *Service) EndImpersonation(ctx context.Context, session Session, token, ip, userAgent string) (User, string, error) {
+	if session.ImpersonatorEmail == "" {
+		return User{}, "", ErrNotImpersonating
+	}
+
+	author, err := s.UserByEmail(ctx, session.ImpersonatorEmail)
+	if err != nil {
+		return User{}, "", err
+	}
+	if author.Role != RoleSuperAdmin || author.Disabled {
+		return User{}, "", errors.New("ce compte n'appartient plus à l'équipe")
+	}
+
+	restored, err := s.OpenSession(ctx, author, ip, userAgent)
+	if err != nil {
+		return User{}, "", err
+	}
+	if err := s.Logout(ctx, token); err != nil {
+		return User{}, "", err
+	}
+	return author, restored, nil
 }
 
 // FirstOwner renvoie le compte propriétaire d'une organisation.

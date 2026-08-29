@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreatePanel, Field, TextArea } from "@/components/app/form";
+import { CourseCoverUpload } from "@/components/app/course-cover-upload";
 import { VideoUpload } from "@/components/app/video-upload";
 import { addModule } from "@/app/actions/crm";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -40,7 +41,7 @@ interface Module {
 export default async function CoursePage({ params }: PageProps<"/catalogue/[courseId]">) {
   const { courseId } = await params;
 
-  let data: { course: Course; modules: Module[] };
+  let data: { course: Course; modules: Module[]; coverUrl?: string };
   try {
     data = await apiFetch(`/v1/courses/${courseId}`);
   } catch (error) {
@@ -104,6 +105,14 @@ export default async function CoursePage({ params }: PageProps<"/catalogue/[cour
       </header>
 
       <div className="mx-auto max-w-4xl px-6 py-6">
+        <div className="mb-6">
+          <CourseCoverUpload
+            courseId={courseId}
+            title={data.course.title}
+            coverUrl={data.coverUrl}
+          />
+        </div>
+
         <h1 className="text-xl font-semibold tracking-[-0.03em]">{data.course.title}</h1>
         {data.course.goal && <p className="mt-2 text-sm text-ink-2">{data.course.goal}</p>}
 

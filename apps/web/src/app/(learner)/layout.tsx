@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SignOutButton } from "@/components/app/sign-out";
+import { LeaveImpersonation } from "@/components/app/leave-impersonation";
 import { OrgBrand, brandStyle } from "@/components/brand/org-brand";
 import { cookies } from "next/headers";
 import { ThemeSwitch } from "@/components/app/theme-switch";
@@ -88,6 +89,7 @@ export default async function LearnerLayout({ children }: LayoutProps<"/">) {
           {me.impersonatedBy && (
             <p className="mb-2 rounded-md border border-warn/40 bg-warn/10 px-2 py-1.5 text-2xs text-warn">
               Session ouverte au nom de cet organisme par l&apos;équipe lemlearn.
+              <LeaveImpersonation />
             </p>
           )}
           <p className="truncate text-xs font-medium">{me.org.name}</p>

@@ -207,3 +207,13 @@ func saveBrand(w http.ResponseWriter, r *http.Request, deps Deps, orgID, by stri
 		"orgName":  org.Name,
 	})
 }
+
+// CoverKey compose la clé S3 du visuel d'une formation.
+//
+// Sous un préfixe distinct de celui des logos : les deux sont publics, mais
+// ils n'ont ni le même cycle de vie ni la même signification, et un jour où
+// l'on voudra purger les visuels d'un catalogue, on sera content de ne pas
+// avoir à trier.
+func CoverKey(orgID, courseID, ext string) string {
+	return "covers/" + orgID + "/" + courseID + ext
+}

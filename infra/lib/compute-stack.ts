@@ -151,6 +151,8 @@ export class ComputeStack extends Stack {
     // d'autre sous une adresse que tout le monde peut lire.
     props.assetsBucket.grantPut(apiFn, "brand/*");
     props.assetsBucket.grantDelete(apiFn, "brand/*");
+    props.assetsBucket.grantPut(apiFn, "covers/*");
+    props.assetsBucket.grantDelete(apiFn, "covers/*");
 
     // ---------------------------------------------------------------------
     // Journal d'audit : ajout seul, au niveau IAM

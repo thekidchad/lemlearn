@@ -240,6 +240,14 @@ type Session struct {
 	// agit à la place d'un client. Toute action de la session est journalisée
 	// avec ce champ : une impersonation ne peut pas être discrète.
 	ImpersonatedBy string `dynamodbav:"impersonatedBy,omitempty"`
+	// ImpersonatorEmail permet de revenir en arrière. L'identifiant seul ne
+	// suffit pas : retrouver un compte demande de connaître son organisation,
+	// et une session d'impersonation ne porte que celle du client. L'adresse,
+	// elle, se résout par l'index.
+	//
+	// Sans elle, on entre dans un organisme sans pouvoir en ressortir autrement
+	// qu'en se déconnectant — ce qui n'est pas une porte, c'est une fenêtre.
+	ImpersonatorEmail string `dynamodbav:"impersonatorEmail,omitempty"`
 }
 
 // SessionTTL est la durée de vie d'une session inactive.

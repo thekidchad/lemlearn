@@ -88,6 +88,18 @@ export default async function LearnerPage({ searchParams }: PageProps<"/apprenan
                 </div>
               </div>
 
+              {/* L'émargement se fait en début de séance : le lien doit être
+                  visible sans dérouler la liste des modules. */}
+              <Link
+                href={`/apprenant/${entry.session.id}/emargement${
+                  contactId ? `?contactId=${contactId}` : ""
+                }`}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs transition-colors duration-[120ms] hover:border-line-strong hover:bg-surface-2/60"
+              >
+                <span aria-hidden className="text-ink-3">✍</span>
+                Confirmer ma présence
+              </Link>
+
               <ol className="mt-5 divide-y divide-line border-t border-line">
                 {(entry.modules ?? []).map((module) => {
                   const progress = entry.enrollment.progress?.find(

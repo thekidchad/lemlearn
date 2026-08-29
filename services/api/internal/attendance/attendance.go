@@ -96,6 +96,42 @@ type Entry struct {
 	Comment string `dynamodbav:"comment,omitempty" json:"comment,omitempty"`
 }
 
+// Fenêtre pendant laquelle un apprenant peut émarger lui-même.
+//
+// Un émargement ne vaut que s'il est contemporain du créneau. Signé la veille,
+// il n'atteste rien — on ne peut pas attester d'une présence à venir. Signé
+// trois semaines après, c'est une régularisation rétroactive, et c'est
+// exactement ce qu'un contrôleur cherche sur une feuille.
+//
+// L'ouverture anticipée couvre l'usage réel : on émarge en arrivant, pas à la
+// minute. La fermeture laisse de quoi rattraper une distraction dans la
+// journée, sans permettre de reconstituer une présence plus tard.
+const (
+	SignOpensBefore = 15 * time.Minute
+	SignClosesAfter = 3 * time.Hour
+)
+
+// LearnerCanSign dit si un apprenant peut émarger ce créneau à cet instant, et
+// pourquoi il ne peut pas.
+//
+// La règle est ici plutôt que dans le routeur : c'est une règle métier, elle
+// doit être testable sans requête HTTP et identique partout où on l'affiche.
+func LearnerCanSign(mode catalog.Mode, slot Slot, at time.Time) (bool, string) {
+	// En asynchrone, la présence s'établit par le relevé de connexion et se
+	// contresigne : demander en plus une signature à l'apprenant lui ferait
+	// attester d'un horaire qu'il n'a pas suivi.
+	if mode == catalog.ModeAsync {
+		return false, "en formation asynchrone, la présence est établie par votre relevé de connexion"
+	}
+	if at.Before(slot.Start.Add(-SignOpensBefore)) {
+		return false, "l'émargement ouvre quinze minutes avant le début du créneau"
+	}
+	if at.After(slot.End.Add(SignClosesAfter)) {
+		return false, "l'émargement de ce créneau est clos : votre formateur peut encore le régulariser"
+	}
+	return true, ""
+}
+
 // EntrySK est la clé de tri d'une présence.
 func EntrySK(sessionID, slotID, contactID string) string {
 	return "SESSION#" + sessionID + "#SLOT#" + slotID + "#ATT#" + contactID

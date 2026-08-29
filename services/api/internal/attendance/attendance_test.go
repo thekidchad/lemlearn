@@ -271,3 +271,49 @@ func TestUnknownSlotIsRefused(t *testing.T) {
 		t.Fatal("un créneau inconnu a été émargé")
 	}
 }
+
+// Un émargement ne vaut que s'il est contemporain du créneau : c'est
+// précisément ce qu'un contrôleur vérifie sur une feuille de présence.
+func TestLearnerCanSign(t *testing.T) {
+	debut := time.Date(2026, 3, 12, 9, 0, 0, 0, time.UTC)
+	creneau := attendance.Slot{
+		ID: "2026-03-12-am", Label: "12/03/2026 — matin",
+		Start: debut, End: debut.Add(4 * time.Hour),
+	}
+
+	cas := []struct {
+		nom     string
+		instant time.Time
+		permis  bool
+	}{
+		{"la veille", debut.Add(-24 * time.Hour), false},
+		{"une heure avant", debut.Add(-time.Hour), false},
+		{"dix minutes avant", debut.Add(-10 * time.Minute), true},
+		{"pendant", debut.Add(2 * time.Hour), true},
+		{"deux heures après la fin", debut.Add(6 * time.Hour), true},
+		{"le lendemain", debut.Add(30 * time.Hour), false},
+	}
+
+	for _, c := range cas {
+		t.Run(c.nom, func(t *testing.T) {
+			permis, motif := attendance.LearnerCanSign(catalog.ModeOnsite, creneau, c.instant)
+			if permis != c.permis {
+				t.Errorf("LearnerCanSign = %v (%s), attendu %v", permis, motif, c.permis)
+			}
+			if !permis && motif == "" {
+				t.Error("un refus doit être motivé : l'apprenant doit savoir quoi faire")
+			}
+		})
+	}
+}
+
+// En asynchrone, la présence vient du relevé de connexion. Demander en plus
+// une signature ferait attester l'apprenant d'un horaire qu'il n'a pas suivi.
+func TestLearnerCannotSignAsynchronousSlots(t *testing.T) {
+	debut := time.Date(2026, 3, 12, 9, 0, 0, 0, time.UTC)
+	creneau := attendance.Slot{ID: "m1", Start: debut, End: debut.Add(2 * time.Hour)}
+
+	if permis, motif := attendance.LearnerCanSign(catalog.ModeAsync, creneau, debut.Add(time.Hour)); permis {
+		t.Errorf("l'émargement asynchrone devrait être refusé (%s)", motif)
+	}
+}

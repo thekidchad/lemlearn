@@ -80,6 +80,33 @@ export default async function QualiopiPage() {
           </section>
         )}
 
+        {/* Deux obligations que le produit peut remplir à partir de ce qu'il
+            détient déjà, et qu'un organisme découvre d'ordinaire trop tard. */}
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/qualiopi/bilan"
+            className="surface-card p-4 transition-colors duration-[120ms] hover:border-line-strong"
+          >
+            <p className="text-sm font-medium">Bilan pédagogique et financier</p>
+            <p className="mt-1 text-2xs text-ink-2">
+              Déclaration annuelle obligatoire. Son défaut suspend
+              l&apos;exonération de TVA.
+            </p>
+          </Link>
+          <a
+            href="/api/reglement"
+            target="_blank"
+            rel="noopener"
+            className="surface-card p-4 transition-colors duration-[120ms] hover:border-line-strong"
+          >
+            <p className="text-sm font-medium">Règlement intérieur</p>
+            <p className="mt-1 text-2xs text-ink-2">
+              Obligatoire, et remis au stagiaire avant son inscription
+              définitive. Établi depuis votre identité.
+            </p>
+          </a>
+        </div>
+
         <h2 className="mt-8 text-xs font-medium">Dossiers incomplets</h2>
         {data.dossiersIncomplets.length === 0 ? (
           <p className="mt-2 text-xs text-ok">

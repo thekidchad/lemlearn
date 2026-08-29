@@ -26,6 +26,32 @@ const (
 	KindFunder Kind = "funder"
 )
 
+// FundingSource nomme l'origine des fonds d'un dossier.
+//
+// Les catégories sont celles du cadre C du bilan pédagogique et financier :
+// s'en écarter obligerait à retraduire chaque ligne au moment de la
+// déclaration, c'est-à-dire au pire moment.
+type FundingSource string
+
+const (
+	// FundingCompany : l'entreprise paie directement la formation de son
+	// salarié, hors dispositif mutualisé.
+	FundingCompany FundingSource = "entreprise"
+	// FundingOPCO : un opérateur de compétences prend en charge.
+	FundingOPCO FundingSource = "opco"
+	// FundingPublic : État, Région, France Travail, collectivités.
+	FundingPublic FundingSource = "public"
+	// FundingIndividual : le stagiaire paie lui-même. C'est la catégorie qui
+	// déclenche le contrat de formation et ses protections.
+	FundingIndividual FundingSource = "particulier"
+	// FundingSubcontract : un autre organisme de formation nous sous-traite
+	// l'action. Le cadre G du bilan l'isole.
+	FundingSubcontract FundingSource = "sous-traitance"
+	// FundingOther couvre le reste plutôt que de laisser un vide : une ligne
+	// « autres produits » existe au formulaire.
+	FundingOther FundingSource = "autre"
+)
+
 // Valid indique si la nature fait partie de la liste fermée.
 func (k Kind) Valid() bool {
 	switch k {
@@ -202,6 +228,12 @@ type File struct {
 
 	Title   string  `dynamodbav:"title" json:"title"`
 	PriceHT float64 `dynamodbav:"priceHT" json:"priceHT"`
+	// Funding dit d'où vient l'argent. C'est la ventilation qu'exige le cadre
+	// C du bilan pédagogique et financier, et le seul renseignement du dossier
+	// qu'on ne peut pas reconstituer après coup : douze mois plus tard,
+	// personne ne se souvient si telle formation a été payée par l'OPCO ou par
+	// l'entreprise elle-même.
+	Funding FundingSource `dynamodbav:"funding,omitempty" json:"funding,omitempty"`
 	VATRate float64 `dynamodbav:"vatRate" json:"vatRate"`
 	OwnerID string  `dynamodbav:"ownerId,omitempty" json:"ownerId,omitempty"`
 

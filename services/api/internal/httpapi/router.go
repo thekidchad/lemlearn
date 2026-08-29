@@ -178,6 +178,11 @@ func NewRouter(deps Deps) http.Handler {
 				r.Route("/organisme", func(r chi.Router) {
 					r.Get("/", handleGetOrgLegal(deps))
 					r.Put("/", handleSaveOrgLegal(deps))
+					// Le bilan annuel, et le règlement intérieur : deux
+					// obligations que le produit peut remplir à partir de ce
+					// qu'il détient déjà.
+					r.Get("/bilan", handleBPF(deps))
+					r.Get("/reglement", handleReglement(deps))
 				})
 
 				r.Route("/marque", func(r chi.Router) {
@@ -236,6 +241,7 @@ func NewRouter(deps Deps) http.Handler {
 					r.Post("/", handleCreateFile(deps))
 					r.Get("/{fileID}", handleGetFile(deps))
 					r.Patch("/{fileID}/stage", handleMoveFile(deps))
+					r.Patch("/{fileID}/financement", handleSetFunding(deps))
 					r.Get("/{fileID}/timeline", handleFileTimeline(deps))
 					r.Post("/{fileID}/export", handleExportFile(deps))
 					r.Get("/{fileID}/signatures", handleListSignatures(deps))

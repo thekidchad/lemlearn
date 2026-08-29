@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FundingSelect } from "@/components/app/funding-select";
 import { CreatePanel, Field, Select } from "@/components/app/form";
 import { ExportButton } from "@/components/app/export-button";
 import { ProofMarks } from "@/components/app/proof-marks";
@@ -213,6 +214,15 @@ export default async function FilePage({ params }: PageProps<"/dossiers/[fileId]
                 </dl>
               </section>
             )}
+
+            <section className="surface-card p-4">
+              <h2 className="text-2xs font-medium tracking-wide text-ink-3 uppercase">
+                Financement
+              </h2>
+              <div className="mt-3">
+                <FundingSelect fileId={file.id} current={file.funding} />
+              </div>
+            </section>
 
             <section className="surface-card p-4">
               <h2 className="text-2xs font-medium tracking-wide text-ink-3 uppercase">

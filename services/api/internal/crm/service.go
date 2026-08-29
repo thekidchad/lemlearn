@@ -156,6 +156,20 @@ func (s *Service) Pipeline(ctx context.Context, orgID string, perStage int32) (m
 	return out, nil
 }
 
+// SetFunding renseigne l'origine des fonds d'un dossier.
+func (s *Service) SetFunding(ctx context.Context, orgID, fileID string, source FundingSource) (File, error) {
+	file, err := s.GetFile(ctx, orgID, fileID)
+	if err != nil {
+		return File{}, err
+	}
+	file.Funding = source
+	file.UpdatedAt = s.now()
+	if err := ddb.Put(ctx, s.db, file); err != nil {
+		return File{}, err
+	}
+	return file, nil
+}
+
 // MoveFile change l'étape d'un dossier.
 //
 // L'écriture est conditionnée à l'étape de départ : deux utilisateurs qui

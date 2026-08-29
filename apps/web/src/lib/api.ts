@@ -191,6 +191,8 @@ export interface FileRecord {
   priceHT: number;
   vatRate: number;
   tags?: string[];
+  /** Origine des fonds, telle que la ventile le bilan annuel. */
+  funding?: string;
   proof: ProofStatus;
   createdAt: string;
   updatedAt: string;

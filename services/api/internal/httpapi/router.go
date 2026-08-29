@@ -120,6 +120,15 @@ func NewRouter(deps Deps) http.Handler {
 			// l'URL.
 			r.Route("/learn", func(r chi.Router) {
 				r.Get("/", handleLearnerDashboard(deps))
+
+				// L'émargement par l'apprenant lui-même. Une feuille signée du
+				// seul organisme n'atteste que ses propres déclarations : c'est
+				// la signature du stagiaire qui en fait une pièce opposable.
+				r.Route("/{sessionID}/emargement", func(r chi.Router) {
+					r.Get("/", handleLearnerSheet(deps))
+					r.Post("/{slotID}", handleLearnerSign(deps))
+				})
+
 				r.Route("/{sessionID}/courses/{courseID}", func(r chi.Router) {
 					r.Get("/", handleLearnerCourse(deps))
 					r.Get("/modules/{moduleID}/progress", handleModuleProgress(deps))
@@ -251,6 +260,10 @@ func NewRouter(deps Deps) http.Handler {
 
 					// Retrouver un apprenant à travers les organisations.
 					r.Get("/apprenants", handleFindLearner(deps))
+
+					// Recherche unique de la palette : organisations,
+					// apprenants, bibliothèque et gabarits en un seul appel.
+					r.Get("/recherche", handleAdminSearch(deps))
 
 					// La bibliothèque de formations mise à disposition des
 					// organismes.

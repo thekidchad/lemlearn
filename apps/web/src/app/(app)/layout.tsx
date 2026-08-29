@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
+import { CommandPalette } from "@/components/app/command-palette";
 import { OrgBrand, brandStyle } from "@/components/brand/org-brand";
 import { SignOutButton } from "@/components/app/sign-out";
 import { cookies } from "next/headers";
@@ -53,7 +54,6 @@ const teamGroup = {
     { href: "/admin/emails", label: "Journal des envois", glyph: "✉" },
     { href: "/admin/gabarits", label: "Gabarits", glyph: "❏" },
     { href: "/admin/bibliotheque", label: "Bibliothèque", glyph: "▥" },
-    { href: "/admin/apprenants", label: "Rechercher", glyph: "⌕" },
   ],
 };
 
@@ -129,6 +129,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-3">
+          {team && (
+            // La recherche se pose par-dessus l'écran plutôt que de le
+            // remplacer : on cherche un organisme en étant déjà occupé à
+            // autre chose.
+            <div className="mb-2">
+              <CommandPalette />
+            </div>
+          )}
           {sections.map((section, index) => (
             <div key={section.title ?? index} className={index > 0 ? "mt-4" : ""}>
               {section.title && <p className="eyebrow mb-1 px-2">{section.title}</p>}

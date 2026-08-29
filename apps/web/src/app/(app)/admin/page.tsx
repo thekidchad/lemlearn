@@ -81,9 +81,12 @@ export default async function AdminPage() {
           <Link href="/admin/bibliotheque" className="hover:text-ink">
             Bibliothèque
           </Link>
-          <Link href="/admin/apprenants" className="hover:text-ink">
-            Retrouver un apprenant
-          </Link>
+          {/* Retrouver un apprenant passe désormais par la palette (⌘K) :
+              on le cherche en étant déjà occupé à autre chose, pas depuis un
+              écran dédié où il faut d'abord se rendre. */}
+          <span className="text-ink-3">
+            Rechercher <kbd className="font-mono text-[0.625rem]">⌘K</kbd>
+          </span>
         </nav>
         <p className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
           {data.orgs.length} client{data.orgs.length > 1 ? "s" : ""} ·{" "}

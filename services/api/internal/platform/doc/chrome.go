@@ -1,5 +1,7 @@
 package doc
 
+import "strings"
+
 // Habillage commun à tous les documents lemlearn.
 //
 // Les PDF sont clairs, à l'inverse de l'application : ils sont imprimés,
@@ -23,6 +25,12 @@ type Chrome struct {
 // WritePreamble écrit les réglages de page, la palette, les aides de zone de
 // signature et l'en-tête/pied. À appeler en premier sur toute source.
 func (c Chrome) WritePreamble(s *Source) {
+	// L'auteur et le titre du document, tels que les affiche la fenêtre
+	// « Propriétés » d'un lecteur PDF. Sans eux, un auditeur qui l'ouvre y
+	// trouve le nom du moteur de composition et rien sur l'organisme — alors
+	// que c'est l'organisme qui produit la pièce et qui en répond.
+	s.Linef(`#set document(author: %s, title: %s)`,
+		Str(c.OrgName), Str(strings.TrimSpace(c.Kind+" "+c.Reference)))
 	s.Line(`#set text(font: "Geist", size: 9.5pt, lang: "fr", hyphenate: false)`)
 	s.Line(`#set par(justify: false, leading: 0.62em, spacing: 0.9em)`)
 	s.Line(`#let ink = rgb("#10131A")`)

@@ -47,6 +47,10 @@ type Options struct {
 	Name     string
 	Reason   string
 	Location string
+	// FieldTitle nomme le champ de signature. C'est l'intitulé que montre le
+	// panneau du lecteur : il doit désigner l'organisme de formation, pas
+	// l'outil qui a produit le document.
+	FieldTitle string
 
 	SignedAt time.Time
 
@@ -96,7 +100,14 @@ func Sign(pdf []byte, opts Options) ([]byte, error) {
 	// dans le document, rendue par le gabarit dans sa zone. Superposer une
 	// apparence de widget ferait double emploi et masquerait le tracé.
 	out.WriteString("/Rect [0 0 0 0]\n/F 132\n")
-	fmt.Fprintf(&out, "/T (Signature electronique)\n/V %d 0 R\n/P %d 0 R\n", sigNum, doc.firstPage)
+	// Le nom du champ apparaît dans le panneau de signature du lecteur. Il
+	// nomme l'organisme quand on le connaît : c'est lui qui délivre la
+	// formation, et c'est son nom que cherche un financeur.
+	champ := "Signature electronique"
+	if opts.FieldTitle != "" {
+		champ = opts.FieldTitle
+	}
+	fmt.Fprintf(&out, "/T %s\n/V %d 0 R\n/P %d 0 R\n", pdfString(champ), sigNum, doc.firstPage)
 	out.WriteString(">>\nendobj\n")
 
 	page, err := doc.objectWithAnnot(doc.firstPage, fieldNum)

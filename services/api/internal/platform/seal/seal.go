@@ -31,9 +31,13 @@ type Sealer interface {
 // Meta décrit ce qui apparaîtra dans le panneau de signature du lecteur PDF.
 type Meta struct {
 	SignerName string
-	Reason     string
-	Location   string
-	SignedAt   time.Time
+	// Issuer nomme l'organisme de formation à l'origine du document. Il
+	// intitule le champ de signature : un financeur qui ouvre le panneau doit
+	// y lire le nom de l'organisme conventionné.
+	Issuer   string
+	Reason   string
+	Location string
+	SignedAt time.Time
 }
 
 // PAdES scelle par signature CAdES détachée incorporée au PDF.
@@ -61,6 +65,7 @@ func (p *PAdES) Seal(ctx context.Context, pdf []byte, meta Meta) ([]byte, string
 		PrivateKey:  p.key,
 		Chain:       p.chain,
 		Name:        meta.SignerName,
+		FieldTitle:  meta.Issuer,
 		Reason:      meta.Reason,
 		Location:    meta.Location,
 		SignedAt:    meta.SignedAt,

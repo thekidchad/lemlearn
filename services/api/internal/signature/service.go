@@ -374,6 +374,7 @@ func (s *Service) Confirm(ctx context.Context, token string, in ConfirmInput) (R
 	if s.sealer != nil {
 		stamped, tsaURL, err := s.sealer.Seal(ctx, sealed, seal.Meta{
 			SignerName: req.SignerName,
+			Issuer:     s.issuer(ctx, req.OrgID),
 			Reason:     "Signature de " + req.Reference,
 			Location:   in.IP,
 			SignedAt:   now,
@@ -594,6 +595,18 @@ func safeReference(reference string) string {
 		}
 	}, strings.TrimSpace(reference))
 	return strings.Trim(cleaned, ".-")
+}
+
+// issuer nomme l'organisme de formation, tel qu'il s'affiche.
+//
+// Le document part chez un financeur ou un auditeur : c'est l'organisme
+// conventionné qu'ils cherchent, et le nom de l'outil n'a rien à y faire.
+func (s *Service) issuer(ctx context.Context, orgID string) string {
+	if s.branding == nil {
+		return ""
+	}
+	nom, _ := s.branding(ctx, orgID)["BrandName"].(string)
+	return nom
 }
 
 // envelope prépare le contexte d'envoi : journal et nom d'expéditeur.

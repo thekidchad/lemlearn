@@ -279,3 +279,36 @@ func TestSignatureDigestIsStable(t *testing.T) {
 		t.Fatal("le document de référence n'est pas reproductible, le test n'a pas de sens")
 	}
 }
+
+// Le panneau de signature d'un lecteur PDF nomme le champ. Un dossier
+// probatoire part chez un financeur ou un auditeur : c'est l'organisme de
+// formation qu'ils doivent y lire, jamais l'outil qui a produit la pièce.
+func TestSignatureFieldNamesTheOrganisation(t *testing.T) {
+	pdf := samplePDF(t)
+	cert, key := testCertificate(t)
+
+	signed, err := pdfsig.Sign(pdf, pdfsig.Options{
+		Certificate: cert, PrivateKey: key,
+		Name: "Léa Martin", Reason: "Convention de formation",
+		FieldTitle: "Institut Vulcain",
+		SignedAt:   time.Date(2026, 2, 3, 18, 47, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("scellement: %v", err)
+	}
+
+	if !bytes.Contains(signed, []byte("/T (Institut Vulcain)")) {
+		t.Error("le champ de signature ne porte pas le nom de l'organisme")
+	}
+	if bytes.Contains(bytes.ToLower(signed), []byte("lemlearn")) {
+		t.Error("le nom de l'outil apparaît dans le document scellé")
+	}
+}
+
+// Sans organisme connu, le champ reste neutre plutôt que de nommer l'outil.
+func TestSignatureFieldFallsBackToANeutralName(t *testing.T) {
+	signed := sign(t, samplePDF(t))
+	if !bytes.Contains(signed, []byte("/T (Signature electronique)")) {
+		t.Error("intitulé de repli absent")
+	}
+}

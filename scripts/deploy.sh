@@ -107,6 +107,38 @@ case "$CIBLE" in
   *)   PILES=(--all) ;;
 esac
 
+# Un compte AWS neuf n'a pas de quoi recevoir un déploiement CDK : il lui
+# manque le compartiment d'artefacts et les rôles d'exécution. L'amorçage est
+# idempotent, donc on le tente à chaque fois plutôt que de demander à
+# quelqu'un de s'en souvenir une seule fois, le jour où ça compte.
+amorcer() {
+  local compte
+  compte="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)"
+  if [ -z "$compte" ]; then
+    erreur "identifiants AWS invalides pour le profil $AWS_PROFILE"
+    exit 1
+  fi
+  info "compte $compte, région $AWS_REGION"
+
+  # La distribution du front vit à Paris comme le reste, mais son certificat —
+  # le jour où un domaine propre sera branché — devra être émis en us-east-1.
+  # On amorce les deux régions maintenant : y revenir plus tard demanderait de
+  # comprendre pourquoi ACM refuse.
+  # L'échec n'est pas bloquant : sur un compte déjà amorcé, il signifie le
+  # plus souvent qu'on n'a pas le droit de *vérifier* l'amorçage — ce qui
+  # n'empêche pas de déployer. Un compte réellement vierge échouera de toute
+  # façon au déploiement, avec un message qui nomme ce qui manque.
+  if (cd "$RACINE/infra" && npx cdk bootstrap \
+      "aws://$compte/$AWS_REGION" "aws://$compte/us-east-1" >/dev/null 2>&1); then
+    info "amorçage vérifié"
+  else
+    erreur "amorçage non vérifiable (droits insuffisants) — on continue"
+    erreur "sur un compte neuf, lancez : npx cdk bootstrap aws://$compte/$AWS_REGION aws://$compte/us-east-1"
+  fi
+}
+
+amorcer
+
 deployer() {
   info "déploiement : ${PILES[*]}"
   (cd "$RACINE/infra" && npx cdk deploy "${PILES[@]}" \

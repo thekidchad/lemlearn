@@ -20,6 +20,11 @@ type Chrome struct {
 	Reference string
 	// Titre affiché en tête à droite (ex. « Convention de formation »).
 	Kind string
+	// LogoAsset nomme le fichier du logo dans les ressources du document.
+	// Vide, l'en-tête se contente du nom de l'organisme — ce qui reste
+	// parfaitement conforme : c'est la raison sociale qui fait foi, pas
+	// l'image. Le logo n'est donc jamais une condition de rendu.
+	LogoAsset string
 }
 
 // WritePreamble écrit les réglages de page, la palette, les aides de zone de
@@ -60,8 +65,16 @@ func (c Chrome) WritePreamble(s *Source) {
 	s.Linef(`#set page(paper: "a4", margin: (top: 26mm, bottom: 22mm, x: 18mm),`)
 	s.Linef(`  header: block(width: 100%%)[`)
 	s.Linef(`    #grid(columns: (1fr, auto), align: (left + top, right + top),`)
-	s.Linef(`      [#text(size: 9pt, weight: 640, %s)#linebreak()#text(size: 6.8pt, fill: faint, %s)],`,
-		Str(c.OrgName), Str(c.OrgAddress))
+	// L'organisme se présente par son logo quand il en a déposé un, par son
+	// nom sinon. Les deux ensemble feraient répétition sur un document déjà
+	// dense, et le nom figure de toute façon en pied dans la mention légale.
+	if c.LogoAsset != "" {
+		s.Linef(`      [#box(height: 9mm)[#image(%s, height: 9mm, fit: "contain")]#linebreak()#text(size: 6.8pt, fill: faint, %s)],`,
+			Str(c.LogoAsset), Str(c.OrgAddress))
+	} else {
+		s.Linef(`      [#text(size: 9pt, weight: 640, %s)#linebreak()#text(size: 6.8pt, fill: faint, %s)],`,
+			Str(c.OrgName), Str(c.OrgAddress))
+	}
 	s.Linef(`      [#text(size: 6.8pt, fill: faint, %s)#linebreak()#lem_mono(%s)],`,
 		Str(c.Kind), Str(c.Reference))
 	s.Linef(`    )`)

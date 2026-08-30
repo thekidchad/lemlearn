@@ -183,6 +183,12 @@ func NewRouter(deps Deps) http.Handler {
 					// qu'il détient déjà.
 					r.Get("/bilan", handleBPF(deps))
 					r.Get("/reglement", handleReglement(deps))
+					// Aperçu d'un gabarit, sous l'identité réelle de
+					// l'organisme : contenu fictif, mais en-tête, logo et
+					// mention légale sont ceux qui partiront. Il exige donc une
+					// session, ce qui n'était pas le cas quand il ne montrait
+					// qu'un exemplaire de démonstration.
+					r.Get("/apercu/{template}", handleDocumentPreview(deps))
 				})
 
 				r.Route("/marque", func(r chi.Router) {
@@ -330,12 +336,6 @@ func NewRouter(deps Deps) http.Handler {
 		// l'appel, vérifiée avant d'ouvrir la charge utile.
 		r.Post("/stripe/webhook", handleStripeWebhook(deps))
 
-		r.Route("/documents", func(r chi.Router) {
-			// Prévisualisation d'un gabarit avec un jeu de données de
-			// démonstration. Utile pour itérer sur la mise en page sans
-			// créer de dossier réel ; indisponible en production.
-			r.Get("/preview/{template}", handleDocumentPreview(deps))
-		})
 	})
 
 	return r

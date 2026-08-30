@@ -28,6 +28,7 @@ import (
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/docflow"
+	"github.com/lemlearn/api/internal/documents"
 	"github.com/lemlearn/api/internal/emailtpl"
 	"github.com/lemlearn/api/internal/export"
 	"github.com/lemlearn/api/internal/followup"
@@ -198,9 +199,29 @@ func main() {
 				os.Exit(1)
 			}
 
+			// Le logo de l'organisme, incorporé aux documents. Il est composé
+			// ici parce que le nom vient de la marque et les octets du
+			// compartiment : deux paquets que le composeur de documents n'a
+			// pas à connaître.
+			logos := func(ctx context.Context, orgID string) (string, []byte) {
+				if deps.Assets == nil || deps.Brand == nil {
+					return "", nil
+				}
+				marque, err := deps.Brand.Get(ctx, orgID)
+				if err != nil || marque.LogoKey == "" {
+					return "", nil
+				}
+				octets, err := deps.Assets.Get(ctx, marque.LogoKey)
+				if err != nil {
+					log.Warn("logo illisible", "err", err, "org", orgID)
+					return "", nil
+				}
+				return documents.LogoAsset(marque.LogoKey), octets
+			}
+
 			deps.Signature = signature.NewService(signature.Deps{
 				DB:       db,
-				Renderer: docflow.NewRenderer(deps.Identity, deps.CRM, compiler),
+				Renderer: docflow.NewRenderer(deps.Identity, deps.CRM, compiler).WithLogos(logos),
 				Blobs:    store,
 				Mailer:   mailer,
 				Composer: deps.Emails,

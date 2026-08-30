@@ -271,10 +271,7 @@ func (s *Service) addReports(
 		return nil
 	}
 
-	party := documents.Party{
-		Name: org.Name, Address: org.Address,
-		PostalCode: org.PostalCode, City: org.City, SIRET: org.SIRET,
-	}
+	party := documents.PartyFromOrg(org)
 	now := s.now()
 
 	// Relevé de connexion.

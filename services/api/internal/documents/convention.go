@@ -101,6 +101,13 @@ type Convention struct {
 	// écarter.
 	IndividualFunding bool
 
+	// LogoAsset et LogoBytes portent le logo de l'organisme, incorporé au
+	// document. Il est embarqué et non référencé : un document scellé ne peut
+	// pas dépendre d'une image qu'un lecteur irait chercher sur le réseau des
+	// années plus tard.
+	LogoAsset string
+	LogoBytes map[string][]byte
+
 	// Signatures apposées. Vide, le gabarit rend des cadres vierges ; c'est
 	// le document présenté au signataire. Renseigné, il rend le document
 	// signé — même gabarit, même code, aucun post-traitement.
@@ -121,6 +128,7 @@ func RenderConvention(c Convention) doc.Document {
 		LegalLine:  legalLine(c.Org),
 		Reference:  c.Reference,
 		Kind:       "Convention de formation professionnelle",
+		LogoAsset:  c.LogoAsset,
 	}
 	chrome.WritePreamble(&s)
 
@@ -240,9 +248,17 @@ func RenderConvention(c Convention) doc.Document {
 	// Signatures
 	writeSignatureBlock(&s, c)
 
+	assets := doc.Assets(c.Signatures)
+	for nom, octets := range c.LogoBytes {
+		if assets == nil {
+			assets = map[string][]byte{}
+		}
+		assets[nom] = octets
+	}
+
 	return doc.Document{
 		Source:       s.Bytes(),
-		Assets:       doc.Assets(c.Signatures),
+		Assets:       assets,
 		CreationUnix: c.IssuedOn.Unix(),
 	}
 }

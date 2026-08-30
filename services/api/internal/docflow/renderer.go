@@ -20,10 +20,46 @@ import (
 )
 
 // Renderer produit les PDF des documents d'un dossier.
+// LogoLoader rend le logo d'un organisme : le nom du fichier tel qu'il sera
+// déposé dans les ressources du document, et ses octets.
+//
+// Une fonction plutôt qu'une interface : composer le nom demande la marque de
+// l'organisme, en lire les octets demande le compartiment, et les deux vivent
+// dans des paquets différents. Le point de composition est le démarrage, pas
+// ce paquet-ci.
+//
+// Facultatif : sans lui, l'en-tête porte la raison sociale, ce qui reste
+// parfaitement conforme — c'est le nom qui fait foi, pas l'image. Un logo
+// illisible ne doit jamais empêcher un document de se produire.
+type LogoLoader func(ctx context.Context, orgID string) (string, []byte)
+
 type Renderer struct {
 	identity *identity.Service
 	crm      *crm.Service
 	compiler doc.Compiler
+	logos    LogoLoader
+}
+
+// WithLogos branche la relecture des logos.
+func (r *Renderer) WithLogos(load LogoLoader) *Renderer {
+	r.logos = load
+	return r
+}
+
+// logoAsset prépare le logo de l'organisme pour le document.
+//
+// L'échec est silencieux : l'en-tête retombe sur la raison sociale, et un
+// document se produit toujours. Faire échouer une convention parce qu'une
+// image de vingt kilo-octets manque serait hors de proportion.
+func (r *Renderer) logoAsset(ctx context.Context, orgID string) (string, map[string][]byte) {
+	if r.logos == nil {
+		return "", nil
+	}
+	nom, octets := r.logos(ctx, orgID)
+	if nom == "" || len(octets) == 0 {
+		return "", nil
+	}
+	return nom, map[string][]byte{nom: octets}
 }
 
 // NewRenderer construit le composeur.
@@ -45,6 +81,7 @@ func (r *Renderer) Render(ctx context.Context, req signature.Request, applied []
 			return nil, err
 		}
 		convention.Signatures = applied
+		convention.LogoAsset, convention.LogoBytes = r.logoAsset(ctx, req.OrgID)
 		return r.compiler.Compile(ctx, documents.RenderConvention(convention))
 	default:
 		return nil, fmt.Errorf("gabarit %q inconnu", req.Kind)
@@ -68,17 +105,8 @@ func (r *Renderer) buildConvention(ctx context.Context, req signature.Request) (
 		// l'heure courante : sans cela, le document rendu au signataire
 		// différerait de celui dont l'empreinte a été figée, et la
 		// vérification d'intégrité échouerait à chaque ouverture.
-		IssuedOn: req.IssuedAt,
-		Org: documents.Party{
-			Name: org.Name, Address: org.Address,
-			PostalCode: org.PostalCode, City: org.City, SIRET: org.SIRET,
-			// L'identité juridique complète : elle ne sert qu'au pied de page,
-			// mais c'est ce pied de page qui rend le document opposable.
-			LegalForm: org.LegalForm, Capital: org.Capital, RCS: org.RCS,
-			VATNumber: org.VATNumber, VATExempt: org.VATExempt,
-			NDA: org.NDA, NDARegion: org.NDARegion,
-			Represented: org.RepName, Role: org.RepRole,
-		},
+		IssuedOn:      req.IssuedAt,
+		Org:           documents.PartyFromOrg(org),
 		CourseTitle:   file.Title,
 		Audience:      "Salariés et personnes en formation professionnelle continue",
 		Prerequisites: "Aucun",

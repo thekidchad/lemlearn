@@ -153,6 +153,11 @@ export class ComputeStack extends Stack {
     props.assetsBucket.grantDelete(apiFn, "brand/*");
     props.assetsBucket.grantPut(apiFn, "covers/*");
     props.assetsBucket.grantDelete(apiFn, "covers/*");
+    // Lecture des logos : ils sont incorporés aux PDF plutôt que référencés,
+    // pour qu'un document scellé ne dépende pas d'une image qu'un lecteur
+    // irait chercher sur le réseau des années plus tard.
+    props.assetsBucket.grantRead(apiFn, "brand/*");
+    props.assetsBucket.grantRead(exportFn, "brand/*");
 
     // ---------------------------------------------------------------------
     // Journal d'audit : ajout seul, au niveau IAM

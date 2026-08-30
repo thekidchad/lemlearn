@@ -10,7 +10,6 @@ import (
 	"github.com/lemlearn/api/internal/bpf"
 	"github.com/lemlearn/api/internal/crm"
 	"github.com/lemlearn/api/internal/documents"
-	"github.com/lemlearn/api/internal/identity"
 )
 
 // handleBPF assemble le bilan pédagogique et financier d'un exercice.
@@ -84,7 +83,7 @@ func handleReglement(deps Deps) http.HandlerFunc {
 		}
 
 		pdf, err := deps.Compiler.Compile(r.Context(), documents.RenderReglement(documents.Reglement{
-			Org:         orgParty(org),
+			Org:         documents.PartyFromOrg(org),
 			IssuedOn:    deps.Now(),
 			LongCourses: longues,
 		}))
@@ -98,22 +97,6 @@ func handleReglement(deps Deps) http.HandlerFunc {
 		w.Header().Set("Content-Disposition", `inline; filename="reglement-interieur.pdf"`)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(pdf)
-	}
-}
-
-// orgParty projette l'organisation dans la partie contractante des gabarits.
-//
-// La conversion est faite une fois ici plutôt qu'à chaque appelant : c'est
-// ainsi qu'un champ ajouté à l'identité juridique atteint tous les documents,
-// et pas seulement celui auquel on pensait ce jour-là.
-func orgParty(org identity.Org) documents.Party {
-	return documents.Party{
-		Name: org.Name, Address: org.Address,
-		PostalCode: org.PostalCode, City: org.City, SIRET: org.SIRET,
-		LegalForm: org.LegalForm, Capital: org.Capital, RCS: org.RCS,
-		VATNumber: org.VATNumber, VATExempt: org.VATExempt,
-		NDA: org.NDA, NDARegion: org.NDARegion,
-		Represented: org.RepName, Role: org.RepRole,
 	}
 }
 

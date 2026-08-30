@@ -10,6 +10,7 @@ import (
 
 	"github.com/lemlearn/api/internal/config"
 	"github.com/lemlearn/api/internal/documents"
+	"github.com/lemlearn/api/internal/identity"
 	"github.com/lemlearn/api/internal/platform/doc"
 )
 
@@ -20,6 +21,23 @@ import (
 //
 // `?zones=1` renvoie les zones de signature extraites plutôt que le PDF, ce qui
 // permet de vérifier leur position sans ouvrir le document.
+// logoOf relit le logo d'un organisme pour l'incorporer à un aperçu. L'échec
+// est silencieux : l'en-tête retombe sur la raison sociale.
+func logoOf(r *http.Request, deps Deps, orgID string) map[string][]byte {
+	if deps.Assets == nil || deps.Brand == nil {
+		return nil
+	}
+	marque, err := deps.Brand.Get(r.Context(), orgID)
+	if err != nil || marque.LogoKey == "" {
+		return nil
+	}
+	octets, err := deps.Assets.Get(r.Context(), marque.LogoKey)
+	if err != nil || len(octets) == 0 {
+		return nil
+	}
+	return map[string][]byte{documents.LogoAsset(marque.LogoKey): octets}
+}
+
 func handleDocumentPreview(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if deps.Config.Env == config.EnvProd {
@@ -36,6 +54,20 @@ func handleDocumentPreview(deps Deps) http.HandlerFunc {
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
+		}
+
+		// L'aperçu porte l'identité réelle de l'organisme connecté : un
+		// exemplaire dont l'en-tête ne ressemble pas à ce qu'on enverra ne
+		// sert qu'à valider une mise en page, pas à se relire.
+		session, _ := sessionFrom(r)
+		if deps.Identity != nil && session.OrgID != "" {
+			if org, err := deps.Identity.LoadOrg(r.Context(), session.OrgID); err == nil {
+				document, err = demoDocumentFor(template, org, logoOf(r, deps, session.OrgID))
+				if err != nil {
+					writeError(w, http.StatusNotFound, err.Error())
+					return
+				}
+			}
 		}
 
 		pdf, zones, err := doc.CompileWithZones(r.Context(), deps.Compiler, document)
@@ -67,6 +99,24 @@ func demoDocument(template string) (doc.Document, error) {
 	}
 }
 
+// demoDocumentFor rend le même exemplaire, sous l'identité réelle de
+// l'organisme : même contenu fictif, mais l'en-tête, le logo et la mention
+// légale sont ceux qui partiront.
+func demoDocumentFor(template string, org identity.Org, logo map[string][]byte) (doc.Document, error) {
+	switch template {
+	case "convention":
+		convention := demoConvention()
+		convention.Org = documents.PartyFromOrg(org)
+		for nom := range logo {
+			convention.LogoAsset = nom
+		}
+		convention.LogoBytes = logo
+		return documents.RenderConvention(convention), nil
+	default:
+		return doc.Document{}, fmt.Errorf("gabarit %q inconnu", template)
+	}
+}
+
 // at construit un créneau à l'heure de Paris — les horaires imprimés sur une
 // convention sont ceux du stagiaire, pas ceux du serveur.
 func at(year int, month time.Month, day, hour int) time.Time {
@@ -82,6 +132,9 @@ func demoConvention() documents.Convention {
 	return documents.Convention{
 		Reference: "CONV-2026-0143",
 		IssuedOn:  issued,
+		// L'identité vient de l'organisation connectée : l'aperçu doit montrer
+		// ce que le client enverra, pas un exemplaire de démonstration dont
+		// l'en-tête ne lui ressemble pas. Seul le contenu reste fictif.
 		Org: documents.Party{
 			Name: "Institut Vulcain", LegalForm: "SAS",
 			Address: "12 rue des Écoles", PostalCode: "75005", City: "Paris",

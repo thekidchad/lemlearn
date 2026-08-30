@@ -19,6 +19,10 @@ import (
 // permet de la remplacer en test sans compte AWS.
 type Presigner interface {
 	PresignedPut(ctx context.Context, key, contentType string, ttl time.Duration) (string, error)
+	// Get relit une ressource. Le logo est incorporé aux PDF : il faut donc
+	// ses octets, pas une URL — un document scellé ne peut pas dépendre d'une
+	// image qu'un lecteur irait chercher sur le réseau des années plus tard.
+	Get(ctx context.Context, key string) ([]byte, error)
 }
 
 // Formats acceptés pour un logo.

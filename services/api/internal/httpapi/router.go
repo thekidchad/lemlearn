@@ -125,6 +125,12 @@ func NewRouter(deps Deps) http.Handler {
 			r.Route("/learn", func(r chi.Router) {
 				r.Get("/", handleLearnerDashboard(deps))
 
+				// Ce que l'apprenant sait de lui-même : sa fiche telle que
+				// l'organisme la tient, l'identité de l'organisme, et les
+				// pièces qu'il a signées.
+				r.Get("/moi", handleLearnerMe(deps))
+				r.Get("/documents/{requestID}", handleLearnerDocument(deps))
+
 				// L'émargement par l'apprenant lui-même. Une feuille signée du
 				// seul organisme n'atteste que ses propres déclarations : c'est
 				// la signature du stagiaire qui en fait une pièce opposable.

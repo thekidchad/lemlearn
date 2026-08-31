@@ -68,12 +68,29 @@ export default async function LearnerLayout({ children }: LayoutProps<"/">) {
           </Link>
         </div>
 
+        {/* Trois entrées, pas une. « Mon parcours » répond à « où j'en
+            étais » ; il restait sans réponse à « qu'avez-vous écrit sur
+            moi », « où est la convention que j'ai signée » et « chez qui
+            suis-je inscrit », qui obligeaient jusqu'ici à écrire au
+            secrétariat. */}
         <nav className="flex flex-1 flex-col gap-0.5 px-2">
           <Link href="/apprenant" className="nav-item">
             <span aria-hidden className="w-4 text-center text-ink-3">
               ▷
             </span>
             Mon parcours
+          </Link>
+          <Link href="/apprenant/documents" className="nav-item">
+            <span aria-hidden className="w-4 text-center text-ink-3">
+              ❏
+            </span>
+            Mes documents
+          </Link>
+          <Link href="/apprenant/informations" className="nav-item">
+            <span aria-hidden className="w-4 text-center text-ink-3">
+              ◉
+            </span>
+            Mes informations
           </Link>
           {staff && (
             <Link href="/pipeline" className="nav-item">
@@ -88,7 +105,7 @@ export default async function LearnerLayout({ children }: LayoutProps<"/">) {
         <div className="border-t border-line p-3">
           {me.impersonatedBy && (
             <p className="mb-2 rounded-md border border-warn/40 bg-warn/10 px-2 py-1.5 text-2xs text-warn">
-              Session ouverte au nom de cet organisme par l&apos;équipe lemlearn.
+              Session ouverte au nom de ce compte par l&apos;équipe lemlearn.
               <LeaveImpersonation />
             </p>
           )}

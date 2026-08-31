@@ -22,7 +22,9 @@ const groups: { title?: string; items: { href: string; label: string; glyph: str
   {
     items: [
       { href: "/pipeline", label: "Pipeline", glyph: "◧" },
-      { href: "/contacts", label: "Contacts", glyph: "◍" },
+      { href: "/stagiaires", label: "Stagiaires", glyph: "◍" },
+      { href: "/entreprises", label: "Entreprises", glyph: "▢" },
+      { href: "/financeurs", label: "Financeurs", glyph: "◇" },
     ],
   },
   {

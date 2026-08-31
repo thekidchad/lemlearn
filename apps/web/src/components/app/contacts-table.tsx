@@ -80,7 +80,7 @@ export function ContactsTable({
             >
               <td className="px-6 py-2.5">
                 <Link
-                  href={`/contacts/${contact.id}`}
+                  href={`/stagiaires/${contact.id}`}
                   className="hover:text-accent-ink hover:underline"
                 >
                   {displayName(contact)}

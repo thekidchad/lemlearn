@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrgActions } from "@/components/app/org-actions";
+import { OrgContent } from "@/components/app/org-content";
 import { BrandForm } from "@/components/app/brand-form";
 import { apiFetch, ApiError, type Brand } from "@/lib/api";
 import type { Plan, Usage } from "@/app/(app)/admin/page";
@@ -79,6 +80,19 @@ export default async function OrgPage({ params }: PageProps<"/admin/[orgId]">) {
       </header>
 
       <div className="mx-auto max-w-4xl space-y-6 px-6 py-6">
+        {/* Ce que contient l'espace du client. En lecture : modifier passe par
+            l'impersonation, qui laisse une trace dans son journal et un bandeau
+            à son écran. Un support qui écrit sans que le client le sache n'est
+            pas un support. */}
+        <section>
+          <h2 className="text-sm font-medium">Contenu de l&apos;espace</h2>
+          <p className="mt-1.5 mb-4 max-w-2xl text-xs text-ink-2">
+            Consultable ici, modifiable en ouvrant une session sur l&apos;organisme.
+            Chaque consultation est journalisée chez lui.
+          </p>
+          <OrgContent orgId={orgId} />
+        </section>
+
         {marque && (
           <section>
             <h2 className="text-sm font-medium">Marque blanche</h2>

@@ -276,6 +276,14 @@ func NewRouter(deps Deps) http.Handler {
 					// Habiller un client depuis la vue super-admin : c'est ce
 					// qui rend l'ouverture d'un organisme immédiate, sans rien
 					// lui demander ni rien redéployer.
+					// Le contenu d'un client, en lecture. Chaque appel interroge
+					// la partition d'un organisme désigné : c'est une lecture
+					// ciblée, pas un balayage de la table.
+					r.Get("/orgs/{orgID}/repertoire", handleAdminOrgContacts(deps))
+					r.Get("/orgs/{orgID}/sessions", handleAdminOrgSessions(deps))
+					r.Get("/orgs/{orgID}/formations", handleAdminOrgCourses(deps))
+					r.Get("/orgs/{orgID}/dossiers", handleAdminOrgFiles(deps))
+
 					r.Get("/orgs/{orgID}/marque", handleAdminGetBrand(deps))
 					r.Put("/orgs/{orgID}/marque", handleAdminSaveBrand(deps))
 					r.Post("/orgs/{orgID}/marque/logo", handlePrepareLogo(deps))

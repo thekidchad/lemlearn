@@ -6,7 +6,7 @@ import { IdentityDoc } from "@/components/app/identity-doc";
 import { LearnerAccess } from "@/components/app/learner-access";
 import { apiFetch, ApiError, contactName, type Contact, type FileRecord } from "@/lib/api";
 
-export const metadata: Metadata = { title: "Fiche contact" };
+export const metadata: Metadata = { title: "Fiche" };
 
 const KINDS: Record<string, string> = {
   learner: "Apprenant",
@@ -14,7 +14,7 @@ const KINDS: Record<string, string> = {
   funder: "Financeur",
 };
 
-export default async function ContactPage({ params }: PageProps<"/contacts/[contactId]">) {
+export default async function ContactPage({ params }: PageProps<"/stagiaires/[contactId]">) {
   const { contactId } = await params;
 
   let contact: Contact;
@@ -37,7 +37,16 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[cont
   return (
     <>
       <header className="flex h-14 items-center gap-3 border-b border-line px-6">
-        <Link href={`/contacts?kind=${contact.kind}`} className="text-xs text-ink-3 hover:text-ink">
+        <Link
+          href={
+            contact.kind === "company"
+              ? "/entreprises"
+              : contact.kind === "funder"
+                ? "/financeurs"
+                : "/stagiaires"
+          }
+          className="text-xs text-ink-3 hover:text-ink"
+        >
           Contacts
         </Link>
         <span className="text-ink-3">/</span>

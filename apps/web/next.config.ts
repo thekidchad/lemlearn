@@ -14,6 +14,34 @@ const nextConfig: NextConfig = {
   // plutôt que l'adresse de la passerelle.
   poweredByHeader: false,
 
+  /**
+   * « Contacts » était du jargon de CRM qui ne disait rien du métier : les
+   * trois natures ont désormais chacune leur écran, nommé comme ce qu'il
+   * contient. Le code du travail dit « stagiaire ».
+   *
+   * La redirection vit ici plutôt que dans une page : rendue par un composant
+   * serveur, elle arrivait après que la coque a été envoyée, donc sans en-tête
+   * `Location`. Un navigateur suivait quand même, mais rien d'autre.
+   */
+  async redirects() {
+    return [
+      {
+        source: "/contacts",
+        has: [{ type: "query", key: "kind", value: "company" }],
+        destination: "/entreprises",
+        permanent: true,
+      },
+      {
+        source: "/contacts",
+        has: [{ type: "query", key: "kind", value: "funder" }],
+        destination: "/financeurs",
+        permanent: true,
+      },
+      { source: "/contacts", destination: "/stagiaires", permanent: true },
+      { source: "/contacts/:id", destination: "/stagiaires/:id", permanent: true },
+    ];
+  },
+
   images: {
     /**
      * L'optimiseur d'images de Next s'appuie sur `sharp`, dont le binaire est

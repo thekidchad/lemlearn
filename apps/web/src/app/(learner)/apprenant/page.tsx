@@ -234,8 +234,8 @@ function LearnerPicker({ learners }: { learners: Contact[] }) {
       {learners.length === 0 ? (
         <p className="mt-8 text-sm text-ink-3">
           Aucun apprenant enregistré. Ils se créent dans{" "}
-          <Link href="/contacts?kind=learner" className="underline hover:text-ink">
-            Contacts
+          <Link href="/stagiaires" className="underline hover:text-ink">
+            Stagiaires
           </Link>
           .
         </p>

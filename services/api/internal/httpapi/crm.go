@@ -70,12 +70,15 @@ func handleListContacts(deps Deps) http.HandlerFunc {
 			kind = crm.KindLearner
 		}
 
-		contacts, err := deps.CRM.ListContacts(r.Context(), session.OrgID, kind, 200)
+		limite, curseur := pageParams(r)
+		page, err := deps.CRM.ListContactsPage(r.Context(), session.OrgID, kind, limite, curseur)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"contacts": list(contacts)})
+		writeJSON(w, http.StatusOK, map[string]any{
+			"contacts": list(page.Items), "cursor": page.Cursor,
+		})
 	}
 }
 

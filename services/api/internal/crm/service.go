@@ -76,6 +76,34 @@ func (s *Service) ListContacts(ctx context.Context, orgID string, kind Kind, lim
 	})
 }
 
+// ListContactsPage lit une tranche de contacts et rend le curseur de la
+// suivante.
+//
+// La pagination est par curseur et non par numéro de page : DynamoDB ne sait
+// pas sauter au millième élément sans lire les neuf cent quatre-vingt-dix-neuf
+// premiers, et un écran qui promettrait « page 7 » paierait ce parcours à
+// chaque clic.
+func (s *Service) ListContactsPage(ctx context.Context, orgID string, kind Kind, limit int32, cursor string) (ddb.Page[Contact], error) {
+	if !kind.Valid() {
+		return ddb.Page[Contact]{}, fmt.Errorf("nature de contact %q inconnue", kind)
+	}
+	return ddb.QueryPage[Contact](ctx, s.db, ddb.QuerySpec{
+		Index: "GSI1",
+		PK:    ddb.GSI1Contacts(orgID, string(kind)),
+		Limit: limit,
+	}, cursor)
+}
+
+// ListFilesByStagePage lit une tranche de dossiers d'une étape.
+func (s *Service) ListFilesByStagePage(ctx context.Context, orgID string, stage Stage, limit int32, cursor string) (ddb.Page[File], error) {
+	return ddb.QueryPage[File](ctx, s.db, ddb.QuerySpec{
+		Index:      "GSI1",
+		PK:         ddb.GSI1Files(orgID, string(stage)),
+		Descending: true,
+		Limit:      limit,
+	}, cursor)
+}
+
 // CreateFileInput décrit l'ouverture d'un dossier.
 type CreateFileInput struct {
 	OrgID     string

@@ -264,6 +264,11 @@ func NewRouter(deps Deps) http.Handler {
 				r.Route("/admin", func(r chi.Router) {
 					r.Get("/tableau", handleAdminDashboard(deps))
 					r.Get("/orgs", handleListOrgs(deps))
+					// Ouvrir l'espace d'un client et inviter son responsable.
+					// C'est le premier geste commercial, et il n'existait pas :
+					// une organisation ne pouvait naître que par l'inscription
+					// libre.
+					r.Post("/orgs", handleOpenOrg(deps))
 					r.Get("/orgs/{orgID}", handleOrgDetail(deps))
 					r.Post("/orgs/{orgID}/plan", handleSetPlan(deps))
 					r.Post("/orgs/{orgID}/impersonate", handleImpersonate(deps))

@@ -84,6 +84,10 @@ const (
 	KeySignatureOTP        = "signature.otp"
 	KeyLearnerInvitation   = "learner.invitation"
 	KeySurveyCold          = "survey.cold"
+	// KeyOrgInvitation ouvre le compte d'un organisme client. C'est le seul
+	// message du produit où notre nom est légitime : il s'adresse à quelqu'un
+	// qui nous a acheté l'outil, pas à un stagiaire qui ne nous connaît pas.
+	KeyOrgInvitation = "org.invitation"
 )
 
 // shell est l'habillage commun.
@@ -200,6 +204,39 @@ Ce lien est personnel et expire dans quatorze jours.
 </p>`,
 				"Votre temps de visionnage est enregistré : il constitue la preuve d'assiduité que votre organisme "+
 					"doit pouvoir présenter en cas de contrôle."),
+		},
+		{
+			Key:     KeyOrgInvitation,
+			Label:   "Ouverture d'un espace organisme",
+			Purpose: "Part quand l'équipe ouvre le compte d'un nouvel organisme. Le destinataire est le responsable de l'organisme, pas un stagiaire.",
+			Subject: "Votre espace {{.OrgName}} est prêt",
+			Variables: []Variable{
+				logoVariable,
+				brandVariable,
+				accentVariable,
+				inkVariable,
+				{"FirstName", "prénom du responsable", "Marie"},
+				{"OrgName", "nom de l'organisme", "Institut Vulcain"},
+				{"Link", "lien pour choisir son mot de passe", "https://app.exemple/invitation/jeton"},
+			},
+			Body: wrap(`
+<h1 style="margin:0 0 16px;font-size:19px;font-weight:600;letter-spacing:-0.02em">Votre espace est ouvert</h1>
+<p style="margin:0 0 20px;font-size:14px;line-height:1.6">Bonjour {{.FirstName}},</p>
+<p style="margin:0 0 20px;font-size:14px;line-height:1.6">
+L'espace de <strong>{{.OrgName}}</strong> vous attend. Choisissez votre mot de passe
+pour y entrer : vous y trouverez votre catalogue, vos sessions, vos dossiers et
+les documents que la plateforme produit pour vous.
+</p>
+<p style="margin:0 0 24px">
+<a href="{{.Link}}" style="display:inline-block;background:{{.BrandAccent}};color:{{.BrandInk}};text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500">Choisir mon mot de passe</a>
+</p>
+<p style="margin:0;font-size:12px;line-height:1.6;color:#5b6170">
+Ce lien est personnel et expire dans quatorze jours. Vos apprenants, eux, ne
+verront jamais que votre organisme : logo, couleurs et documents portent votre
+seule identité.
+</p>`,
+				"Vous recevez ce message parce qu'un espace de formation a été ouvert à votre nom. "+
+					"Si vous n'êtes pas concerné, ignorez-le : sans mot de passe choisi, le compte reste inactif."),
 		},
 		{
 			Key:     KeySurveyCold,

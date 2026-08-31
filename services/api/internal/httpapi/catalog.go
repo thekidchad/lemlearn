@@ -63,13 +63,14 @@ func handleCreateCourse(deps Deps) http.HandlerFunc {
 func handleListCourses(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := sessionFrom(r)
-		courses, err := deps.Catalog.ListCourses(r.Context(), session.OrgID, 200)
+		limite, curseur := pageParams(r)
+		page, err := deps.Catalog.ListCoursesPage(r.Context(), session.OrgID, limite, curseur)
 		if err != nil {
 			deps.Log.Error("catalogue", "err", err)
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"courses": list(courses)})
+		writeJSON(w, http.StatusOK, map[string]any{"courses": list(page.Items), "cursor": page.Cursor})
 	}
 }
 
@@ -249,13 +250,14 @@ func handleCreateSession(deps Deps) http.HandlerFunc {
 func handleListSessions(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := sessionFrom(r)
-		sessions, err := deps.Catalog.ListSessions(r.Context(), session.OrgID, 200)
+		limite, curseur := pageParams(r)
+		page, err := deps.Catalog.ListSessionsPage(r.Context(), session.OrgID, limite, curseur)
 		if err != nil {
 			deps.Log.Error("agenda", "err", err)
 			writeError(w, http.StatusInternalServerError, "erreur interne")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"sessions": list(sessions)})
+		writeJSON(w, http.StatusOK, map[string]any{"sessions": list(page.Items), "cursor": page.Cursor})
 	}
 }
 

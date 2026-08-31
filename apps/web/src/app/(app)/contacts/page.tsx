@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ContactsTable } from "@/components/app/contacts-table";
 import { CreatePanel, Field, Select } from "@/components/app/form";
 import { createContact } from "@/app/actions/crm";
 import { apiFetch, type Contact } from "@/lib/api";
@@ -16,9 +17,10 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
   const params = await searchParams;
   const kind = typeof params.kind === "string" ? params.kind : "learner";
 
-  const { contacts } = await apiFetch<{ contacts: Contact[] | null }>(
-    `/v1/contacts?kind=${encodeURIComponent(kind)}`,
-  );
+  const { contacts, cursor } = await apiFetch<{
+    contacts: Contact[] | null;
+    cursor?: string;
+  }>(`/v1/contacts?kind=${encodeURIComponent(kind)}`);
   const rows = contacts ?? [];
 
   return (
@@ -86,62 +88,8 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
         </div>
       </header>
 
-      {rows.length === 0 ? (
-        <p className="px-6 py-16 text-center text-xs text-ink-3">
-          Aucun contact de ce type pour l&apos;instant.
-        </p>
-      ) : (
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-line text-2xs tracking-wide text-ink-3 uppercase">
-              <th className="px-6 py-2.5 font-medium">Nom</th>
-              <th className="px-6 py-2.5 font-medium">Contact</th>
-              {kind === "learner" && <th className="px-6 py-2.5 font-medium">Naissance</th>}
-              {kind !== "learner" && <th className="px-6 py-2.5 font-medium">SIRET</th>}
-              <th className="px-6 py-2.5 font-medium">Ville</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((contact) => (
-              <tr
-                key={contact.id}
-                className="border-b border-line/60 text-sm transition-colors duration-[120ms] hover:bg-surface-1"
-              >
-                <td className="px-6 py-2.5">
-                  <Link
-                    href={`/contacts/${contact.id}`}
-                    className="hover:text-accent-ink hover:underline"
-                  >
-                    {displayName(contact)}
-                  </Link>
-                </td>
-                <td className="px-6 py-2.5 text-xs text-ink-2">
-                  {contact.email ?? "—"}
-                  {contact.phone ? ` · ${contact.phone}` : ""}
-                </td>
-                {kind === "learner" && (
-                  <td className="px-6 py-2.5 font-mono text-xs text-ink-2">
-                    {contact.birthDate ?? "—"}
-                  </td>
-                )}
-                {kind !== "learner" && (
-                  <td className="px-6 py-2.5 font-mono text-xs text-ink-2">
-                    {(contact as { siret?: string }).siret ?? "—"}
-                  </td>
-                )}
-                <td className="px-6 py-2.5 text-xs text-ink-2">
-                  {contact.address?.city ?? "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <ContactsTable kind={kind} initial={rows} initialCursor={cursor} />
     </>
   );
 }
 
-function displayName(contact: Contact): string {
-  if (contact.companyName) return contact.companyName;
-  return `${contact.firstName ?? ""} ${contact.lastName ?? ""}`.trim() || "—";
-}

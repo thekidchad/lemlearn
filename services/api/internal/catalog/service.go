@@ -64,6 +64,21 @@ func (s *Service) ListCourses(ctx context.Context, orgID string, limit int32) ([
 	})
 }
 
+// ListCoursesPage et ListSessionsPage paginent par curseur : un catalogue
+// grossit sans limite, et charger dix ans de sessions pour en afficher vingt
+// coûte à chaque ouverture d'écran.
+func (s *Service) ListCoursesPage(ctx context.Context, orgID string, limit int32, cursor string) (ddb.Page[Course], error) {
+	return ddb.QueryPage[Course](ctx, s.db, ddb.QuerySpec{
+		Index: "GSI1", PK: ddb.OrgPK(orgID) + "#KIND#course", Limit: limit,
+	}, cursor)
+}
+
+func (s *Service) ListSessionsPage(ctx context.Context, orgID string, limit int32, cursor string) (ddb.Page[Session], error) {
+	return ddb.QueryPage[Session](ctx, s.db, ddb.QuerySpec{
+		Index: "GSI1", PK: ddb.GSI1Sessions(orgID), Descending: true, Limit: limit,
+	}, cursor)
+}
+
 // AddModule ajoute un module à une formation.
 func (s *Service) AddModule(ctx context.Context, module Module) (Module, error) {
 	if module.Title == "" {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Bars, Columns, TrendArea } from "@/components/app/charts";
+import { OpenOrg } from "@/components/app/open-org";
 import { OrgRow } from "@/components/app/org-row";
 import { apiFetch, ApiError } from "@/lib/api";
 
@@ -88,7 +89,10 @@ export default async function AdminPage() {
             Rechercher <kbd className="font-mono text-[0.625rem]">⌘K</kbd>
           </span>
         </nav>
-        <p className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
+        <div className="ml-auto">
+          <OpenOrg />
+        </div>
+        <p className="font-mono text-2xs text-ink-3" data-numeric>
           {data.orgs.length} client{data.orgs.length > 1 ? "s" : ""} ·{" "}
           {euros(data.mrrCents)} / mois
         </p>

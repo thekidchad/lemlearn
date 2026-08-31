@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreatePanel, Field, TextArea } from "@/components/app/form";
+import { CourseForm } from "@/components/app/course-form";
+import { CoursePublish } from "@/components/app/course-publish";
 import { CourseCoverUpload } from "@/components/app/course-cover-upload";
 import { VideoUpload } from "@/components/app/video-upload";
 import { addModule } from "@/app/actions/crm";
@@ -116,10 +118,16 @@ export default async function CoursePage({ params }: PageProps<"/catalogue/[cour
         <h1 className="text-xl font-semibold tracking-[-0.03em]">{data.course.title}</h1>
         {data.course.goal && <p className="mt-2 text-sm text-ink-2">{data.course.goal}</p>}
 
+        {/* L'état de publication est une action, pas une ligne de fiche : c'est
+            le geste qu'on vient faire ici une fois le programme écrit. */}
+        <div className="mt-4 flex flex-wrap items-start gap-3">
+          <CoursePublish courseId={courseId} published={data.course.published} />
+          <CourseForm courseId={courseId} course={data.course} />
+        </div>
+
         <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-3">
           <Line label="Durée" value={`${data.course.durationHours} h`} />
           <Line label="Prix HT" value={`${data.course.priceHT} €`} />
-          <Line label="État" value={data.course.published ? "publiée" : "brouillon"} />
           <Line label="Public visé" value={data.course.audience} />
           <Line label="Prérequis" value={data.course.prerequisites} />
           <Line label="Sanction" value={data.course.sanction} />

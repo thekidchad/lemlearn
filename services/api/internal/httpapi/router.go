@@ -218,6 +218,12 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/", handleListCourses(deps))
 					r.Post("/", handleCreateCourse(deps))
 					r.Get("/{courseID}", handleGetCourse(deps))
+					// Le visuel, et la sortie du brouillon. L'écran savait faire
+					// les deux depuis le début ; il leur manquait une route.
+					r.Patch("/{courseID}", handleUpdateCourse(deps))
+					r.Post("/{courseID}/visuel", handlePrepareCover(deps))
+					r.Put("/{courseID}/visuel", handleAttachCover(deps))
+					r.Put("/{courseID}/publication", handlePublishCourse(deps))
 					r.Post("/{courseID}/modules", handleAddModule(deps))
 					r.Patch("/{courseID}/modules/{moduleID}", handleUpdateModule(deps))
 				})

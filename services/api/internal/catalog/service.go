@@ -247,3 +247,46 @@ func (s *Service) ListLearnerEnrollments(ctx context.Context, orgID, contactID s
 		Index: "GSI1", PK: ddb.GSI1Enrollments(orgID, contactID), Descending: true,
 	})
 }
+
+// SetPublished fait sortir une formation du brouillon, ou l'y remet.
+//
+// L'écriture relit la formation plutôt que d'écrire un article partiel : un
+// PutItem porte l'objet entier, et l'écrire depuis une copie ancienne
+// effacerait ce qui a changé entre-temps.
+func (s *Service) SetPublished(ctx context.Context, orgID, courseID string, published bool) (Course, error) {
+	course, err := s.GetCourse(ctx, orgID, courseID)
+	if err != nil {
+		return Course{}, err
+	}
+	course.Published = published
+	course.UpdatedAt = s.now()
+	course.Reindex()
+	if err := ddb.Put(ctx, s.db, course); err != nil {
+		return Course{}, err
+	}
+	return course, nil
+}
+
+// UpdateCourse applique une correction à une formation.
+//
+// La relecture puis l'écriture entière plutôt qu'une mise à jour d'attributs :
+// l'article porte des champs dérivés — les clés d'index en dépendent — et les
+// écrire séparément les laisserait désaccordés du reste.
+func (s *Service) UpdateCourse(
+	ctx context.Context, orgID, courseID string, apply func(*Course),
+) (Course, error) {
+	course, err := s.GetCourse(ctx, orgID, courseID)
+	if err != nil {
+		return Course{}, err
+	}
+	apply(&course)
+	if err := course.Validate(); err != nil {
+		return Course{}, err
+	}
+	course.UpdatedAt = s.now()
+	course.Reindex()
+	if err := ddb.Put(ctx, s.db, course); err != nil {
+		return Course{}, err
+	}
+	return course, nil
+}

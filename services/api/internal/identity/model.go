@@ -10,6 +10,7 @@ package identity
 import (
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -147,7 +148,7 @@ func (o Org) Public() PublicOrg {
 		Plan: o.Plan, QualiopiCertified: o.QualiopiCertified,
 		QualiopiNumber: o.QualiopiNumber, QualiopiBody: o.QualiopiBody,
 		QualiopiExpiresOn: o.QualiopiExpiresOn,
-		CreatedAt: o.CreatedAt.Format(time.RFC3339),
+		CreatedAt:         o.CreatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -348,3 +349,65 @@ var ErrEmailTaken = fmt.Errorf("adresse e-mail déjà utilisée")
 
 // ErrDisabled signale un compte désactivé.
 var ErrDisabled = fmt.Errorf("compte désactivé")
+
+// ManqueLegal nomme un renseignement d'identité juridique qui manque.
+type ManqueLegal struct {
+	Champ string `json:"champ"`
+	Label string `json:"label"`
+	// Pourquoi dit ce que son absence empêche. Une liste de champs à remplir
+	// se lit comme une formalité ; la raison la rend défendable, et évite la
+	// saisie approximative « pour débloquer ».
+	Pourquoi string `json:"pourquoi"`
+}
+
+// MissingLegal énumère ce qui manque pour qu'un organisme puisse travailler.
+//
+// Ce ne sont pas des préférences : chacune de ces mentions doit figurer sur une
+// convention de formation, et une convention à laquelle il en manque une n'est
+// pas opposable. Produire des pièces incomplètes serait pire que de ne rien
+// produire — on ne s'en aperçoit qu'au contrôle, quand il est trop tard pour
+// les refaire.
+//
+// Ce qui n'y figure pas est délibéré. Le capital et le RCS ne concernent que
+// les sociétés : les exiger d'une association ou d'un entrepreneur individuel
+// reviendrait à leur demander d'inventer un numéro. La certification Qualiopi
+// n'est requise que pour accéder aux fonds publics — beaucoup d'organismes
+// travaillent sans, et bloquer leur espace serait une erreur de droit.
+func (o Org) MissingLegal() []ManqueLegal {
+	manques := make([]ManqueLegal, 0, 8)
+	ajouter := func(vide bool, champ, label, pourquoi string) {
+		if vide {
+			manques = append(manques, ManqueLegal{Champ: champ, Label: label, Pourquoi: pourquoi})
+		}
+	}
+
+	vide := func(s string) bool { return strings.TrimSpace(s) == "" }
+
+	ajouter(vide(o.LegalForm), "legalForm", "Forme juridique",
+		"Elle identifie la partie qui s'engage : SARL, association, entrepreneur individuel.")
+	ajouter(vide(o.SIRET), "siret", "SIRET",
+		"C'est l'identifiant de l'établissement qui dispense la formation, exigé sur toute facture.")
+	ajouter(vide(o.NDA), "nda", "Numéro de déclaration d'activité",
+		"Sans lui, l'activité de formation n'est pas déclarée au préfet de région (art. L.6351-1).")
+	ajouter(vide(o.NDARegion), "ndaRegion", "Préfecture de région",
+		"L'article R.6351-6 impose la mention complète : le numéro et la région qui l'a enregistré.")
+	ajouter(vide(o.Address), "address", "Adresse",
+		"Le lieu du siège figure sur la convention et détermine la juridiction en cas de litige.")
+	ajouter(vide(o.PostalCode) || vide(o.City), "city", "Code postal et ville",
+		"Une adresse sans commune ne permet pas d'identifier l'établissement.")
+	ajouter(vide(o.RepName), "repName", "Nom du représentant",
+		"C'est la personne qui signe et engage l'organisme. Un document signé par personne de nommé se conteste.")
+	ajouter(vide(o.RepRole), "repRole", "Qualité du représentant",
+		"Gérant, président, directeur : sa qualité établit qu'il avait le pouvoir de signer.")
+	// La TVA n'a pas de valeur par défaut acceptable : ou bien l'organisme est
+	// exonéré au titre du 261-4-4° a du CGI, ou bien il facture la taxe et a un
+	// numéro. Ne rien dire ferait imprimer « TVA 20 % » à un organisme exonéré,
+	// ou l'inverse.
+	ajouter(!o.VATExempt && vide(o.VATNumber), "vat", "Régime de TVA",
+		"Soit l'exonération de l'article 261-4-4° a du CGI, soit un numéro de TVA intracommunautaire.")
+
+	return manques
+}
+
+// LegalComplete dit si l'organisme peut produire des pièces valables.
+func (o Org) LegalComplete() bool { return len(o.MissingLegal()) == 0 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreatePanel, Field, TextArea } from "@/components/app/form";
 import { CourseForm } from "@/components/app/course-form";
+import { ModuleQuiz } from "@/components/app/module-quiz";
 import { CoursePublish } from "@/components/app/course-publish";
 import { CourseCoverUpload } from "@/components/app/course-cover-upload";
 import { VideoUpload } from "@/components/app/video-upload";
@@ -27,6 +28,9 @@ interface Course {
   priceHT: number;
   published: boolean;
   tags?: string[];
+  /** Les deux évaluations qui bornent le parcours et conditionnent l'attestation. */
+  positioningQuizId?: string;
+  finalQuizId?: string;
 }
 
 interface Module {
@@ -122,7 +126,7 @@ export default async function CoursePage({ params }: PageProps<"/catalogue/[cour
             le geste qu'on vient faire ici une fois le programme écrit. */}
         <div className="mt-4 flex flex-wrap items-start gap-3">
           <CoursePublish courseId={courseId} published={data.course.published} />
-          <CourseForm courseId={courseId} course={data.course} />
+          <CourseForm courseId={courseId} course={data.course} quizzes={quizzes} />
         </div>
 
         <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-3">
@@ -181,11 +185,22 @@ export default async function CoursePage({ params }: PageProps<"/catalogue/[cour
                   </p>
                 </div>
 
-                <VideoUpload
-                  courseId={courseId}
-                  moduleId={module.id}
-                  hasAsset={Boolean(module.assetId)}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Le questionnaire se rattache ici, et plus seulement à la
+                      création : on découpe la formation d'abord, on écrit les
+                      contrôles ensuite. */}
+                  <ModuleQuiz
+                    courseId={courseId}
+                    moduleId={module.id}
+                    quizId={module.quizId}
+                    quizzes={quizzes}
+                  />
+                  <VideoUpload
+                    courseId={courseId}
+                    moduleId={module.id}
+                    hasAsset={Boolean(module.assetId)}
+                  />
+                </div>
               </div>
             </div>
           ))}

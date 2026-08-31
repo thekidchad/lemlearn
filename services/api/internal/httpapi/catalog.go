@@ -25,6 +25,10 @@ func handleCreateCourse(deps Deps) http.HandlerFunc {
 		PriceHT       float64  `json:"priceHT"`
 		Tags          []string `json:"tags"`
 		Published     bool     `json:"published"`
+		// Les deux bornes de l'évaluation : celle d'entrée, exigée par
+		// Qualiopi, et celle de sortie, qui conditionne l'attestation.
+		PositioningQuizID string `json:"positioningQuizId"`
+		FinalQuizID       string `json:"finalQuizId"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +53,8 @@ func handleCreateCourse(deps Deps) http.HandlerFunc {
 		course.PriceHT = body.PriceHT
 		course.Tags = body.Tags
 		course.Published = body.Published
+		course.PositioningQuizID = body.PositioningQuizID
+		course.FinalQuizID = body.FinalQuizID
 
 		created, err := deps.Catalog.CreateCourse(r.Context(), course)
 		if err != nil {

@@ -14,8 +14,17 @@ import { useState } from "react";
  * Le panneau reste replié : cet écran sert d'abord à consulter un programme et
  * à y ajouter des modules, pas à le réécrire.
  */
+interface Quiz {
+  id: string;
+  title: string;
+  kind: string;
+  published: boolean;
+}
+
 interface Course {
   title: string;
+  positioningQuizId?: string;
+  finalQuizId?: string;
   goal?: string;
   objectives?: string[] | null;
   prerequisites?: string;
@@ -29,7 +38,15 @@ interface Course {
   tags?: string[] | null;
 }
 
-export function CourseForm({ courseId, course }: { courseId: string; course: Course }) {
+export function CourseForm({
+  courseId,
+  course,
+  quizzes,
+}: {
+  courseId: string;
+  course: Course;
+  quizzes: Quiz[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -65,6 +82,8 @@ export function CourseForm({ courseId, course }: { courseId: string; course: Cou
             .split(",")
             .map((tag) => tag.trim())
             .filter(Boolean),
+          positioningQuizId: String(form.get("positioningQuizId") ?? ""),
+          finalQuizId: String(form.get("finalQuizId") ?? ""),
         }),
       });
       const body = (await response.json()) as { error?: string };
@@ -139,6 +158,25 @@ export function CourseForm({ courseId, course }: { courseId: string; course: Cou
           defaultValue={(course.tags ?? []).join(", ")}
           hint="Séparées par des virgules."
         />
+
+        {/* Les deux bornes de l'évaluation. Elles décident déjà si une
+            attestation est délivrable, mais rien ne permettait de les
+            désigner : elles restaient vides, et ces deux conditions ne
+            s'appliquaient donc à personne. */}
+        <Choix
+          label="Évaluation d'entrée"
+          name="positioningQuizId"
+          defaultValue={course.positioningQuizId}
+          options={quizzes.filter((q) => q.kind === "positionnement" && q.published)}
+          hint="Le positionnement d'entrée exigé par Qualiopi. Sans lui, rien ne mesure les acquis de départ."
+        />
+        <Choix
+          label="Évaluation finale"
+          name="finalQuizId"
+          defaultValue={course.finalQuizId}
+          options={quizzes.filter((q) => q.kind === "final" && q.published)}
+          hint="Tant qu'elle n'est pas réussie, l'attestation n'est pas délivrable."
+        />
       </div>
 
       {error && <p className="mt-3 text-xs text-danger">{error}</p>}
@@ -204,6 +242,42 @@ function Zone({
         className="mt-1.5 block w-full rounded-lg border border-line bg-surface-0 px-3 py-2 text-sm outline-none focus:border-accent"
       />
       {hint && <span className="mt-1 block text-2xs text-ink-3">{hint}</span>}
+    </label>
+  );
+}
+
+/** Un questionnaire à rattacher, ou aucun. */
+function Choix({
+  label,
+  name,
+  defaultValue,
+  options,
+  hint,
+}: {
+  label: string;
+  name: string;
+  defaultValue?: string;
+  options: Quiz[];
+  hint?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="eyebrow">{label}</span>
+      <select name={name} defaultValue={defaultValue ?? ""} className="field mt-1.5">
+        <option value="">Aucune</option>
+        {options.map((quiz) => (
+          <option key={quiz.id} value={quiz.id}>
+            {quiz.title}
+          </option>
+        ))}
+      </select>
+      {hint && <span className="mt-1 block text-2xs text-ink-3">{hint}</span>}
+      {options.length === 0 && (
+        <span className="mt-1 block text-2xs text-warn">
+          Aucun questionnaire publié de ce type : créez-le d&apos;abord dans
+          Questionnaires.
+        </span>
+      )}
     </label>
   );
 }

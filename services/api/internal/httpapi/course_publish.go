@@ -134,6 +134,12 @@ func handleUpdateCourse(deps Deps) http.HandlerFunc {
 		DurationHours *float64  `json:"durationHours"`
 		PriceHT       *float64  `json:"priceHT"`
 		Tags          *[]string `json:"tags"`
+		// Les deux évaluations qui bornent le parcours. Elles décidaient déjà
+		// si une attestation est délivrable — Certifiable les lit — mais aucun
+		// écran ni aucune route ne permettait de les désigner : elles étaient
+		// vides partout, et ces deux conditions ne s'appliquaient donc jamais.
+		PositioningQuizID *string `json:"positioningQuizId"`
+		FinalQuizID       *string `json:"finalQuizId"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -160,6 +166,8 @@ func handleUpdateCourse(deps Deps) http.HandlerFunc {
 				poser(&course.Assessment, body.Assessment)
 				poser(&course.Sanction, body.Sanction)
 				poser(&course.Accessibility, body.Accessibility)
+				poser(&course.PositioningQuizID, body.PositioningQuizID)
+				poser(&course.FinalQuizID, body.FinalQuizID)
 				if body.Objectives != nil {
 					course.Objectives = *body.Objectives
 				}

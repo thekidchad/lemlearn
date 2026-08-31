@@ -286,6 +286,7 @@ func NewRouter(deps Deps) http.Handler {
 
 					// Agir depuis la vue de l'équipe : entrer dans le compte de
 					// la personne dont on parle, et sortir son dossier.
+					r.Get("/orgs/{orgID}/contacts/{contactID}", handleAdminContact(deps))
 					r.Post("/orgs/{orgID}/contacts/{contactID}/impersonate", handleImpersonateContact(deps))
 					r.Post("/orgs/{orgID}/dossiers/{fileID}/export", handleAdminExport(deps))
 

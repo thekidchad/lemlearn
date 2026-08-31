@@ -18,7 +18,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface Results {
   organisations?: { id: string; name: string; plan: string }[];
-  apprenants?: { orgId: string; orgName: string; name: string; email: string }[];
+  contacts?: {
+    orgId: string;
+    orgName: string;
+    contactId: string;
+    kind: string;
+    name: string;
+    email: string;
+  }[];
   formations?: { id: string; title: string }[];
   gabarits?: { key: string; label: string }[];
   hint?: string;
@@ -139,14 +146,23 @@ export function CommandPalette() {
         })),
       });
     }
-    if (shown.apprenants?.length) {
+    // Les fiches sont groupées par nature : une même chaîne désigne aussi
+    // bien une stagiaire qu'une entreprise, et les mélanger obligerait à lire
+    // chaque ligne pour savoir ce qu'on regarde.
+    for (const [kind, titre] of [
+      ["learner", "Stagiaires"],
+      ["company", "Entreprises"],
+      ["funder", "Financeurs"],
+    ] as const) {
+      const lot = shown.contacts?.filter((fiche) => fiche.kind === kind) ?? [];
+      if (lot.length === 0) continue;
       out.push({
-        title: "Apprenants",
-        items: shown.apprenants.map((learner) => ({
-          key: `learner-${learner.orgId}-${learner.email}`,
-          label: learner.name || learner.email,
-          detail: `${learner.email} · ${learner.orgName}`,
-          href: `/admin/${learner.orgId}`,
+        title: titre,
+        items: lot.map((fiche) => ({
+          key: `fiche-${fiche.orgId}-${fiche.contactId}`,
+          label: fiche.name || fiche.email,
+          detail: [fiche.email, fiche.orgName].filter(Boolean).join(" · "),
+          href: `/admin/${fiche.orgId}/contacts/${fiche.contactId}`,
         })),
       });
     }

@@ -76,6 +76,55 @@ func (s *Service) ListContacts(ctx context.Context, orgID string, kind Kind, lim
 	})
 }
 
+// SearchContacts retrouve des contacts d'un organisme sur un fragment.
+//
+// La lecture se fait par nature, sur l'index qui sert déjà les listes, et le
+// filtre est appliqué en mémoire. Deux raisons plutôt qu'une :
+//
+//   - DynamoDB ne sait comparer que des préfixes, or personne ne cherche par le
+//     début d'une clé : on tape « bertrand » en pensant à Léa Bertrand, et
+//     c'est au milieu.
+//   - La partition d'autocomplétion (GSI2) ne projette que trois attributs,
+//     dont un qui n'est pas stocké — elle ne rend donc pas de fiche lisible.
+//     La corriger imposerait de reconstruire l'index sur la table vivante ;
+//     tant que le volume tient dans une lecture bornée, ce n'est pas le moment.
+//
+// Le parcours est borné et ne touche qu'un organisme. À l'échelle où un
+// organisme compterait des dizaines de milliers de fiches, il faudra un vrai
+// index de recherche, pas une lecture plus longue.
+func (s *Service) SearchContacts(ctx context.Context, orgID, needle string, limit int) ([]Contact, error) {
+	needle = strings.ToLower(strings.TrimSpace(needle))
+	if needle == "" {
+		return nil, nil
+	}
+
+	found := make([]Contact, 0, limit)
+	for _, kind := range []Kind{KindLearner, KindCompany, KindFunder} {
+		if len(found) >= limit {
+			break
+		}
+		items, err := s.ListContacts(ctx, orgID, kind, searchDepth)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			if len(found) >= limit {
+				break
+			}
+			haystack := strings.ToLower(strings.Join([]string{
+				item.DisplayName(), item.Email, item.CompanyName, item.Phone, item.SIRET,
+			}, " "))
+			if strings.Contains(haystack, needle) {
+				found = append(found, item)
+			}
+		}
+	}
+	return found, nil
+}
+
+// searchDepth borne la lecture des contacts d'un organisme, par nature.
+const searchDepth = 500
+
 // ListContactsPage lit une tranche de contacts et rend le curseur de la
 // suivante.
 //

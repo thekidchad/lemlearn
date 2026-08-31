@@ -256,7 +256,12 @@ function LigneRendue({ ligne }: { ligne: Ligne }) {
   return (
     <li className="group flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors duration-[120ms] hover:bg-surface-2">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm">{ligne.label}</p>
+        <Link
+          href={`/admin/${ligne.orgId}/contacts/${ligne.id}`}
+          className="block truncate text-sm hover:text-accent-ink hover:underline"
+        >
+          {ligne.label}
+        </Link>
         {ligne.detail && (
           <p className="truncate font-mono text-2xs text-ink-3">{ligne.detail}</p>
         )}

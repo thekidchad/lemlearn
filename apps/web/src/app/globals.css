@@ -219,6 +219,46 @@
     box-shadow: var(--shadow-card);
   }
 
+  /* Champs de saisie.
+
+     Le reset de Tailwind pose aux champs une bordure de largeur zéro et un
+     fond transparent : sans règle à nous, un input est un rectangle blanc sans
+     contour, et on ne voit plus où l'on écrit. Cette classe était employée dans
+     quatre écrans sans avoir jamais été définie — l'ouverture d'un organisme en
+     premier, où l'on saisit pourtant l'essentiel.
+
+     La même hauteur que les boutons : un champ et son bouton posés côte à côte
+     doivent s'aligner. */
+  .field {
+    display: block;
+    width: 100%;
+    height: 2.25rem;
+    padding-inline: 0.75rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-line);
+    background-color: var(--color-surface-0);
+    color: var(--color-ink);
+    font-size: var(--text-sm);
+    outline: none;
+    transition: border-color 120ms var(--ease-out-quint);
+  }
+  .field::placeholder {
+    color: var(--color-ink-3);
+  }
+  .field:hover {
+    border-color: var(--color-line-strong);
+  }
+  .field:focus {
+    border-color: var(--color-accent);
+  }
+  .field:disabled {
+    opacity: 0.5;
+  }
+  /* Pas de variante par élément ici : la compilation aplatit « textarea.field »
+     en « .field », ce qui donnerait à tous les champs la hauteur d'une zone de
+     texte. Une zone de texte qui aurait besoin d'autre chose portera ses
+     propres classes. */
+
   /* Boutons.
 
      Trois registres, et pas un de plus : l'action de l'écran, celle qu'on peut

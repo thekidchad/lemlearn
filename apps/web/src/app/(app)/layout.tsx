@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
 import { CommandPalette } from "@/components/app/command-palette";
 import { LeaveImpersonation } from "@/components/app/leave-impersonation";
+import { LegalWarning } from "@/components/app/legal-warning";
 import { OrgBrand, brandStyle } from "@/components/brand/org-brand";
 import { SignOutButton } from "@/components/app/sign-out";
 import { cookies } from "next/headers";
@@ -202,7 +203,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="min-w-0 flex-1">
+        {/* L'avertissement est posé par la coque et non par chaque écran : il
+            doit se voir d'où qu'on entre, y compris depuis un lien direct. */}
+        {!team && me.legal && !me.legal.complete && (
+          <LegalWarning missing={me.legal.missing ?? []} />
+        )}
+        {children}
+      </main>
     </div>
   );
 }

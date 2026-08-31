@@ -56,6 +56,17 @@ func NewResend(apiKey, from string) *Resend {
 
 // Send expédie un courriel.
 func (r *Resend) Send(ctx context.Context, to, subject, html string) error {
+	_, err := r.SendWithID(ctx, to, subject, html)
+	return err
+}
+
+// SendWithID expédie un courriel et rend l'identifiant que le fournisseur lui
+// donne.
+//
+// Cet identifiant est la seule chose qui permette de répondre à « il dit
+// n'avoir rien reçu » : sans lui, on ne peut ni retrouver le message chez le
+// fournisseur, ni savoir s'il a rebondi. Le journal le conserve.
+func (r *Resend) SendWithID(ctx context.Context, to, subject, html string) (string, error) {
 	payload, err := json.Marshal(map[string]any{
 		// Le nom d'expéditeur suit l'organisme quand il est connu : dans une
 		// boîte de réception, c'est la première colonne qu'on lit.
@@ -65,20 +76,20 @@ func (r *Resend) Send(ctx context.Context, to, subject, html string) error {
 		"html":    html,
 	})
 	if err != nil {
-		return fmt.Errorf("mail: encodage: %w", err)
+		return "", fmt.Errorf("mail: encodage: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		"https://api.resend.com/emails", bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("mail: requête: %w", err)
+		return "", fmt.Errorf("mail: requête: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+r.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := r.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("mail: envoi: %w", err)
+		return "", fmt.Errorf("mail: envoi: %w", err)
 	}
 	defer func() { _ = res.Body.Close() }()
 
@@ -86,9 +97,17 @@ func (r *Resend) Send(ctx context.Context, to, subject, html string) error {
 		// Le corps est lu et rapporté : « 422 » seul ne dit pas qu'un domaine
 		// n'est pas vérifié, et c'est la cause la plus fréquente.
 		body, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
-		return fmt.Errorf("mail: resend a répondu %d: %s", res.StatusCode, bytes.TrimSpace(body))
+		return "", fmt.Errorf("mail: resend a répondu %d: %s", res.StatusCode, bytes.TrimSpace(body))
 	}
-	return nil
+
+	// L'identifiant est lu sans faire échouer l'envoi s'il manque : le message
+	// est parti, et ne pas savoir le nommer ne l'annule pas.
+	var accepte struct {
+		ID string `json:"id"`
+	}
+	body, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+	_ = json.Unmarshal(body, &accepte)
+	return accepte.ID, nil
 }
 
 // Log écrit les courriels au journal au lieu de les envoyer.

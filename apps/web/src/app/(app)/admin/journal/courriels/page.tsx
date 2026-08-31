@@ -11,7 +11,9 @@ interface Entry {
   subject: string;
   template?: string;
   orgId?: string;
-  delivered: boolean;
+  /** Le relais a pris le message en charge — ce n'est pas « reçu ». */
+  accepted: boolean;
+  providerId?: string;
   error?: string;
   provider: string;
 }
@@ -51,7 +53,7 @@ export default async function MailJournalPage({
   return (
     <JournalShell
       courant="/admin/journal/courriels"
-      chapeau={`Ce qui est parti et ce qui a échoué — ${data.delivered} remis, ${data.failed} en échec. C'est la réponse à « il dit n'avoir rien reçu ».`}
+      chapeau={`Ce qui est parti et ce qui a échoué — ${data.delivered} acceptés par le relais, ${data.failed} en échec. C'est la première réponse à « il dit n'avoir rien reçu ».`}
     >
       <div className="px-8 py-6">
         <form className="flex flex-wrap items-center gap-2">
@@ -98,6 +100,7 @@ export default async function MailJournalPage({
                   <th className="px-4 py-2.5 font-medium">Objet</th>
                   <th className="px-4 py-2.5 font-medium">Type</th>
                   <th className="px-4 py-2.5 font-medium">État</th>
+                  <th className="px-4 py-2.5 font-medium">Référence</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,15 +118,25 @@ export default async function MailJournalPage({
                       {entry.template ? (TEMPLATES[entry.template] ?? entry.template) : "—"}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.delivered ? (
-                        <span className="text-2xs text-ok">
-                          {entry.provider === "resend" ? "remis" : "journalisé"}
+                      {entry.accepted ? (
+                        <span
+                          className="text-2xs text-ok"
+                          title={
+                            entry.provider === "resend"
+                              ? "Le relais a pris le message en charge. La remise dans la boîte du destinataire ne nous est pas rapportée."
+                              : undefined
+                          }
+                        >
+                          {entry.provider === "resend" ? "accepté" : "journalisé"}
                         </span>
                       ) : (
                         <span className="text-2xs text-danger" title={entry.error}>
                           échec
                         </span>
                       )}
+                    </td>
+                    <td className="px-4 py-2 font-mono text-2xs text-ink-3">
+                      {entry.providerId ? entry.providerId.slice(0, 8) : "—"}
                     </td>
                   </tr>
                 ))}
@@ -133,6 +146,12 @@ export default async function MailJournalPage({
         )}
 
         <p className="mt-4 text-2xs text-ink-3">
+          « Accepté » veut dire que le relais a pris le message en charge, pas
+          qu&apos;il est arrivé : sans notification de sa part, la remise, le
+          rejet et le classement en indésirable nous sont invisibles. La
+          référence permet de retrouver le message chez le relais.{" "}
+        </p>
+        <p className="mt-2 text-2xs text-ink-3">
           {/* Dire ce que le journal ne contient pas vaut mieux que de laisser
               quelqu'un le chercher. */}
           Le corps des messages n&apos;est pas conservé : il porte des liens de

@@ -172,6 +172,17 @@ export interface Me {
   org: { id: string; name: string; plan: string; qualiopiCertified: boolean };
   brand: Brand;
   impersonatedBy: string;
+  /**
+   * Ce qui manque à l'identité juridique de l'organisme.
+   *
+   * Il voyage avec la session parce que l'avertissement doit être là dès le
+   * premier écran : le chercher séparément le ferait apparaître une seconde
+   * trop tard, après que la page s'est affichée.
+   */
+  legal?: {
+    complete: boolean;
+    missing?: { champ: string; label: string; pourquoi: string }[] | null;
+  };
 }
 
 

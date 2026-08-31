@@ -28,13 +28,20 @@ func JournalPK(at time.Time) string { return "MAIL#" + at.UTC().Format("2006-01"
 type Entry struct {
 	ddb.Record
 
-	SentAt    time.Time `dynamodbav:"sentAt" json:"sentAt"`
-	To        string    `dynamodbav:"to" json:"to"`
-	Subject   string    `dynamodbav:"subject" json:"subject"`
-	Template  string    `dynamodbav:"template,omitempty" json:"template,omitempty"`
-	OrgID     string    `dynamodbav:"orgId,omitempty" json:"orgId,omitempty"`
-	Delivered bool      `dynamodbav:"delivered" json:"delivered"`
-	Error     string    `dynamodbav:"error,omitempty" json:"error,omitempty"`
+	SentAt   time.Time `dynamodbav:"sentAt" json:"sentAt"`
+	To       string    `dynamodbav:"to" json:"to"`
+	Subject  string    `dynamodbav:"subject" json:"subject"`
+	Template string    `dynamodbav:"template,omitempty" json:"template,omitempty"`
+	OrgID    string    `dynamodbav:"orgId,omitempty" json:"orgId,omitempty"`
+	// Accepted dit que le fournisseur a pris le message en charge. Ce n'est
+	// pas la même chose que reçu : sans notification de sa part, nous ne
+	// savons pas si le message a été remis, rejeté ou classé indésirable, et
+	// écrire « remis » revenait à l'affirmer sans le savoir.
+	Delivered bool `dynamodbav:"delivered" json:"accepted"`
+	// ProviderID nomme le message chez le fournisseur. C'est la seule prise
+	// pour répondre à « il dit n'avoir rien reçu ».
+	ProviderID string `dynamodbav:"providerId,omitempty" json:"providerId,omitempty"`
+	Error      string `dynamodbav:"error,omitempty" json:"error,omitempty"`
 	// Provider distingue un envoi réel d'un envoi journalisé en recette : lire
 	// « livré » sur un environnement qui n'envoie rien serait un mensonge.
 	Provider string `dynamodbav:"provider" json:"provider"`
@@ -119,7 +126,18 @@ func NewJournaled(sender Sender, db *ddb.Client, provider string, now func() tim
 // L'échec du journal ne fait pas échouer l'envoi : le message est déjà parti,
 // et rendre une erreur ferait recommencer l'appelant — donc envoyer deux fois.
 func (j *Journaled) Send(ctx context.Context, to, subject, html string) error {
-	sendErr := j.sender.Send(ctx, to, subject, html)
+	// L'identifiant du fournisseur n'est pas dans l'interface d'envoi : quatre
+	// domaines l'implémentent ou la consomment, et l'élargir pour un besoin de
+	// journal les toucherait tous. Ceux qui savent le rendre le déclarent.
+	var providerID string
+	var sendErr error
+	if nommant, ok := j.sender.(interface {
+		SendWithID(context.Context, string, string, string) (string, error)
+	}); ok {
+		providerID, sendErr = nommant.SendWithID(ctx, to, subject, html)
+	} else {
+		sendErr = j.sender.Send(ctx, to, subject, html)
+	}
 
 	if j.db != nil {
 		now := j.now()
@@ -135,7 +153,7 @@ func (j *Journaled) Send(ctx context.Context, to, subject, html string) error {
 			},
 			SentAt: now, To: to, Subject: subject,
 			Template: meta.template, OrgID: meta.orgID,
-			Delivered: sendErr == nil, Provider: j.provider,
+			Delivered: sendErr == nil, Provider: j.provider, ProviderID: providerID,
 		}
 		if sendErr != nil {
 			entry.Error = sendErr.Error()

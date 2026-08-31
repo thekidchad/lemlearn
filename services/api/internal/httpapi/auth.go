@@ -319,6 +319,14 @@ func handleMe(deps Deps) http.HandlerFunc {
 				"id": org.ID, "name": org.Name, "plan": org.Plan,
 				"qualiopiCertified": org.QualiopiCertified,
 			},
+			// Ce qui manque à l'identité juridique voyage avec la session :
+			// l'avertissement doit être là dès le premier écran, et le
+			// chercher séparément le ferait apparaître une seconde trop tard,
+			// après que la page s'est affichée.
+			"legal": map[string]any{
+				"complete": org.LegalComplete(),
+				"missing":  org.MissingLegal(),
+			},
 			// La marque voyage avec la session : la coque, les titres d'onglet
 			// et la couleur d'accent en dépendent, et les charger séparément
 			// ferait clignoter l'enseigne de lemlearn à chaque page.

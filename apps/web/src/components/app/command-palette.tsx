@@ -43,6 +43,7 @@ interface Group {
  */
 const DESTINATIONS: Item[] = [
   { key: "nav-admin", label: "Organisations", href: "/admin" },
+  { key: "nav-donnees", label: "Toutes les données", href: "/admin/donnees" },
   { key: "nav-emails", label: "Journal des envois", href: "/admin/emails" },
   { key: "nav-gabarits", label: "Gabarits de courriels", href: "/admin/gabarits" },
   { key: "nav-biblio", label: "Bibliothèque de formations", href: "/admin/bibliotheque" },

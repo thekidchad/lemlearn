@@ -306,6 +306,11 @@ func NewRouter(deps Deps) http.Handler {
 					// apprenants, bibliothèque et gabarits en un seul appel.
 					r.Get("/recherche", handleAdminSearch(deps))
 
+					// Toute la plateforme, tous organismes confondus. On
+					// parcourt l'annuaire et on interroge la partition de
+					// chacun : jamais un balayage de la table.
+					r.Get("/tout", handleAdminAll(deps))
+
 					// La bibliothèque de formations mise à disposition des
 					// organismes.
 					r.Route("/bibliotheque", func(r chi.Router) {

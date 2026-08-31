@@ -16,6 +16,8 @@ interface Invitation {
   email: string;
   org: string;
   expiresAt: string;
+  /** Le rôle du compte invité : il décide de ce que l'écran raconte. */
+  role?: string;
 }
 
 export default async function InvitationPage({ params }: PageProps<"/invitation/[token]">) {
@@ -42,6 +44,8 @@ export default async function InvitationPage({ params }: PageProps<"/invitation/
     );
   }
 
+  const apprenant = (invitation.role ?? "learner") === "learner";
+
   return (
     <main
       className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10"
@@ -49,22 +53,34 @@ export default async function InvitationPage({ params }: PageProps<"/invitation/
     >
       <OrgBrand brand={invitation.brand} />
 
+      {/* Une invitation ne s'adresse pas toujours à un apprenant : c'est aussi
+          par là qu'entre le responsable d'un organisme, à qui « vos modules et
+          votre progression » ne dit rien de ce qu'il vient faire. */}
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.03em]">
-        Votre espace de formation
+        {apprenant ? "Votre espace de formation" : `L'espace de ${invitation.org}`}
       </h1>
       <p className="mt-2 text-sm text-ink-2">
-        <strong>{invitation.org}</strong> vous ouvre l&apos;accès à vos modules,
-        vos questionnaires et votre progression. Choisissez un mot de passe pour
-        entrer — le compte est au nom de {invitation.email}.
+        {apprenant ? (
+          <>
+            <strong>{invitation.org}</strong> vous ouvre l&apos;accès à vos
+            modules, vos questionnaires et votre progression. Choisissez un mot
+            de passe pour entrer — le compte est au nom de {invitation.email}.
+          </>
+        ) : (
+          <>
+            Votre espace est ouvert : catalogue, sessions, dossiers et pièces
+            probatoires vous y attendent. Choisissez un mot de passe pour entrer
+            — le compte est au nom de {invitation.email}.
+          </>
+        )}
       </p>
 
       <AcceptInvitation token={token} />
 
       <p className="mt-6 text-2xs text-ink-3">
-        Votre temps de visionnage est enregistré : il constitue la preuve
-        d&apos;assiduité que votre organisme doit pouvoir présenter en cas de
-        contrôle. Vous pouvez à tout moment demander l&apos;export ou
-        l&apos;effacement de vos données.
+        {apprenant
+          ? "Votre temps de visionnage est enregistré : il constitue la preuve d'assiduité que votre organisme doit pouvoir présenter en cas de contrôle. Vous pouvez à tout moment demander l'export ou l'effacement de vos données."
+          : "Ce lien est personnel et à usage unique. Douze caractères au moins : votre compte donne accès aux données personnelles de vos stagiaires."}
       </p>
     </main>
   );

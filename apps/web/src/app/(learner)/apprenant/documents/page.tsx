@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { apiFetch } from "@/lib/api";
+import Link from "next/link";
+import { apiFetch, ApiError } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Mes documents" };
 
@@ -42,7 +43,15 @@ const STATUTS: Record<string, string> = {
  * l'apprenant de vérifier que sa copie est bien celle qui a été scellée.
  */
 export default async function DocumentsPage() {
-  const { pieces } = await apiFetch<{ pieces: Piece[] | null }>("/v1/learn/moi");
+  let pieces: Piece[] | null;
+  try {
+    ({ pieces } = await apiFetch<{ pieces: Piece[] | null }>("/v1/learn/moi"));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 403) {
+      return <PasDeFiche vers="/pipeline" quoi="Mes documents" />;
+    }
+    throw error;
+  }
   const rows = pieces ?? [];
 
   return (
@@ -96,6 +105,33 @@ export default async function DocumentsPage() {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * Ce qu'on affiche à un compte qui n'est pas celui d'un stagiaire.
+ *
+ * L'espace apprenant est ouvert à l'équipe de l'organisme — elle y consulte le
+ * parcours de quelqu'un — mais ces deux écrans-ci parlent de soi, et un compte
+ * d'administration n'a pas de fiche à lui. Le dire vaut mieux que de laisser
+ * l'appel échouer : une page qui ne charge pas ressemble à une panne.
+ */
+function PasDeFiche({ vers, quoi }: { vers: string; quoi: string }) {
+  return (
+    <div className="mx-auto max-w-2xl px-5 py-12 sm:px-8 sm:py-16">
+      <h1 className="learner-title">{quoi}</h1>
+      <p className="learner-body mt-3">
+        Votre compte n&apos;est pas rattaché à une fiche de stagiaire : cet écran
+        montre ce qu&apos;un organisme a enregistré sur la personne connectée, et
+        il n&apos;y a donc rien à montrer ici.
+      </p>
+      <Link
+        href={vers}
+        className="mt-6 inline-flex h-11 items-center rounded-xl border border-line px-5 text-sm hover:border-accent"
+      >
+        Retour à l&apos;espace de l&apos;organisme
+      </Link>
     </div>
   );
 }

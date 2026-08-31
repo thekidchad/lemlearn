@@ -4,10 +4,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
- * Choix du mot de passe, à l'entrée dans l'espace apprenant.
+ * Choix du mot de passe, à l'entrée dans son espace.
  *
  * La session s'ouvre dans la foulée : demander de se reconnecter juste après
  * avoir choisi un mot de passe est une étape que personne ne comprend.
+ *
+ * L'atterrissage suit le rôle et vient du serveur. Il menait auparavant à
+ * l'espace apprenant quel que soit le compte — un responsable d'organisme y
+ * arrivait donc dans une coque dont chaque écran lui répondait qu'aucune fiche
+ * n'était rattachée à son compte.
  */
 export function AcceptInvitation({ token }: { token: string }) {
   const router = useRouter();
@@ -24,9 +29,9 @@ export function AcceptInvitation({ token }: { token: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      const body = (await response.json()) as { error?: string };
+      const body = (await response.json()) as { error?: string; landing?: string };
       if (!response.ok) throw new Error(body.error ?? "impossible d'ouvrir l'accès");
-      router.push("/apprenant");
+      router.push(body.landing ?? "/apprenant");
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "impossible d'ouvrir l'accès");
       setBusy(false);
@@ -43,7 +48,7 @@ export function AcceptInvitation({ token }: { token: string }) {
           minLength={12}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="h-11 w-full rounded-lg border border-line bg-surface-0 px-3 text-sm outline-none focus:border-accent"
+          className="field h-11"
         />
         <span className="mt-1 block text-2xs text-ink-3">
           Douze caractères au moins. Trois mots choisis au hasard valent mieux

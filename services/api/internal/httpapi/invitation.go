@@ -113,10 +113,20 @@ func handleInvitationOpen(deps Deps) http.HandlerFunc {
 		}
 
 		org, _ := deps.Identity.LoadOrg(r.Context(), invitation.OrgID)
+
+		// Le rôle du compte invité décide de ce que l'écran raconte : on
+		// n'ouvre pas « vos modules et votre progression » à quelqu'un qui
+		// vient administrer un organisme de formation.
+		role := string(identity.RoleLearner)
+		if user, err := deps.Identity.LoadUserByID(r.Context(), invitation.OrgID, invitation.UserID); err == nil {
+			role = string(user.Role)
+		}
+
 		writeJSON(w, http.StatusOK, map[string]any{
 			"email":     maskEmail(invitation.Email),
 			"org":       org.Name,
 			"expiresAt": invitation.ExpiresOn,
+			"role":      role,
 			"brand":     publicBrand(r, deps, invitation.OrgID),
 		})
 	}
@@ -157,7 +167,13 @@ func handleInvitationAccept(deps Deps) http.HandlerFunc {
 		}
 
 		setSessionCookie(w, deps.Config, token)
-		writeJSON(w, http.StatusOK, map[string]any{"user": user.Public()})
+		writeJSON(w, http.StatusOK, map[string]any{
+			"user": user.Public(),
+			// Où atterrir : le responsable d'un organisme n'a rien à faire
+			// dans l'espace apprenant, où chaque écran lui répondrait qu'aucune
+			// fiche n'est rattachée à son compte.
+			"landing": landingFor(user.Role),
+		})
 	}
 }
 

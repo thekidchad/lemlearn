@@ -178,6 +178,15 @@ func (s *Service) LoadUser(ctx context.Context, session Session) (User, error) {
 	return ddb.Get[User](ctx, s.db, ddb.OrgPK(session.OrgID), ddb.UserSK(session.UserID))
 }
 
+// LoadUserByID relit un utilisateur par son identifiant, sans session.
+//
+// Utile là où l'on connaît le compte sans être connecté à sa place : une
+// invitation, par exemple, doit savoir à qui elle s'adresse pour choisir ce
+// que l'écran raconte.
+func (s *Service) LoadUserByID(ctx context.Context, orgID, userID string) (User, error) {
+	return ddb.Get[User](ctx, s.db, ddb.OrgPK(orgID), ddb.UserSK(userID))
+}
+
 // LoadOrg relit l'organisation d'une session.
 func (s *Service) LoadOrg(ctx context.Context, orgID string) (Org, error) {
 	return ddb.Get[Org](ctx, s.db, ddb.OrgPK(orgID), ddb.OrgMetaSK)

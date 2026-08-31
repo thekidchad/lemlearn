@@ -109,9 +109,11 @@ func (c *Client) WriteWithAuditChain(
 
 		for _, event := range events {
 			auditAV, err := attributevalue.MarshalMap(auditItem{
-				PK:    AuditPK(subject),
-				SK:    AuditSK(event.Seq),
-				Event: event,
+				PK:     AuditPK(subject),
+				SK:     AuditSK(event.Seq),
+				GSI1PK: AuditDayPK(event.At),
+				GSI1SK: AuditDaySK(event.At, subject, event.Seq),
+				Event:  event,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("ddb: encodage de l'audit: %w", err)
@@ -258,4 +260,59 @@ func (c *Client) Write(ctx context.Context, writes []Write) error {
 		return wrapErr(err)
 	}
 	return nil
+}
+
+// AuditDay lit une journée du journal, du plus récent au plus ancien.
+//
+// La chaîne n'est pas vérifiée ici, contrairement à AuditChain, et c'est une
+// différence de nature : une chaîne se vérifie entière ou pas du tout, or cette
+// lecture-ci coupe le temps en tranches et mêle tous les sujets. Vérifier
+// l'intégrité d'un sujet se fait sur sa chaîne, à l'endroit prévu pour cela.
+func (c *Client) AuditDay(
+	ctx context.Context, day time.Time, limit int32, cursor string,
+) (Page[audit.Event], error) {
+	var start map[string]types.AttributeValue
+	if cursor != "" {
+		decoded, err := decodeCursor(cursor)
+		if err != nil {
+			return Page[audit.Event]{}, err
+		}
+		start = decoded
+	}
+	if start != nil {
+		// Le curseur ne peut pas changer de jour : sans cela, un curseur
+		// fabriqué à la main ferait sauter la lecture dans une autre partition
+		// que celle demandée.
+		start["GSI1PK"] = &types.AttributeValueMemberS{Value: AuditDayPK(day)}
+	}
+
+	res, err := c.api.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(c.auditTable),
+		IndexName:              aws.String("GSI1"),
+		KeyConditionExpression: aws.String("GSI1PK = :pk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: AuditDayPK(day)},
+		},
+		ScanIndexForward:  aws.Bool(false),
+		Limit:             aws.Int32(limit),
+		ExclusiveStartKey: start,
+	})
+	if err != nil {
+		return Page[audit.Event]{}, wrapErr(err)
+	}
+
+	var batch []auditItem
+	if err := attributevalue.UnmarshalListOfMaps(res.Items, &batch); err != nil {
+		return Page[audit.Event]{}, fmt.Errorf("ddb: décodage de l'audit: %w", err)
+	}
+	events := make([]audit.Event, 0, len(batch))
+	for _, item := range batch {
+		events = append(events, item.Event)
+	}
+
+	next, err := encodeCursor(res.LastEvaluatedKey)
+	if err != nil {
+		return Page[audit.Event]{}, err
+	}
+	return Page[audit.Event]{Items: events, Cursor: next}, nil
 }

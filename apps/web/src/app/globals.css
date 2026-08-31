@@ -219,6 +219,86 @@
     box-shadow: var(--shadow-card);
   }
 
+  /* Boutons.
+
+     Trois registres, et pas un de plus : l'action de l'écran, celle qu'on peut
+     aussi faire, et celle qui vit dans une ligne de liste. Les nommer ici
+     plutôt que de recopier huit classes utilitaires à chaque bouton est ce qui
+     fait qu'ils se ressemblent — et ces trois-là étaient employés dans dix
+     fichiers sans avoir jamais été définis, ce qui les rendait invisibles.
+
+     La hauteur est fixe : un bouton et un champ posés côte à côte doivent
+     s'aligner, et rien ne trahit plus un écran qu'une rangée dont les éléments
+     ne font pas la même taille. */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 2rem;
+    padding-inline: 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 120ms var(--ease-out-quint),
+      border-color 120ms var(--ease-out-quint),
+      color 120ms var(--ease-out-quint);
+  }
+
+  .btn-primary {
+    background-color: var(--color-accent);
+    /* Blanc, comme partout ailleurs sur un fond d'accent. Le jeton
+       --color-accent-ink ne convient pas : il porte deux sens contradictoires
+       dans le produit — l'accent lisible sur une surface claire, et l'encre
+       lisible sur l'accent lui-même. */
+    color: #fff;
+    border: 1px solid transparent;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-accent-hover);
+  }
+
+  .btn-secondary {
+    background-color: var(--color-surface-1);
+    color: var(--color-ink-2);
+    border: 1px solid var(--color-line);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-ink);
+  }
+
+  /* Le registre des lignes de liste : sans bordure au repos pour ne pas
+     hachurer la colonne, révélé au survol de sa ligne. */
+  .btn-ghost {
+    height: 1.75rem;
+    padding-inline: 0.5rem;
+    font-size: var(--text-2xs);
+    font-weight: 400;
+    background-color: transparent;
+    color: var(--color-ink-3);
+    border: 1px solid transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
+  .group:hover .btn-ghost {
+    border-color: var(--color-line);
+  }
+
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-ghost:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
   /* Élément de navigation : discret au repos, marqué à la page courante.
      C'est le survol qui révèle qu'on peut cliquer, pas une couleur permanente. */
   .nav-item {

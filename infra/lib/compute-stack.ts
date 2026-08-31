@@ -172,7 +172,9 @@ export class ComputeStack extends Stack {
       // deux. Le journal s'écrit événement par événement, dans la même
       // TransactWriteItems que la mutation métier qu'il décrit.
       actions: ["dynamodb:PutItem", "dynamodb:Query", "dynamodb:GetItem"],
-      resources: [props.auditTable.tableArn],
+      // L'index est une ressource distincte : sans lui, lire le journal dans
+      // l'ordre du temps échouerait alors même que la table est autorisée.
+      resources: [props.auditTable.tableArn, `${props.auditTable.tableArn}/index/*`],
     });
     const auditDenyMutation = new iam.PolicyStatement({
       // Un Deny explicite l'emporte sur tout Allow, y compris ceux qu'un
@@ -184,7 +186,7 @@ export class ComputeStack extends Stack {
         "dynamodb:BatchWriteItem",
         "dynamodb:DeleteTable",
       ],
-      resources: [props.auditTable.tableArn],
+      resources: [props.auditTable.tableArn, `${props.auditTable.tableArn}/index/*`],
     });
     for (const fn of [apiFn, exportFn]) {
       fn.addToRolePolicy(auditAppendOnly);

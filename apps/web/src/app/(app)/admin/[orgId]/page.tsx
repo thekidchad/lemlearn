@@ -210,7 +210,7 @@ export default async function OrgPage({ params }: PageProps<"/admin/[orgId]">) {
         <section className="surface-card p-5">
           <h2 className="text-sm font-medium">Courriels envoyés pour ce client</h2>
           <p className="mt-1.5 text-xs text-ink-2">
-            <Link href={`/admin/emails?orgId=${orgId}`} className="underline hover:text-ink">
+            <Link href={`/admin/journal/courriels?orgId=${orgId}`} className="underline hover:text-ink">
               Ouvrir le journal des envois filtré sur cette organisation
             </Link>
           </p>

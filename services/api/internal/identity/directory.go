@@ -299,6 +299,17 @@ func (s *Service) UserByEmail(ctx context.Context, email string) (User, error) {
 	return ddb.Get[User](ctx, s.db, ddb.OrgPK(pointer.OrgID), ddb.UserSK(pointer.UserID))
 }
 
+// Journal lit une journée du journal, tous sujets confondus.
+//
+// Il passe par l'annuaire et non par un accès direct à la base : le journal est
+// une lecture d'administration, et la garder ici évite d'ouvrir la table
+// d'audit à tout le reste du service.
+func (s *Service) Journal(
+	ctx context.Context, day time.Time, limit int32, cursor string,
+) (ddb.Page[audit.Event], error) {
+	return s.db.AuditDay(ctx, day, limit, cursor)
+}
+
 // OrgTimeline relit la chaîne d'audit de l'organisation elle-même.
 func (s *Service) OrgTimeline(ctx context.Context, orgID string, limit int) ([]audit.Event, error) {
 	events, err := s.db.AuditChain(ctx, "org/"+orgID)

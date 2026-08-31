@@ -46,6 +46,15 @@ const (
 	ActionLearnerAnonymized Action = "learner.anonymized"
 	ActionPlanChanged       Action = "billing.plan_changed"
 	ActionImpersonated      Action = "admin.impersonated"
+
+	// Les entrées et sorties de session. Elles ne décrivent aucune donnée
+	// métier, mais ce sont les premières qu'on cherche quand on se demande qui
+	// est passé, d'où, et quand — et un journal qui ne les porte pas oblige à
+	// aller les chercher dans les traces techniques, où elles ne sont gardées
+	// que quelques jours.
+	ActionSignedIn     Action = "auth.signed_in"
+	ActionSignInFailed Action = "auth.sign_in_failed"
+	ActionSignedOut    Action = "auth.signed_out"
 )
 
 // ActorType distingue qui agit : un humain connecté, un signataire authentifié
@@ -200,4 +209,27 @@ func truncate(hash string) string {
 		return hash
 	}
 	return hash[:12] + "…"
+}
+
+// Actions énumère les actions connues du journal.
+//
+// La liste sert l'écran de filtre : la déduire des événements présents ferait
+// disparaître une action des choix possibles le jour où personne ne l'a
+// déclenchée, c'est-à-dire précisément le jour où on la cherche.
+func Actions() []Action {
+	return []Action{
+		ActionSignedIn, ActionSignInFailed, ActionSignedOut,
+		ActionFileCreated, ActionFileStageChanged,
+		ActionConsentGiven,
+		ActionDocumentGenerated, ActionDocumentSent,
+		ActionSignatureOpened, ActionSignatureOTPSent,
+		ActionSignatureOTPOK, ActionSignatureOTPFail,
+		ActionDocumentSigned, ActionDocumentSealed,
+		ActionWatchProgress, ActionModuleCompleted,
+		ActionQuizStarted, ActionQuizSubmitted,
+		ActionAttendanceSigned, ActionSessionClosed,
+		ActionFollowUpScheduled, ActionCertificateIssued,
+		ActionDossierExported, ActionLearnerAnonymized,
+		ActionPlanChanged, ActionImpersonated,
+	}
 }

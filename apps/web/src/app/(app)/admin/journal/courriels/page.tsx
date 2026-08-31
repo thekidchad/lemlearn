@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JournalShell } from "@/components/app/journal-shell";
 import { apiFetch } from "@/lib/api";
 
-export const metadata: Metadata = { title: "Journal des envois" };
+export const metadata: Metadata = { title: "Courriels" };
 
 interface Entry {
   sentAt: string;
@@ -30,7 +31,9 @@ const TEMPLATES: Record<string, string> = {
  * figure pas — il porte des liens de signature et des codes à usage unique,
  * qu'un journal consultable n'a pas à conserver.
  */
-export default async function MailJournalPage({ searchParams }: PageProps<"/admin/emails">) {
+export default async function MailJournalPage({
+  searchParams,
+}: PageProps<"/admin/journal/courriels">) {
   const params = await searchParams;
   const orgId = typeof params.orgId === "string" ? params.orgId : "";
   const query = typeof params.q === "string" ? params.q : "";
@@ -46,19 +49,11 @@ export default async function MailJournalPage({ searchParams }: PageProps<"/admi
   }>(`/v1/admin/emails${search.size > 0 ? `?${search}` : ""}`);
 
   return (
-    <>
-      <header className="flex h-14 items-center gap-3 border-b border-line px-6">
-        <Link href="/admin" className="text-xs text-ink-3 hover:text-ink">
-          Organisations
-        </Link>
-        <span className="text-ink-3">/</span>
-        <h1 className="text-sm font-medium">Journal des envois</h1>
-        <span className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
-          {data.delivered} partis · {data.failed} en échec
-        </span>
-      </header>
-
-      <div className="mx-auto max-w-5xl px-6 py-6">
+    <JournalShell
+      courant="/admin/journal/courriels"
+      chapeau={`Ce qui est parti et ce qui a échoué — ${data.delivered} remis, ${data.failed} en échec. C'est la réponse à « il dit n'avoir rien reçu ».`}
+    >
+      <div className="px-8 py-6">
         <form className="flex flex-wrap items-center gap-2">
           {orgId && <input type="hidden" name="orgId" value={orgId} />}
           <input
@@ -69,12 +64,15 @@ export default async function MailJournalPage({ searchParams }: PageProps<"/admi
           />
           <button
             type="submit"
-            className="h-9 rounded-lg border border-line-strong px-3 text-xs hover:border-accent"
+            className="btn-secondary"
           >
             Filtrer
           </button>
           {(orgId || query) && (
-            <Link href="/admin/emails" className="text-2xs text-ink-3 underline hover:text-ink">
+            <Link
+              href="/admin/journal/courriels"
+              className="text-2xs text-ink-3 underline hover:text-ink"
+            >
               Tout voir
             </Link>
           )}
@@ -144,6 +142,6 @@ export default async function MailJournalPage({ searchParams }: PageProps<"/admi
           qu&apos;aucun courriel n&apos;est réellement parti.
         </p>
       </div>
-    </>
+    </JournalShell>
   );
 }

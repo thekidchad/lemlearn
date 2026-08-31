@@ -12,6 +12,7 @@ package ddb
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Préfixes de clé. Ils font partie du schéma : les modifier impose une
@@ -148,6 +149,21 @@ func NormalizeEmail(email string) string {
 
 // AuditPK est la clé de partition du journal : un sujet, une chaîne.
 func AuditPK(subject string) string { return "SUBJECT#" + subject }
+
+// AuditDayPK range un événement dans la journée où il s'est produit.
+//
+// En UTC, comme l'heure serveur qu'il porte : mêler deux fuseaux dans une clé
+// de partition ferait basculer des événements d'un jour à l'autre selon
+// l'endroit d'où on regarde.
+func AuditDayPK(at time.Time) string { return "JOUR#" + at.UTC().Format("2006-01-02") }
+
+// AuditDaySK ordonne la journée par instant, puis par sujet et par rang.
+//
+// L'instant seul ne suffit pas : deux écritures d'une même transaction portent
+// la même heure, et une clé de tri en double en ferait disparaître une.
+func AuditDaySK(at time.Time, subject string, seq int64) string {
+	return fmt.Sprintf("%s#%s#%012d", at.UTC().Format(time.RFC3339Nano), subject, seq)
+}
 
 // AuditSK ordonne les événements d'un sujet par rang, sur une largeur fixe
 // pour que le tri lexicographique de DynamoDB coïncide avec le tri numérique.

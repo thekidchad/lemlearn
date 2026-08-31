@@ -217,8 +217,10 @@ func handleLogin(deps Deps) http.HandlerFunc {
 		if err != nil {
 			switch {
 			case errors.Is(err, identity.ErrInvalidCredentials):
+				journaliserEchec(r, deps, body.Email, "identifiants invalides")
 				writeError(w, http.StatusUnauthorized, "identifiants invalides")
 			case errors.Is(err, identity.ErrDisabled):
+				journaliserEchec(r, deps, body.Email, "compte désactivé")
 				writeError(w, http.StatusForbidden, "ce compte est désactivé")
 			default:
 				deps.Log.Error("connexion", "err", err, "request_id", middleware.GetReqID(r.Context()))
@@ -259,6 +261,16 @@ func handleLogin(deps Deps) http.HandlerFunc {
 		// existence y entre à la première connexion, sans migration.
 		if err := deps.Identity.EnsureDirectory(r.Context(), user.OrgID, user.Email); err != nil {
 			deps.Log.Error("annuaire des organisations", "err", err)
+		}
+
+		if _, err := deps.Identity.AuditOrg(r.Context(), user.OrgID, audit.ActionSignedIn,
+			audit.Actor{
+				Type: audit.ActorUser, ID: user.ID, Label: user.Email,
+				IP: clientIP(r), UserAgent: truncateUA(r.UserAgent()),
+			},
+			map[string]any{"role": string(user.Role)},
+		); err != nil {
+			deps.Log.Error("journal de la connexion", "err", err)
 		}
 
 		setSessionCookie(w, deps.Config, token)
@@ -313,5 +325,30 @@ func handleMe(deps Deps) http.HandlerFunc {
 			"brand":          publicBrand(r, deps, session.OrgID),
 			"impersonatedBy": session.ImpersonatedBy,
 		})
+	}
+}
+
+// journaliserEchec inscrit une tentative de connexion refusée.
+//
+// L'organisme n'est connu que si l'adresse existe : une tentative sur une
+// adresse inconnue n'a pas de journal où aller, et lui en inventer un
+// reviendrait à créer une entrée par adresse essayée — ce qui offrirait à
+// quiconque tape au hasard le moyen de remplir nos partitions.
+func journaliserEchec(r *http.Request, deps Deps, email, motif string) {
+	if deps.Identity == nil {
+		return
+	}
+	user, err := deps.Identity.UserByEmail(r.Context(), email)
+	if err != nil {
+		return
+	}
+	if _, err := deps.Identity.AuditOrg(r.Context(), user.OrgID, audit.ActionSignInFailed,
+		audit.Actor{
+			Type: audit.ActorUser, ID: user.ID, Label: user.Email,
+			IP: clientIP(r), UserAgent: truncateUA(r.UserAgent()),
+		},
+		map[string]any{"motif": motif},
+	); err != nil {
+		deps.Log.Error("journal de la tentative", "err", err)
 	}
 }

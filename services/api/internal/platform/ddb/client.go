@@ -293,6 +293,11 @@ func wrapErr(err error) error {
 type auditItem struct {
 	PK string `dynamodbav:"PK"`
 	SK string `dynamodbav:"SK"`
+	// Les clés de l'index chronologique. Elles ne participent pas au calcul de
+	// l'empreinte — celle-ci ne porte que sur l'événement — donc les ajouter
+	// ne rompt aucune chaîne existante.
+	GSI1PK string `dynamodbav:"GSI1PK,omitempty"`
+	GSI1SK string `dynamodbav:"GSI1SK,omitempty"`
 	audit.Event
 }
 

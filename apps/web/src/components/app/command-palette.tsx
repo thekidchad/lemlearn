@@ -54,7 +54,8 @@ const DESTINATIONS: Item[] = [
   { key: "nav-plateforme-entreprises", label: "Entreprises (plateforme)", href: "/admin/entreprises" },
   { key: "nav-plateforme-financeurs", label: "Financeurs (plateforme)", href: "/admin/financeurs" },
   { key: "nav-admin", label: "Tableau de bord", href: "/admin" },
-  { key: "nav-emails", label: "Journal des envois", href: "/admin/emails" },
+  { key: "nav-journal", label: "Journal", href: "/admin/journal" },
+  { key: "nav-courriels", label: "Journal des courriels", href: "/admin/journal/courriels" },
   { key: "nav-gabarits", label: "Gabarits de courriels", href: "/admin/gabarits" },
   { key: "nav-biblio", label: "Bibliothèque de formations", href: "/admin/bibliotheque" },
 ];

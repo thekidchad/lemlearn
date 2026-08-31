@@ -77,7 +77,7 @@ export function OrgRow({ org, plans }: { org: Org; plans: Plan[] }) {
             type="button"
             onClick={() => call("impersonate")}
             disabled={busy || pending}
-            className="h-8 rounded-md border border-line px-2.5 text-xs text-ink-2 hover:border-accent hover:text-ink disabled:opacity-50"
+            className="btn-secondary"
             title="Ouvre une session sur cette organisation. L'accès est tracé et visible du client."
           >
             Ouvrir la session

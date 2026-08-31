@@ -276,7 +276,7 @@ function LigneRendue({ ligne }: { ligne: Ligne }) {
           // mémoire de la page.
           <a
             href={`/api/admin/orgs/${ligne.orgId}/dossiers/${ligne.fileId}/export`}
-            className="h-7 rounded-md border border-transparent px-2 text-2xs leading-[1.6rem] text-ink-3 hover:border-line hover:text-ink group-hover:border-line"
+            className="btn-ghost"
             title={`Dossier ${ligne.fileReference}`}
           >
             Exporter le dossier
@@ -288,7 +288,7 @@ function LigneRendue({ ligne }: { ligne: Ligne }) {
         {ligne.canImpersonate ? (
           <button
             type="button"
-            className="h-7 rounded-md border border-transparent px-2 text-2xs text-ink-3 hover:border-line hover:text-ink disabled:opacity-50 group-hover:border-line"
+            className="btn-ghost"
             disabled={busy}
             onClick={entrer}
             title="Ouvre une session sur ce compte. L'accès est tracé et visible du client."
@@ -338,7 +338,7 @@ function EntrerOrganisme({ orgId }: { orgId: string }) {
       {error && <span className="text-2xs text-danger">{error}</span>}
       <button
         type="button"
-        className="h-7 rounded-md border border-line px-2.5 text-2xs text-ink-2 hover:border-accent hover:text-ink disabled:opacity-50"
+        className="btn-secondary"
         disabled={busy}
         onClick={entrer}
         title="Ouvre une session sur cet organisme. L'accès est tracé et visible du client."

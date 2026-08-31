@@ -71,8 +71,8 @@ export default async function AdminPage() {
       <header className="flex h-14 items-center gap-4 border-b border-line px-6">
         <h1 className="text-sm font-medium">Tableau de bord</h1>
         <nav className="flex items-center gap-3 text-2xs text-ink-3">
-          <Link href="/admin/emails" className="hover:text-ink">
-            Journal des envois
+          <Link href="/admin/journal/courriels" className="hover:text-ink">
+            Journal
           </Link>
           <Link href="/admin/gabarits" className="hover:text-ink">
             Gabarits
@@ -130,7 +130,7 @@ export default async function AdminPage() {
                   <span aria-hidden>▲</span>
                   {board.emailsPerDay.reduce((sum, day) => sum + day.failed, 0)} envoi(s) en
                   échec —{" "}
-                  <Link href="/admin/emails" className="underline">
+                  <Link href="/admin/journal/courriels" className="underline">
                     voir le journal
                   </Link>
                 </p>

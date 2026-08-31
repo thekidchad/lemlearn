@@ -106,6 +106,21 @@ export class DataStack extends Stack {
       // Jamais DESTROY, même hors production : perdre un journal d'audit
       // pour libérer un environnement de test est une mauvaise habitude.
       removalPolicy: RemovalPolicy.RETAIN,
+      globalSecondaryIndexes: [
+        {
+          // Le journal se lit aussi dans l'ordre du temps, et pas seulement
+          // sujet par sujet : « qu'est-il arrivé aujourd'hui » est la question
+          // qu'on pose en premier quand quelque chose cloche.
+          //
+          // La partition est le jour et non le mois : toutes les écritures
+          // d'audit du produit passent par la clé courante, et un mois entier
+          // sur une seule partition concentrerait la charge d'écriture au même
+          // endroit trente fois plus longtemps.
+          indexName: "GSI1",
+          partitionKey: { name: "GSI1PK", type: dynamodb.AttributeType.STRING },
+          sortKey: { name: "GSI1SK", type: dynamodb.AttributeType.STRING },
+        },
+      ],
     });
 
     // ---------------------------------------------------------------------

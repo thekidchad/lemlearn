@@ -105,6 +105,13 @@ func QueryPage[T any](ctx context.Context, c *Client, spec QuerySpec, cursor str
 // chaînes, ce qui évite d'embarquer la représentation des types DynamoDB dans
 // un jeton qui traverse le navigateur.
 func encodeCursor(key map[string]types.AttributeValue) (string, error) {
+	// Une clé vide n'est pas un curseur : c'est la fin. Sans ce cas, on rendait
+	// un curseur encodant un objet vide, que la lecture suivante refusait comme
+	// illisible — une pagination qui s'interrompt au dernier écran, en
+	// annonçant une erreur là où il n'y avait plus rien à lire.
+	if len(key) == 0 {
+		return "", nil
+	}
 	plat := make(map[string]string, len(key))
 	for nom, valeur := range key {
 		s, ok := valeur.(*types.AttributeValueMemberS)

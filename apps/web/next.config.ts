@@ -26,6 +26,13 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        // Le journal des envois est devenu un onglet du journal : l'adresse
+        // d'hier reste bonne, elle mène simplement au bon onglet.
+        source: "/admin/emails",
+        destination: "/admin/journal/courriels",
+        permanent: true,
+      },
+      {
         source: "/contacts",
         has: [{ type: "query", key: "kind", value: "company" }],
         destination: "/entreprises",

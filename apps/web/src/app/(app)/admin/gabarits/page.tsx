@@ -42,10 +42,10 @@ export default async function TemplatesPage({ searchParams }: PageProps<"/admin/
         <span className="text-ink-3">/</span>
         <h1 className="text-sm font-medium">Gabarits de courriels</h1>
         <Link
-          href="/admin/emails"
+          href="/admin/journal/courriels"
           className="ml-auto text-2xs text-ink-3 underline hover:text-ink"
         >
-          Journal des envois
+          Journal
         </Link>
       </header>
 

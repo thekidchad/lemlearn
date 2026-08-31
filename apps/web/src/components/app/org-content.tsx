@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -132,7 +133,21 @@ function OrgList({ orgId, vue }: { orgId: string; vue: Vue }) {
                 key={String(ligne.id ?? index)}
                 className="flex items-baseline gap-3 px-4 py-2.5"
               >
-                <span className="min-w-0 flex-1 truncate text-sm">{titre(ligne)}</span>
+                {/* Une fiche s'ouvre d'un clic depuis ici : c'est le chemin
+                    qu'on prend en vrai — on part de l'organisme au téléphone,
+                    et on descend jusqu'à la personne. Les formations, sessions
+                    et dossiers n'ont pas d'écran à eux dans la console : les
+                    rendre cliquables mènerait à une page vide. */}
+                {vue.champ === "contacts" && ligne.id ? (
+                  <Link
+                    href={`/admin/${orgId}/contacts/${String(ligne.id)}`}
+                    className="min-w-0 flex-1 truncate text-sm hover:text-accent-ink hover:underline"
+                  >
+                    {titre(ligne)}
+                  </Link>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate text-sm">{titre(ligne)}</span>
+                )}
                 <span className="shrink-0 truncate font-mono text-2xs text-ink-3">
                   {detail(ligne)}
                 </span>

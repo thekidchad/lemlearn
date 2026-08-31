@@ -33,6 +33,15 @@ type ligne struct {
 	ID      string `json:"id"`
 	Label   string `json:"label"`
 	Detail  string `json:"detail,omitempty"`
+
+	// Ce qui rend la ligne actionnable. Entrer dans le compte d'un stagiaire
+	// suppose qu'il en ait un — un contact invité mais jamais connecté n'a pas
+	// de mot de passe, et il n'y a rien à ouvrir. Exporter suppose un dossier.
+	// Les deux sont résolus ici plutôt que devinés par l'écran, qui n'a pas de
+	// quoi le faire.
+	CanImpersonate bool   `json:"canImpersonate,omitempty"`
+	FileID         string `json:"fileId,omitempty"`
+	FileReference  string `json:"fileReference,omitempty"`
 }
 
 type curseurGlobal struct {
@@ -175,13 +184,36 @@ func lireVue(r *http.Request, deps Deps, vue, orgID, etape string, limite int32,
 		}
 		out := make([]ligne, 0, len(page.Items))
 		for _, c := range page.Items {
-			out = append(out, ligne{
+			l := ligne{
 				ID:    c.ID,
 				Label: c.DisplayName(),
-				Detail: strings.TrimSpace(strings.Join([]string{
+				Detail: strings.TrimSpace(strings.Trim(strings.Join([]string{
 					c.Email, c.Phone,
-				}, " · ")),
-			})
+				}, " · "), " ·")),
+			}
+			// Un compte existe-t-il pour cette adresse ? C'est ce qui décide si
+			// l'on peut entrer dans son espace.
+			if c.Email != "" {
+				if user, err := deps.Identity.UserByEmail(r.Context(), c.Email); err == nil && !user.Disabled {
+					l.CanImpersonate = true
+				}
+			}
+			// Son dossier, s'il en a un : c'est lui qui s'exporte. On passe
+			// par ses inscriptions, qui sont indexées par apprenant — les
+			// dossiers, eux, ne le sont que par étape du pipeline, et les
+			// parcourir toutes pour chaque ligne multiplierait les lectures
+			// par cinq.
+			if enrollments, err := deps.Catalog.ListLearnerEnrollments(r.Context(), orgID, c.ID); err == nil {
+				for _, e := range enrollments {
+					if e.FileID != "" {
+						if file, err := deps.CRM.GetFile(r.Context(), orgID, e.FileID); err == nil {
+							l.FileID, l.FileReference = file.ID, file.Reference
+						}
+						break
+					}
+				}
+			}
+			out = append(out, l)
 		}
 		return out, page.Cursor, nil
 

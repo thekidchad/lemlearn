@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ContactsTable } from "@/components/app/contacts-table";
+import { PlatformRows } from "@/components/app/platform-rows";
 import { CreatePanel, Field, Select } from "@/components/app/form";
 import { createContact } from "@/app/actions/crm";
 import { apiFetch, type Contact, type Me } from "@/lib/api";
@@ -43,17 +44,19 @@ export const NATURES = {
 export type Nature = keyof typeof NATURES;
 
 export async function Repertoire({ nature }: { nature: Nature }) {
-  const { contacts, cursor } = await apiFetch<{
-    contacts: Contact[] | null;
-    cursor?: string;
-  }>(`/v1/contacts?kind=${nature}`);
-  const rows = contacts ?? [];
-
-  // L'équipe lemlearn regarde ici son propre organisme, qui est vide par
-  // nature. Sans cette explication, un écran sans ligne se lit comme une
-  // panne — ce qui est exactement ce qui s'est produit.
+  // L'équipe lemlearn n'a pas de stagiaires à elle : son organisme est vide, et
+  // lui montrer son propre répertoire n'aurait aucun sens. Ces trois écrans lui
+  // servent donc toute la plateforme, chaque ligne nommant l'organisme dont
+  // elle relève.
   const me = await apiFetch<Me>("/v1/me");
   const equipe = me.user.role === "superadmin" && !me.impersonatedBy;
+
+  const { contacts, cursor } = equipe
+    ? { contacts: null, cursor: undefined }
+    : await apiFetch<{ contacts: Contact[] | null; cursor?: string }>(
+        `/v1/contacts?kind=${nature}`,
+      );
+  const rows = contacts ?? [];
 
   const courant = NATURES[nature];
 
@@ -75,10 +78,16 @@ export async function Repertoire({ nature }: { nature: Nature }) {
             {NATURES[clef].titre}
           </Link>
         ))}
-        <span className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
-          {rows.length}
-        </span>
-        <div className="ml-3">
+        {equipe ? (
+          <span className="ml-auto text-2xs text-ink-3">
+            Toute la plateforme
+          </span>
+        ) : (
+          <span className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
+            {rows.length}
+          </span>
+        )}
+        <div className={equipe ? "hidden" : "ml-3"}>
           <CreatePanel label="Nouveau" title={courant.singulier} action={createContact}>
             <Select
               label="Nature"
@@ -122,22 +131,12 @@ export async function Repertoire({ nature }: { nature: Nature }) {
         </div>
       </header>
 
-      {rows.length === 0 ? (
+      {equipe ? (
+        <PlatformRows vue={VUE_PLATEFORME[nature]} />
+      ) : rows.length === 0 ? (
         <div className="mx-auto max-w-lg px-6 py-16 text-center">
           <p className="text-sm text-ink-2">{courant.vide}</p>
-          {equipe ? (
-            <p className="mt-3 text-xs text-ink-3">
-              Vous êtes dans l&apos;espace de l&apos;équipe, qui n&apos;a pas de
-              stagiaires à lui. Pour voir ceux d&apos;un organisme, ouvrez une
-              session depuis sa fiche dans{" "}
-              <Link href="/admin" className="underline hover:text-ink">
-                Organisations
-              </Link>
-              .
-            </p>
-          ) : (
-            <p className="mt-3 text-xs text-ink-3">{courant.aide}</p>
-          )}
+          <p className="mt-3 text-xs text-ink-3">{courant.aide}</p>
         </div>
       ) : (
         <ContactsTable kind={nature} initial={rows} initialCursor={cursor} />
@@ -145,3 +144,10 @@ export async function Repertoire({ nature }: { nature: Nature }) {
     </>
   );
 }
+
+/** Le nom que porte la même nature dans la vue plateforme. */
+const VUE_PLATEFORME = {
+  learner: "stagiaires",
+  company: "entreprises",
+  funder: "financeurs",
+} as const;

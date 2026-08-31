@@ -54,7 +54,6 @@ const teamGroup = {
   title: "Équipe lemlearn",
   items: [
     { href: "/admin", label: "Tableau de bord", glyph: "◰" },
-    { href: "/admin/donnees", label: "Toutes les données", glyph: "▤" },
     { href: "/admin/emails", label: "Journal des envois", glyph: "✉" },
     { href: "/admin/gabarits", label: "Gabarits", glyph: "❏" },
     { href: "/admin/bibliotheque", label: "Bibliothèque", glyph: "▥" },

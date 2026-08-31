@@ -284,6 +284,11 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/orgs/{orgID}/formations", handleAdminOrgCourses(deps))
 					r.Get("/orgs/{orgID}/dossiers", handleAdminOrgFiles(deps))
 
+					// Agir depuis la vue de l'équipe : entrer dans le compte de
+					// la personne dont on parle, et sortir son dossier.
+					r.Post("/orgs/{orgID}/contacts/{contactID}/impersonate", handleImpersonateContact(deps))
+					r.Post("/orgs/{orgID}/dossiers/{fileID}/export", handleAdminExport(deps))
+
 					r.Get("/orgs/{orgID}/marque", handleAdminGetBrand(deps))
 					r.Put("/orgs/{orgID}/marque", handleAdminSaveBrand(deps))
 					r.Post("/orgs/{orgID}/marque/logo", handlePrepareLogo(deps))

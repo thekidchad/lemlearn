@@ -51,7 +51,18 @@ const groups: { title?: string; items: { href: string; label: string; glyph: str
 
 /** Ce que voit l'équipe lemlearn, et elle seule. */
 const teamGroup = {
-  title: "Équipe lemlearn",
+  title: "Plateforme",
+  items: [
+    { href: "/admin/organismes", label: "Organismes", glyph: "⌸" },
+    { href: "/admin/stagiaires", label: "Stagiaires", glyph: "◍" },
+    { href: "/admin/entreprises", label: "Entreprises", glyph: "▤" },
+    { href: "/admin/financeurs", label: "Financeurs", glyph: "◈" },
+  ],
+};
+
+/** Le reste de l'outillage interne, moins fréquenté. */
+const teamTools = {
+  title: "Outillage",
   items: [
     { href: "/admin", label: "Tableau de bord", glyph: "◰" },
     { href: "/admin/emails", label: "Journal des envois", glyph: "✉" },
@@ -114,7 +125,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // les organismes, et lui afficher la marque d'un client la tromperait sur
   // l'endroit où elle se trouve. Tous les autres voient la leur.
   const team = me.user.role === "superadmin" && !me.impersonatedBy;
-  const sections = me.user.role === "superadmin" ? [teamGroup, ...groups] : groups;
+  // L'équipe ne voit pas la navigation d'un organisme tant qu'elle n'est pas
+  // entrée chez l'un d'eux. Ces écrans-là parlent de « votre catalogue » et de
+  // « vos stagiaires » : appliqués à un organisme vide, ils ne montrent rien et
+  // se lisent comme une panne. Entrer chez un client rétablit la navigation
+  // complète — celle du client.
+  const sections = team ? [teamGroup, teamTools] : groups;
 
   return (
     <div className="flex min-h-dvh" style={team ? undefined : brandStyle(me.brand)}>
@@ -123,7 +139,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface-1 lg:flex">
         <div className="flex h-12 items-center px-3">
           <Link
-            href="/pipeline"
+            href={team ? "/admin/organismes" : "/pipeline"}
             aria-label={`${team ? "lemlearn" : me.brand.name}, accueil`}
             className="min-w-0 px-1"
           >

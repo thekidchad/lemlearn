@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ContactsTable } from "@/components/app/contacts-table";
-import { PlatformRows } from "@/components/app/platform-rows";
 import { CreatePanel, Field, Select } from "@/components/app/form";
 import { createContact } from "@/app/actions/crm";
 import { apiFetch, type Contact, type Me } from "@/lib/api";
@@ -44,10 +43,9 @@ export const NATURES = {
 export type Nature = keyof typeof NATURES;
 
 export async function Repertoire({ nature }: { nature: Nature }) {
-  // L'équipe lemlearn n'a pas de stagiaires à elle : son organisme est vide, et
-  // lui montrer son propre répertoire n'aurait aucun sens. Ces trois écrans lui
-  // servent donc toute la plateforme, chaque ligne nommant l'organisme dont
-  // elle relève.
+  // L'équipe lemlearn n'a pas de stagiaires à elle : son organisme est vide.
+  // Sa vue de la plateforme est ailleurs, dans la console — ici, on ne dit que
+  // le chemin, sinon un écran sans ligne se lit comme une panne.
   const me = await apiFetch<Me>("/v1/me");
   const equipe = me.user.role === "superadmin" && !me.impersonatedBy;
 
@@ -78,15 +76,9 @@ export async function Repertoire({ nature }: { nature: Nature }) {
             {NATURES[clef].titre}
           </Link>
         ))}
-        {equipe ? (
-          <span className="ml-auto text-2xs text-ink-3">
-            Toute la plateforme
-          </span>
-        ) : (
-          <span className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
-            {rows.length}
-          </span>
-        )}
+        <span className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
+          {rows.length}
+        </span>
         <div className={equipe ? "hidden" : "ml-3"}>
           <CreatePanel label="Nouveau" title={courant.singulier} action={createContact}>
             <Select
@@ -131,12 +123,21 @@ export async function Repertoire({ nature }: { nature: Nature }) {
         </div>
       </header>
 
-      {equipe ? (
-        <PlatformRows vue={VUE_PLATEFORME[nature]} />
-      ) : rows.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="mx-auto max-w-lg px-6 py-16 text-center">
           <p className="text-sm text-ink-2">{courant.vide}</p>
-          <p className="mt-3 text-xs text-ink-3">{courant.aide}</p>
+          {equipe ? (
+            <p className="mt-3 text-xs text-ink-3">
+              Vous êtes dans l&apos;espace de l&apos;équipe, qui n&apos;a pas de
+              répertoire à lui. Toute la plateforme se regarde depuis{" "}
+              <Link href={CONSOLE[nature]} className="underline hover:text-ink">
+                la console
+              </Link>
+              .
+            </p>
+          ) : (
+            <p className="mt-3 text-xs text-ink-3">{courant.aide}</p>
+          )}
         </div>
       ) : (
         <ContactsTable kind={nature} initial={rows} initialCursor={cursor} />
@@ -145,9 +146,9 @@ export async function Repertoire({ nature }: { nature: Nature }) {
   );
 }
 
-/** Le nom que porte la même nature dans la vue plateforme. */
-const VUE_PLATEFORME = {
-  learner: "stagiaires",
-  company: "entreprises",
-  funder: "financeurs",
+/** Où la même nature se regarde à l'échelle de la plateforme. */
+const CONSOLE = {
+  learner: "/admin/stagiaires",
+  company: "/admin/entreprises",
+  funder: "/admin/financeurs",
 } as const;

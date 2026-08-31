@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Bars, Columns, TrendArea } from "@/components/app/charts";
-import { OpenOrg } from "@/components/app/open-org";
-import { OrgRow } from "@/components/app/org-row";
 import { apiFetch, ApiError } from "@/lib/api";
 
-export const metadata: Metadata = { title: "Organisations" };
+export const metadata: Metadata = { title: "Tableau de bord" };
 
 export interface Plan {
   code: string;
@@ -89,10 +87,7 @@ export default async function AdminPage() {
             Rechercher <kbd className="font-mono text-[0.625rem]">⌘K</kbd>
           </span>
         </nav>
-        <div className="ml-auto">
-          <OpenOrg />
-        </div>
-        <p className="font-mono text-2xs text-ink-3" data-numeric>
+        <p className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
           {data.orgs.length} client{data.orgs.length > 1 ? "s" : ""} ·{" "}
           {euros(data.mrrCents)} / mois
         </p>
@@ -199,12 +194,17 @@ export default async function AdminPage() {
           </p>
         )}
 
-        <h2 className="mt-8 text-xs font-medium">Organisations</h2>
-        <div className="mt-2 space-y-px overflow-hidden rounded-xl border border-line bg-line">
-          {data.orgs.map((org) => (
-            <OrgRow key={org.orgId} org={org} plans={data.plans} />
-          ))}
-        </div>
+        {/* La liste des organismes est en tête de console, pas au bas d'une
+            page de graphiques : c'est l'écran qu'on ouvre, pas celui qu'on
+            découvre en défilant. */}
+        <p className="mt-8 text-xs text-ink-3">
+          Les organismes clients, leur formule et l&apos;accès à leur espace sont
+          dans{" "}
+          <Link href="/admin/organismes" className="underline hover:text-ink">
+            Organismes
+          </Link>
+          .
+        </p>
       </div>
     </>
   );

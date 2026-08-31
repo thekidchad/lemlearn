@@ -42,7 +42,11 @@ interface Group {
  * s'ouvre par réflexe, et c'est ce réflexe qui la rend utile.
  */
 const DESTINATIONS: Item[] = [
-  { key: "nav-admin", label: "Organisations", href: "/admin" },
+  { key: "nav-organismes", label: "Organismes", href: "/admin/organismes" },
+  { key: "nav-plateforme-stagiaires", label: "Stagiaires (plateforme)", href: "/admin/stagiaires" },
+  { key: "nav-plateforme-entreprises", label: "Entreprises (plateforme)", href: "/admin/entreprises" },
+  { key: "nav-plateforme-financeurs", label: "Financeurs (plateforme)", href: "/admin/financeurs" },
+  { key: "nav-admin", label: "Tableau de bord", href: "/admin" },
   { key: "nav-emails", label: "Journal des envois", href: "/admin/emails" },
   { key: "nav-gabarits", label: "Gabarits de courriels", href: "/admin/gabarits" },
   { key: "nav-biblio", label: "Bibliothèque de formations", href: "/admin/bibliotheque" },

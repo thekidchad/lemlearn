@@ -28,7 +28,7 @@ export function LeaveImpersonation() {
         return;
       }
       if (!response.ok) throw new Error();
-      router.push("/admin");
+      router.push("/admin/organismes");
       router.refresh();
     } catch {
       setFallback(true);

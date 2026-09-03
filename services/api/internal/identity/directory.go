@@ -276,9 +276,7 @@ func (s *Service) Promote(ctx context.Context, user User, role Role, token strin
 
 // ListUsers renvoie les comptes d'une organisation.
 func (s *Service) ListUsers(ctx context.Context, orgID string) ([]PublicUser, error) {
-	users, err := ddb.Query[User](ctx, s.db, ddb.QuerySpec{
-		PK: ddb.OrgPK(orgID), SKPrefix: "USER#",
-	})
+	users, err := s.RawUsers(ctx, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -287,6 +285,17 @@ func (s *Service) ListUsers(ctx context.Context, orgID string) ([]PublicUser, er
 		public = append(public, user.Public())
 	}
 	return public, nil
+}
+
+// RawUsers lit les comptes d'une organisation sans les projeter.
+//
+// La projection publique masque ce qui décide des accès — la suspension,
+// l'empreinte du mot de passe — et la gestion de l'équipe a précisément besoin
+// de ces deux-là pour distinguer un compte écarté d'un compte jamais activé.
+func (s *Service) RawUsers(ctx context.Context, orgID string) ([]User, error) {
+	return ddb.Query[User](ctx, s.db, ddb.QuerySpec{
+		PK: ddb.OrgPK(orgID), SKPrefix: "USER#",
+	})
 }
 
 // UserByEmail retrouve un compte par son adresse, toutes organisations

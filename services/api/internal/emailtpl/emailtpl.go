@@ -88,6 +88,10 @@ const (
 	// message du produit où notre nom est légitime : il s'adresse à quelqu'un
 	// qui nous a acheté l'outil, pas à un stagiaire qui ne nous connaît pas.
 	KeyOrgInvitation = "org.invitation"
+	// KeyTeamInvitation ouvre l'accès d'un collègue à l'espace de l'organisme.
+	// Il part sous l'enseigne de l'organisme, comme tout ce qui s'adresse à
+	// ses gens : c'est chez lui qu'on invite, pas chez nous.
+	KeyTeamInvitation = "team.invitation"
 )
 
 // shell est l'habillage commun.
@@ -237,6 +241,37 @@ seule identité.
 </p>`,
 				"Vous recevez ce message parce qu'un espace de formation a été ouvert à votre nom. "+
 					"Si vous n'êtes pas concerné, ignorez-le : sans mot de passe choisi, le compte reste inactif."),
+		},
+		{
+			Key:     KeyTeamInvitation,
+			Label:   "Accès d'un collaborateur",
+			Purpose: "Ouvre l'accès d'un membre de l'équipe à l'espace de l'organisme. Envoyé depuis l'écran Équipe.",
+			Subject: "Votre accès à {{.OrgName}}",
+			Variables: []Variable{
+				logoVariable,
+				brandVariable,
+				accentVariable,
+				inkVariable,
+				{"FirstName", "prénom du collaborateur", "Camille"},
+				{"OrgName", "nom de l'organisme", "Institut Vulcain"},
+				{"RoleLabel", "ce qu'il pourra faire", "administratrice"},
+				{"Link", "lien pour choisir son mot de passe", "https://app.lemlearn.fr/invitation/jeton"},
+			},
+			Body: wrap(`
+<h1 style="margin:0 0 16px;font-size:19px;font-weight:600;letter-spacing:-0.02em">Votre accès à {{.OrgName}}</h1>
+<p style="margin:0 0 20px;font-size:14px;line-height:1.6">Bonjour {{.FirstName}},</p>
+<p style="margin:0 0 20px;font-size:14px;line-height:1.6">
+Un accès vous a été ouvert sur l'espace de <strong>{{.OrgName}}</strong>, en tant
+que {{.RoleLabel}}. Choisissez votre mot de passe pour entrer.
+</p>
+<p style="margin:0 0 24px">
+<a href="{{.Link}}" style="display:inline-block;background:{{.BrandAccent}};color:{{.BrandInk}};text-decoration:none;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500">Choisir mon mot de passe</a>
+</p>
+<p style="margin:0;font-size:12px;line-height:1.6;color:#5b6170">
+Ce lien est personnel et expire dans quatorze jours.
+</p>`,
+				"Vos actions sur cet espace sont journalisées : elles concernent les données "+
+					"personnelles de stagiaires, et chaque accès doit pouvoir être retracé."),
 		},
 		{
 			Key:     KeySurveyCold,

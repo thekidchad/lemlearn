@@ -45,6 +45,7 @@ const groups: { title?: string; items: { href: string; label: string; glyph: str
     title: "Compte",
     items: [
       { href: "/organisme", label: "Votre organisme", glyph: "◉" },
+      { href: "/equipe", label: "Équipe", glyph: "◍" },
       { href: "/abonnement", label: "Abonnement", glyph: "◈" },
     ],
   },

@@ -197,6 +197,18 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/apercu/{template}", handleDocumentPreview(deps))
 				})
 
+				// L'équipe de l'organisme. Ouvrir un accès et le retirer sont
+				// des actes de direction : ils restent aux administrateurs, et
+				// chacun est inscrit au journal de l'organisme.
+				r.Route("/equipe", func(r chi.Router) {
+					r.Get("/", handleListTeam(deps))
+					r.Group(func(r chi.Router) {
+						r.Use(requireRole(identity.Role.CanManageCRM, "réservé aux administrateurs de l'organisme"))
+						r.Post("/", handleInviteTeamMember(deps))
+						r.Patch("/{userID}", handleUpdateTeamMember(deps))
+					})
+				})
+
 				r.Route("/marque", func(r chi.Router) {
 					r.Get("/", handleGetBrand(deps))
 					r.Group(func(r chi.Router) {

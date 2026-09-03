@@ -268,3 +268,15 @@ func (s *Service) copyAsset(ctx context.Context, orgID, assetID string, now time
 	raw["updatedAt"] = now.Format(time.RFC3339Nano)
 	return raw, nil
 }
+
+// DeleteModule retire un module d'une formation de la bibliothèque.
+//
+// Rien ne casse chez les organismes qui ont déjà importé : l'import fabrique
+// une copie, et c'est bien la raison d'être de cette copie — leur convention
+// décrit ce qu'ils dispensent, pas ce que la bibliothèque est devenue depuis.
+func (s *Service) DeleteModule(ctx context.Context, courseID, moduleID string) error {
+	if courseID == "" || moduleID == "" {
+		return fmt.Errorf("la formation et le module sont obligatoires")
+	}
+	return ddb.Delete(ctx, s.db, PlatformPK, moduleSK(courseID, moduleID))
+}

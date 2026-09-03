@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { LibraryCourse } from "@/app/(app)/admin/bibliotheque/page";
@@ -107,7 +108,14 @@ export function LibraryEditor({ courses }: { courses: LibraryCourse[] }) {
             <div key={course.id} className="bg-surface-1 px-4 py-3.5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{course.title}</p>
+                  {/* Le titre mène à la fiche : c'est le seul endroit d'où l'on
+                      donne des modules à une formation, et rien n'y menait. */}
+                  <Link
+                    href={`/admin/bibliotheque/${course.id}`}
+                    className="block truncate text-sm font-medium hover:text-accent-ink hover:underline"
+                  >
+                    {course.title}
+                  </Link>
                   <p className="mt-0.5 font-mono text-2xs text-ink-3">
                     {course.durationHours} h · {(course.objectives ?? []).length} objectif(s)
                     {course.audience ? ` · ${course.audience}` : ""}
@@ -123,11 +131,10 @@ export function LibraryEditor({ courses }: { courses: LibraryCourse[] }) {
                   >
                     {course.published ? "publiée" : "brouillon"}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(course)}
-                    className="h-8 rounded-md border border-line px-2.5 text-xs text-ink-2 hover:border-accent hover:text-ink"
-                  >
+                  <Link href={`/admin/bibliotheque/${course.id}`} className="btn-secondary">
+                    Modules
+                  </Link>
+                  <button type="button" onClick={() => setEditing(course)} className="btn-secondary">
                     Modifier
                   </button>
                   <button

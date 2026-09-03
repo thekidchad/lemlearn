@@ -341,6 +341,7 @@ func NewRouter(deps Deps) http.Handler {
 						r.Put("/{courseID}", handleSaveLibraryCourse(deps))
 						r.Delete("/{courseID}", handleDeleteLibraryCourse(deps))
 						r.Post("/{courseID}/modules", handleSaveLibraryModule(deps))
+						r.Delete("/{courseID}/modules/{moduleID}", handleDeleteLibraryModule(deps))
 					})
 				})
 			})

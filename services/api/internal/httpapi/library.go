@@ -95,6 +95,22 @@ func handleSaveLibraryModule(deps Deps) http.HandlerFunc {
 	}
 }
 
+// handleDeleteLibraryModule retire un module de la bibliothèque.
+func handleDeleteLibraryModule(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if deps.Library == nil {
+			writeError(w, http.StatusServiceUnavailable, "bibliothèque indisponible")
+			return
+		}
+		if err := deps.Library.DeleteModule(r.Context(),
+			chi.URLParam(r, "courseID"), chi.URLParam(r, "moduleID")); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // handleDeleteLibraryCourse retire une formation de la bibliothèque.
 func handleDeleteLibraryCourse(deps Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

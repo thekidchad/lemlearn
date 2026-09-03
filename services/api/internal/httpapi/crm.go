@@ -76,7 +76,13 @@ func handleListContacts(deps Deps) http.HandlerFunc {
 		}
 
 		limite, curseur := pageParams(r)
-		page, err := deps.CRM.ListContactsPage(r.Context(), session.OrgID, kind, limite, curseur)
+		filtre := crm.FiltreContacts{
+			Terme:        r.URL.Query().Get("q"),
+			Source:       r.URL.Query().Get("source"),
+			AvecCourriel: r.URL.Query().Get("joignables") == "1",
+		}
+		page, err := deps.CRM.FilterContactsPage(
+			r.Context(), session.OrgID, kind, filtre, limite, curseur)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

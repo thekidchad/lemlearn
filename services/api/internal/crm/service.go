@@ -143,6 +143,82 @@ func (s *Service) ListContactsPage(ctx context.Context, orgID string, kind Kind,
 	}, cursor)
 }
 
+// FiltreContacts borne une liste de contacts.
+//
+// Les filtres s'appliquent après lecture de la page plutôt qu'en expression
+// DynamoDB : le service facture et compte la page *avant* de filtrer, si bien
+// qu'une page « pleine » pourrait ne rendre aucune ligne retenue — ce qui se
+// lit comme une liste vide alors qu'il reste des fiches. En filtrant ici, on
+// garde la main : on continue de lire tant que la page demandée n'est pas
+// remplie ou que la nature n'est pas épuisée.
+type FiltreContacts struct {
+	// Terme cherche dans le nom, la raison sociale, l'adresse et le téléphone.
+	Terme string
+	// Source restreint à une origine d'acquisition.
+	Source string
+	// AvecCourriel ne garde que les fiches joignables, celles qu'on peut
+	// inviter.
+	AvecCourriel bool
+}
+
+// Vide dit si le filtre ne restreint rien.
+func (f FiltreContacts) Vide() bool {
+	return strings.TrimSpace(f.Terme) == "" && strings.TrimSpace(f.Source) == "" && !f.AvecCourriel
+}
+
+// retient applique le filtre à une fiche.
+func (f FiltreContacts) retient(c Contact) bool {
+	if f.AvecCourriel && strings.TrimSpace(c.Email) == "" {
+		return false
+	}
+	if source := strings.ToLower(strings.TrimSpace(f.Source)); source != "" {
+		if !strings.Contains(strings.ToLower(c.MarketingSource), source) {
+			return false
+		}
+	}
+	if terme := strings.ToLower(strings.TrimSpace(f.Terme)); terme != "" {
+		foin := strings.ToLower(strings.Join([]string{
+			c.DisplayName(), c.Email, c.CompanyName, c.Phone, c.SIRET,
+			c.Address.City, c.Address.PostalCode,
+		}, " "))
+		if !strings.Contains(foin, terme) {
+			return false
+		}
+	}
+	return true
+}
+
+// FilterContactsPage lit une tranche filtrée.
+//
+// Le parcours est borné : au-delà, on rend ce qu'on a avec son curseur plutôt
+// que de tenir la requête ouverte sur une nature qui n'a plus rien à donner.
+func (s *Service) FilterContactsPage(
+	ctx context.Context, orgID string, kind Kind, filtre FiltreContacts, limit int32, cursor string,
+) (ddb.Page[Contact], error) {
+	if filtre.Vide() {
+		return s.ListContactsPage(ctx, orgID, kind, limit, cursor)
+	}
+
+	retenues := make([]Contact, 0, limit)
+	suivant := cursor
+	for tours := 0; tours < 20 && int32(len(retenues)) < limit; tours++ {
+		page, err := s.ListContactsPage(ctx, orgID, kind, limit, suivant)
+		if err != nil {
+			return ddb.Page[Contact]{}, err
+		}
+		for _, contact := range page.Items {
+			if filtre.retient(contact) {
+				retenues = append(retenues, contact)
+			}
+		}
+		suivant = page.Cursor
+		if suivant == "" {
+			break
+		}
+	}
+	return ddb.Page[Contact]{Items: retenues, Cursor: suivant}, nil
+}
+
 // ListFilesByStagePage lit une tranche de dossiers d'une étape.
 func (s *Service) ListFilesByStagePage(ctx context.Context, orgID string, stage Stage, limit int32, cursor string) (ddb.Page[File], error) {
 	return ddb.QueryPage[File](ctx, s.db, ddb.QuerySpec{

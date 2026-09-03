@@ -25,6 +25,8 @@ interface Course {
   title: string;
   positioningQuizId?: string;
   finalQuizId?: string;
+  objectiveType?: string;
+  certificationCode?: string;
   goal?: string;
   objectives?: string[] | null;
   prerequisites?: string;
@@ -42,10 +44,13 @@ export function CourseForm({
   courseId,
   course,
   quizzes,
+  objectifs,
 }: {
   courseId: string;
   course: Course;
   quizzes: Quiz[];
+  /** Les intitulés du cadre F du bilan, servis par l'API. */
+  objectifs: { code: string; label: string }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -84,6 +89,8 @@ export function CourseForm({
             .filter(Boolean),
           positioningQuizId: String(form.get("positioningQuizId") ?? ""),
           finalQuizId: String(form.get("finalQuizId") ?? ""),
+          objectiveType: String(form.get("objectiveType") ?? ""),
+          certificationCode: String(form.get("certificationCode") ?? ""),
         }),
       });
       const body = (await response.json()) as { error?: string };
@@ -157,6 +164,34 @@ export function CourseForm({
           name="tags"
           defaultValue={(course.tags ?? []).join(", ")}
           hint="Séparées par des virgules."
+        />
+
+        {/* Ce que le bilan annuel réclamera de la formation elle-même, et le
+            code sans lequel elle ne peut pas être rattachée à une
+            certification de France Compétences. */}
+        <label className="block">
+          <span className="eyebrow">Objectif de la formation</span>
+          <select
+            name="objectiveType"
+            defaultValue={course.objectiveType ?? ""}
+            className="field mt-1.5"
+          >
+            <option value="">À préciser</option>
+            {objectifs.map((objectif) => (
+              <option key={objectif.code} value={objectif.code}>
+                {objectif.label}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-2xs text-ink-3">
+            Cadre F du bilan pédagogique et financier.
+          </span>
+        </label>
+        <Champ
+          label="Code de certification (RNCP ou RS)"
+          name="certificationCode"
+          defaultValue={course.certificationCode}
+          hint="Par exemple RS6792. Sans lui, le CPF est fermé à cette formation."
         />
 
         {/* Les deux bornes de l'évaluation. Elles décident déjà si une

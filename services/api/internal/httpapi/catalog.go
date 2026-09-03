@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/lemlearn/api/internal/bpf"
 	"github.com/lemlearn/api/internal/catalog"
 )
 
@@ -29,6 +31,8 @@ func handleCreateCourse(deps Deps) http.HandlerFunc {
 		// Qualiopi, et celle de sortie, qui conditionne l'attestation.
 		PositioningQuizID string `json:"positioningQuizId"`
 		FinalQuizID       string `json:"finalQuizId"`
+		ObjectiveType     string `json:"objectiveType"`
+		CertificationCode string `json:"certificationCode"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +59,8 @@ func handleCreateCourse(deps Deps) http.HandlerFunc {
 		course.Published = body.Published
 		course.PositioningQuizID = body.PositioningQuizID
 		course.FinalQuizID = body.FinalQuizID
+		course.ObjectiveType = body.ObjectiveType
+		course.CertificationCode = body.CertificationCode
 
 		created, err := deps.Catalog.CreateCourse(r.Context(), course)
 		if err != nil {
@@ -272,6 +278,13 @@ func handleEnroll(deps Deps) http.HandlerFunc {
 	type request struct {
 		ContactID string `json:"contactId"`
 		FileID    string `json:"fileId"`
+		// Ce que réclameront la convention et le bilan.
+		TraineeType    string  `json:"traineeType"`
+		ContractStart  string  `json:"contractStart"`
+		ContractEnd    string  `json:"contractEnd"`
+		HoursElearning float64 `json:"hoursElearning"`
+		HoursRemote    float64 `json:"hoursRemote"`
+		HoursOnSite    float64 `json:"hoursOnSite"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -287,10 +300,25 @@ func handleEnroll(deps Deps) http.HandlerFunc {
 			return
 		}
 
+		// Le type de stagiaire est vérifié à la saisie plutôt qu'au dépôt du
+		// bilan : une valeur inconnue passerait inaperçue jusqu'en avril, et
+		// ressortirait alors comme une ligne « non classée » qu'il faudrait
+		// reconstituer un an après.
+		if body.TraineeType != "" && !bpf.TypeStagiaire(body.TraineeType).Valid() {
+			writeError(w, http.StatusBadRequest, "type de stagiaire inconnu du bilan")
+			return
+		}
+
 		enrollment, err := deps.Catalog.Enroll(r.Context(), catalog.EnrollInput{
 			OrgID: session.OrgID, SessionID: chi.URLParam(r, "sessionID"),
 			ContactID: body.ContactID, FileID: body.FileID,
-			Actor: actorFrom(r, user.FullName()),
+			TraineeType:    body.TraineeType,
+			ContractStart:  jourOuRien(body.ContractStart),
+			ContractEnd:    jourOuRien(body.ContractEnd),
+			HoursElearning: body.HoursElearning,
+			HoursRemote:    body.HoursRemote,
+			HoursOnSite:    body.HoursOnSite,
+			Actor:          actorFrom(r, user.FullName()),
 		})
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -314,4 +342,20 @@ func handleListEnrollments(deps Deps) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"enrollments": list(enrollments)})
 	}
+}
+
+// jourOuRien lit une date au format AAAA-MM-JJ, ou rend rien.
+//
+// Rien plutôt qu'une date par défaut : une période de contrat inventée
+// figurerait telle quelle sur la convention, et personne ne verrait qu'elle a
+// été devinée.
+func jourOuRien(valeur string) *time.Time {
+	if strings.TrimSpace(valeur) == "" {
+		return nil
+	}
+	jour, err := time.Parse("2006-01-02", valeur)
+	if err != nil {
+		return nil
+	}
+	return &jour
 }

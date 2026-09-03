@@ -59,6 +59,27 @@ type Bilan struct {
 	// renseignée. Les taire produirait un bilan faux d'apparence complète ;
 	// les nommer permet de les corriger avant de déclarer.
 	SansOrigine []string `json:"sansOrigine,omitempty"`
+
+	// ParTypeStagiaire et ParObjectif sont les cadres E et F : qui a été
+	// formé, et à quoi servait la formation. Ils manquaient entièrement — le
+	// bilan s'arrêtait à l'argent, c'est-à-dire à la moitié du formulaire.
+	ParTypeStagiaire []LigneVentilation `json:"parTypeStagiaire,omitempty"`
+	ParObjectif      []LigneVentilation `json:"parObjectif,omitempty"`
+
+	// SansTypeStagiaire et SansObjectif nomment ce qui n'a pas été classé.
+	// Une ventilation qui range les inconnus dans « autres » ferait déposer un
+	// chiffre faux sans que personne ne s'en aperçoive.
+	SansTypeStagiaire int      `json:"sansTypeStagiaire,omitempty"`
+	SansObjectif      []string `json:"sansObjectif,omitempty"`
+}
+
+// LigneVentilation est une ligne des cadres E ou F : un intitulé, un nombre de
+// stagiaires, et les heures-stagiaires correspondantes.
+type LigneVentilation struct {
+	Code            string  `json:"code"`
+	Label           string  `json:"label"`
+	Stagiaires      int     `json:"stagiaires"`
+	HeuresStagiaire float64 `json:"heuresStagiaire"`
 }
 
 // Libelles donne le nom de chaque origine, tel qu'il figure au formulaire.
@@ -145,6 +166,10 @@ func Compute(ctx context.Context, deps Deps, orgID string, annee int) (Bilan, er
 	if err != nil {
 		return Bilan{}, err
 	}
+	parType := map[TypeStagiaire]*LigneVentilation{}
+	parObjectif := map[Objectif]*LigneVentilation{}
+	sansObjectif := map[string]bool{}
+
 	for _, session := range sessions {
 		if session.StartsAt.Before(debut) || !session.StartsAt.Before(fin) {
 			continue
@@ -160,7 +185,55 @@ func Compute(ctx context.Context, deps Deps, orgID string, annee int) (Bilan, er
 		bilan.Sessions++
 		bilan.Stagiaires += len(enrollments)
 		bilan.HeuresStagiaire += float64(len(enrollments)) * course.DurationHours
+
+		// L'objectif est porté par la formation : toutes ses inscriptions
+		// tombent dans la même ligne du cadre F.
+		objectif := Objectif(course.ObjectiveType)
+		if !objectif.Valid() {
+			if len(enrollments) > 0 {
+				sansObjectif[course.Title] = true
+			}
+		} else {
+			ligne := parObjectif[objectif]
+			if ligne == nil {
+				ligne = &LigneVentilation{Code: string(objectif), Label: LibellesObjectif[objectif]}
+				parObjectif[objectif] = ligne
+			}
+			ligne.Stagiaires += len(enrollments)
+			ligne.HeuresStagiaire += float64(len(enrollments)) * course.DurationHours
+		}
+
+		// Le type de stagiaire, lui, se compte inscription par inscription.
+		for _, enrollment := range enrollments {
+			nature := TypeStagiaire(enrollment.TraineeType)
+			if !nature.Valid() {
+				bilan.SansTypeStagiaire++
+				continue
+			}
+			ligne := parType[nature]
+			if ligne == nil {
+				ligne = &LigneVentilation{Code: string(nature), Label: LibellesStagiaire[nature]}
+				parType[nature] = ligne
+			}
+			ligne.Stagiaires++
+			ligne.HeuresStagiaire += course.DurationHours
+		}
 	}
+
+	for _, nature := range OrdreStagiaire {
+		if ligne := parType[nature]; ligne != nil {
+			bilan.ParTypeStagiaire = append(bilan.ParTypeStagiaire, *ligne)
+		}
+	}
+	for _, objectif := range OrdreObjectif {
+		if ligne := parObjectif[objectif]; ligne != nil {
+			bilan.ParObjectif = append(bilan.ParObjectif, *ligne)
+		}
+	}
+	for titre := range sansObjectif {
+		bilan.SansObjectif = append(bilan.SansObjectif, titre)
+	}
+	sort.Strings(bilan.SansObjectif)
 
 	sort.Strings(bilan.SansOrigine)
 	return bilan, nil

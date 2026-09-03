@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/lemlearn/api/internal/bpf"
 	"github.com/lemlearn/api/internal/catalog"
 	"github.com/lemlearn/api/internal/platform/audit"
 )
@@ -140,6 +141,9 @@ func handleUpdateCourse(deps Deps) http.HandlerFunc {
 		// vides partout, et ces deux conditions ne s'appliquaient donc jamais.
 		PositioningQuizID *string `json:"positioningQuizId"`
 		FinalQuizID       *string `json:"finalQuizId"`
+		// L'objectif au sens du bilan, et le code de la certification visée.
+		ObjectiveType     *string `json:"objectiveType"`
+		CertificationCode *string `json:"certificationCode"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -148,6 +152,11 @@ func handleUpdateCourse(deps Deps) http.HandlerFunc {
 
 		var body request
 		if !decodeJSON(w, r, &body) {
+			return
+		}
+		if body.ObjectiveType != nil && *body.ObjectiveType != "" &&
+			!bpf.Objectif(*body.ObjectiveType).Valid() {
+			writeError(w, http.StatusBadRequest, "objectif inconnu du bilan pédagogique et financier")
 			return
 		}
 
@@ -168,6 +177,8 @@ func handleUpdateCourse(deps Deps) http.HandlerFunc {
 				poser(&course.Accessibility, body.Accessibility)
 				poser(&course.PositioningQuizID, body.PositioningQuizID)
 				poser(&course.FinalQuizID, body.FinalQuizID)
+				poser(&course.ObjectiveType, body.ObjectiveType)
+				poser(&course.CertificationCode, body.CertificationCode)
 				if body.Objectives != nil {
 					course.Objectives = *body.Objectives
 				}

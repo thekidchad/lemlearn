@@ -31,6 +31,8 @@ interface Course {
   /** Les deux évaluations qui bornent le parcours et conditionnent l'attestation. */
   positioningQuizId?: string;
   finalQuizId?: string;
+  objectiveType?: string;
+  certificationCode?: string;
 }
 
 interface Module {
@@ -54,6 +56,11 @@ export default async function CoursePage({ params }: PageProps<"/catalogue/[cour
     if (error instanceof ApiError && error.status === 404) notFound();
     throw error;
   }
+
+  const typologies = await apiFetch<{
+    stagiaires: { code: string; label: string }[];
+    objectifs: { code: string; label: string }[];
+  }>("/v1/organisme/typologies").catch(() => ({ stagiaires: [], objectifs: [] }));
 
   const { quizzes } = await apiFetch<{ quizzes: Quiz[] }>("/v1/quizzes").catch(() => ({
     quizzes: [] as Quiz[],
@@ -126,7 +133,12 @@ export default async function CoursePage({ params }: PageProps<"/catalogue/[cour
             le geste qu'on vient faire ici une fois le programme écrit. */}
         <div className="mt-4 flex flex-wrap items-start gap-3">
           <CoursePublish courseId={courseId} published={data.course.published} />
-          <CourseForm courseId={courseId} course={data.course} quizzes={quizzes} />
+          <CourseForm
+            courseId={courseId}
+            course={data.course}
+            quizzes={quizzes}
+            objectifs={typologies.objectifs}
+          />
         </div>
 
         <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-3">

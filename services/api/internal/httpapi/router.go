@@ -62,11 +62,11 @@ type Deps struct {
 	// Brand porte l'identité visible de chaque organisme, et Assets le
 	// compartiment public où vivent les logos. La marque blanche tient à ces
 	// deux-là : sans le second, on sait quoi afficher mais pas où le prendre.
-	Brand  *brand.Service
-	Assets Presigner
-	Library     *library.Service
-	Stripe      *billing.Stripe
-	Clock       func() time.Time
+	Brand   *brand.Service
+	Assets  Presigner
+	Library *library.Service
+	Stripe  *billing.Stripe
+	Clock   func() time.Time
 }
 
 // Now renvoie l'heure courante, injectable pour les tests.
@@ -188,6 +188,9 @@ func NewRouter(deps Deps) http.Handler {
 					// obligations que le produit peut remplir à partir de ce
 					// qu'il détient déjà.
 					r.Get("/bilan", handleBPF(deps))
+					// Les listes du formulaire, servies au lieu d'être
+					// recopiées dans chaque écran qui les propose.
+					r.Get("/typologies", handleTypologies(deps))
 					r.Get("/reglement", handleReglement(deps))
 					// Aperçu d'un gabarit, sous l'identité réelle de
 					// l'organisme : contenu fictif, mais en-tête, logo et

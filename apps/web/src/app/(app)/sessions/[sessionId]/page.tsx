@@ -81,6 +81,13 @@ export default async function AttendancePage({ params }: PageProps<"/sessions/[s
     ]),
   );
 
+  // Les listes du formulaire viennent du serveur : ce sont les intitulés du
+  // Cerfa, ils changent de millésime, et deux copies finiraient par diverger.
+  const typologies = await apiFetch<{
+    stagiaires: { code: string; label: string }[];
+    objectifs: { code: string; label: string }[];
+  }>("/v1/organisme/typologies").catch(() => ({ stagiaires: [], objectifs: [] }));
+
   const entries = data.entries ?? [];
   const enrollments = data.enrollments ?? [];
   const byCell = new Map(entries.map((entry) => [`${entry.slotId}|${entry.contactId}`, entry]));
@@ -116,13 +123,56 @@ export default async function AttendancePage({ params }: PageProps<"/sessions/[s
               <input
                 name="fileId"
                 placeholder="Identifiant du dossier"
-                className="h-9 w-full rounded-lg border border-line bg-surface-0 px-3 font-mono text-xs outline-none focus:border-accent"
+                className="field font-mono text-xs"
               />
               <span className="mt-1 block text-2xs text-ink-3">
                 Sans dossier, l&apos;inscription existe mais n&apos;alimente aucune
                 chaîne de preuve.
               </span>
             </label>
+
+            {/* Ce que réclameront la convention et le bilan annuel. Saisi ici,
+                pendant qu'on le sait. */}
+            <label className="block">
+              <span className="mb-1 block text-2xs text-ink-3">Nature du stagiaire</span>
+              <select name="traineeType" defaultValue="" className="field">
+                <option value="">À préciser</option>
+                {typologies.stagiaires.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-2xs text-ink-3">
+                Cadre E du bilan pédagogique et financier.
+              </span>
+            </label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-2xs text-ink-3">Début du contrat</span>
+                <input name="contractStart" type="date" className="field" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-2xs text-ink-3">Fin du contrat</span>
+                <input name="contractEnd" type="date" className="field" />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-2xs text-ink-3">Heures e-learning</span>
+                <input name="hoursElearning" type="number" min={0} step="0.5" className="field" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-2xs text-ink-3">Heures à distance</span>
+                <input name="hoursRemote" type="number" min={0} step="0.5" className="field" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-2xs text-ink-3">Heures en présentiel</span>
+                <input name="hoursOnSite" type="number" min={0} step="0.5" className="field" />
+              </label>
+            </div>
           </CreatePanel>
 
           <CloseSessionButton sessionId={sessionId} />

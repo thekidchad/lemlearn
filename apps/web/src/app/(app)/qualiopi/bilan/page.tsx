@@ -20,6 +20,10 @@ interface Bilan {
   heuresStagiaire: number;
   sessions: number;
   sansOrigine?: string[] | null;
+  parTypeStagiaire?: LigneVentilation[] | null;
+  parObjectif?: LigneVentilation[] | null;
+  sansTypeStagiaire?: number;
+  sansObjectif?: string[] | null;
 }
 
 /**
@@ -39,6 +43,9 @@ export default async function BilanPage({ searchParams }: PageProps<"/qualiopi/b
 
   const annees = [bilan.annee + 1, bilan.annee, bilan.annee - 1, bilan.annee - 2];
   const produits = bilan.produits ?? [];
+  const parType = bilan.parTypeStagiaire ?? [];
+  const parObjectif = bilan.parObjectif ?? [];
+  const sansObjectif = bilan.sansObjectif ?? [];
   const manquants = bilan.sansOrigine ?? [];
 
   return (
@@ -142,11 +149,35 @@ export default async function BilanPage({ searchParams }: PageProps<"/qualiopi/b
           </div>
         )}
 
+        {/* Les deux ventilations que le formulaire réclame en plus de
+            l'argent : qui a été formé, et à quoi servait la formation. */}
+        <Ventilation
+          titre="Stagiaires par nature"
+          aide="Cadre E. La nature se saisit à l'inscription — c'est le seul moment où elle est connue avec certitude."
+          lignes={parType}
+          alerte={
+            (bilan.sansTypeStagiaire ?? 0) > 0
+              ? `${bilan.sansTypeStagiaire} inscription${(bilan.sansTypeStagiaire ?? 0) > 1 ? "s" : ""} sans nature renseignée. Elles ne sont comptées nulle part plutôt que rangées d'office en « autres » : un chiffre inventé se déclare sans qu'on le voie.`
+              : undefined
+          }
+        />
+
+        <Ventilation
+          titre="Objectif des formations"
+          aide="Cadre F. L'objectif se renseigne sur la formation, dans son programme."
+          lignes={parObjectif}
+          alerte={
+            sansObjectif.length > 0
+              ? `${sansObjectif.length} formation${sansObjectif.length > 1 ? "s" : ""} sans objectif : ${sansObjectif.slice(0, 6).join(", ")}${sansObjectif.length > 6 ? "…" : ""}`
+              : undefined
+          }
+        />
+
         <p className="mt-8 text-2xs text-ink-3">
           Ces nombres se reportent sur le formulaire Cerfa 10443, ou se saisissent
           directement sur le portail Mon Activité Formation. Les charges et le
-          personnel formateur — cadres D et E — ne sont pas connus du produit et
-          restent à votre comptabilité.
+          personnel formateur ne sont pas connus du produit et restent à votre
+          comptabilité.
         </p>
       </div>
     </>
@@ -166,4 +197,59 @@ function Chiffre({ label, value }: { label: string; value: string }) {
 
 function euros(montant: number): string {
   return montant.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+}
+
+/** Une ventilation du bilan : des lignes, et ce qui n'a pas pu être classé. */
+function Ventilation({
+  titre,
+  aide,
+  lignes,
+  alerte,
+}: {
+  titre: string;
+  aide: string;
+  lignes: LigneVentilation[];
+  alerte?: string;
+}) {
+  return (
+    <section className="mt-8">
+      <h2 className="text-sm font-medium">{titre}</h2>
+      <p className="mt-1 max-w-xl text-2xs text-ink-3">{aide}</p>
+
+      {lignes.length === 0 ? (
+        <p className="mt-4 text-sm text-ink-3">Rien de classé sur cet exercice.</p>
+      ) : (
+        <div className="mt-4 space-y-px overflow-hidden rounded-xl border border-line bg-line">
+          {lignes.map((ligne) => (
+            <div
+              key={ligne.code}
+              className="flex items-center justify-between gap-4 bg-surface-1 px-4 py-3"
+            >
+              <span className="min-w-0 flex-1 text-sm">{ligne.label}</span>
+              <span className="shrink-0 text-2xs text-ink-3" data-numeric>
+                {ligne.stagiaires} stagiaire{ligne.stagiaires > 1 ? "s" : ""}
+              </span>
+              <span className="w-28 shrink-0 text-right text-sm" data-numeric>
+                {Math.round(ligne.heuresStagiaire)} h
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {alerte && (
+        <div className="mt-4 rounded-xl border border-warn/40 bg-warn/10 p-4">
+          <p className="text-2xs text-ink-2">{alerte}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Une ligne des cadres E ou F. */
+interface LigneVentilation {
+  code: string;
+  label: string;
+  stagiaires: number;
+  heuresStagiaire: number;
 }

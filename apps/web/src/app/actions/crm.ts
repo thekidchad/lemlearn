@@ -158,7 +158,19 @@ export async function enroll(_: FormState, form: FormData): Promise<FormState> {
   const sessionId = text(form, "sessionId");
   return submit(
     `/v1/sessions/${sessionId}/enrollments`,
-    { contactId: text(form, "contactId"), fileId: text(form, "fileId") },
+    {
+      contactId: text(form, "contactId"),
+      fileId: text(form, "fileId"),
+      // La nature du stagiaire et la période du contrat se saisissent ici,
+      // pendant qu'on les connaît : les reconstituer au moment du bilan, un an
+      // plus tard, revient à les inventer.
+      traineeType: text(form, "traineeType"),
+      contractStart: text(form, "contractStart"),
+      contractEnd: text(form, "contractEnd"),
+      hoursElearning: number(form, "hoursElearning"),
+      hoursRemote: number(form, "hoursRemote"),
+      hoursOnSite: number(form, "hoursOnSite"),
+    },
     `/sessions/${sessionId}`,
   );
 }

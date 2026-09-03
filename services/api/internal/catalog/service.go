@@ -151,7 +151,19 @@ type EnrollInput struct {
 	SessionID string
 	ContactID string
 	FileID    string
-	Actor     audit.Actor
+
+	// Ce que la convention doit porter et que le bilan réclamera : la nature
+	// du stagiaire, la période du contrat, la ventilation des heures. Vides,
+	// ils ne bloquent pas l'inscription — on inscrit d'abord, on complète
+	// ensuite — mais la convention et le bilan les redemanderont.
+	TraineeType    string
+	ContractStart  *time.Time
+	ContractEnd    *time.Time
+	HoursElearning float64
+	HoursRemote    float64
+	HoursOnSite    float64
+
+	Actor audit.Actor
 }
 
 // Enroll inscrit un apprenant à une session.
@@ -171,6 +183,11 @@ func (s *Service) Enroll(ctx context.Context, in EnrollInput) (Enrollment, error
 	now := s.now()
 	enrollment := NewEnrollment(in.OrgID, in.SessionID, in.ContactID, session.StartsAt, now)
 	enrollment.FileID = in.FileID
+	enrollment.TraineeType = in.TraineeType
+	enrollment.ContractStart, enrollment.ContractEnd = in.ContractStart, in.ContractEnd
+	enrollment.HoursElearning = in.HoursElearning
+	enrollment.HoursRemote = in.HoursRemote
+	enrollment.HoursOnSite = in.HoursOnSite
 
 	if in.FileID == "" {
 		// Sans dossier, l'inscription existe quand même — un organisme peut

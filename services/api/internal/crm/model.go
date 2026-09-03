@@ -221,6 +221,14 @@ type File struct {
 	Stage     Stage  `dynamodbav:"stage" json:"stage"`
 
 	LearnerID string `dynamodbav:"learnerId,omitempty" json:"learnerId,omitempty"`
+	// CatalogPriceHT et DiscountHT expliquent le prix : PriceHT est le net,
+	// celui qui figure à la convention et qu'on facture. Sans le prix
+	// catalogue ni la remise, une ristourne consentie au téléphone ne laisse
+	// aucune trace, et personne ne sait six mois plus tard si le tarif
+	// affiché a bougé ou si un geste a été fait.
+	CatalogPriceHT float64 `dynamodbav:"catalogPriceHt,omitempty" json:"catalogPriceHT,omitempty"`
+	DiscountHT     float64 `dynamodbav:"discountHt,omitempty" json:"discountHT,omitempty"`
+
 	CompanyID string `dynamodbav:"companyId,omitempty" json:"companyId,omitempty"`
 	FunderID  string `dynamodbav:"funderId,omitempty" json:"funderId,omitempty"`
 	CourseID  string `dynamodbav:"courseId,omitempty" json:"courseId,omitempty"`
@@ -234,8 +242,8 @@ type File struct {
 	// personne ne se souvient si telle formation a été payée par l'OPCO ou par
 	// l'entreprise elle-même.
 	Funding FundingSource `dynamodbav:"funding,omitempty" json:"funding,omitempty"`
-	VATRate float64 `dynamodbav:"vatRate" json:"vatRate"`
-	OwnerID string  `dynamodbav:"ownerId,omitempty" json:"ownerId,omitempty"`
+	VATRate float64       `dynamodbav:"vatRate" json:"vatRate"`
+	OwnerID string        `dynamodbav:"ownerId,omitempty" json:"ownerId,omitempty"`
 
 	// Tags libres : #présentiel, #distanciel, #certification, #OPCO-validé…
 	Tags []string `dynamodbav:"tags,omitempty" json:"tags,omitempty"`

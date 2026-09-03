@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"github.com/lemlearn/api/internal/bpf"
 	"net/http"
 	"strings"
 
@@ -103,5 +104,31 @@ func handleSaveOrgLegal(deps Deps) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"org": org.Public()})
+	}
+}
+
+// handleTypologies rend les deux listes du bilan pédagogique et financier.
+//
+// Elles viennent du serveur plutôt que d'être recopiées dans l'écran : ce sont
+// les intitulés du formulaire, ils changent de millésime en millésime, et deux
+// copies finiraient par diverger — celle qu'on affiche et celle qu'on dépose.
+func handleTypologies(deps Deps) http.HandlerFunc {
+	type option struct {
+		Code  string `json:"code"`
+		Label string `json:"label"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		stagiaires := make([]option, 0, len(bpf.OrdreStagiaire))
+		for _, nature := range bpf.OrdreStagiaire {
+			stagiaires = append(stagiaires, option{string(nature), bpf.LibellesStagiaire[nature]})
+		}
+		objectifs := make([]option, 0, len(bpf.OrdreObjectif))
+		for _, objectif := range bpf.OrdreObjectif {
+			objectifs = append(objectifs, option{string(objectif), bpf.LibellesObjectif[objectif]})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"stagiaires": stagiaires,
+			"objectifs":  objectifs,
+		})
 	}
 }

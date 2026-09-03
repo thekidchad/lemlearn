@@ -62,6 +62,15 @@ type Course struct {
 	PriceHT       float64  `dynamodbav:"priceHT" json:"priceHT"`
 	Tags          []string `dynamodbav:"tags,omitempty" json:"tags,omitempty"`
 
+	// ObjectiveType classe la formation au sens du cadre F du bilan
+	// pédagogique et financier : diplôme, CQP, répertoire spécifique, bilan de
+	// compétences… Il ne dépend pas de l'inscrit, donc il vit ici.
+	ObjectiveType string `dynamodbav:"objectiveType,omitempty" json:"objectiveType,omitempty"`
+	// CertificationCode est le code RNCP ou RS de la certification visée.
+	// Sans lui, une formation ne peut pas être rattachée à une certification
+	// de France Compétences, et le CPF lui est fermé.
+	CertificationCode string `dynamodbav:"certificationCode,omitempty" json:"certificationCode,omitempty"`
+
 	// PositioningQuizID est l'évaluation d'entrée, exigée par Qualiopi.
 	PositioningQuizID string `dynamodbav:"positioningQuizId,omitempty" json:"positioningQuizId,omitempty"`
 	// FinalQuizID est l'évaluation de sortie, qui conditionne l'attestation.
@@ -287,6 +296,24 @@ type Enrollment struct {
 	ContactID string `dynamodbav:"contactId" json:"contactId"`
 	// FileID relie l'inscription au dossier, donc à sa chaîne de preuve.
 	FileID string `dynamodbav:"fileId,omitempty" json:"fileId,omitempty"`
+
+	// TraineeType classe l'inscrit au sens du cadre E du bilan : salarié du
+	// privé, apprenti, demandeur d'emploi, particulier… Il dépend de la
+	// personne et de sa situation le jour de l'inscription, pas de la
+	// formation — le reconstituer un an plus tard revient à l'inventer.
+	TraineeType string `dynamodbav:"traineeType,omitempty" json:"traineeType,omitempty"`
+
+	// La période du contrat de formation, qui n'est pas celle de la session :
+	// un parcours à distance s'ouvre pour un temps donné, et c'est cette
+	// période-là qui figure au contrat et borne l'accès.
+	ContractStart *time.Time `dynamodbav:"contractStart,omitempty" json:"contractStart,omitempty"`
+	ContractEnd   *time.Time `dynamodbav:"contractEnd,omitempty" json:"contractEnd,omitempty"`
+
+	// La ventilation des heures par modalité. La convention doit la porter, et
+	// une durée totale sans détail ne permet pas de la rédiger.
+	HoursElearning float64 `dynamodbav:"hoursElearning,omitempty" json:"hoursElearning,omitempty"`
+	HoursRemote    float64 `dynamodbav:"hoursRemote,omitempty" json:"hoursRemote,omitempty"`
+	HoursOnSite    float64 `dynamodbav:"hoursOnSite,omitempty" json:"hoursOnSite,omitempty"`
 
 	Status      EnrollmentStatus `dynamodbav:"status" json:"status"`
 	EnrolledAt  time.Time        `dynamodbav:"enrolledAt" json:"enrolledAt"`

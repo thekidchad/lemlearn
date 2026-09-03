@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContactForm } from "@/components/app/contact-form";
+import { ContactSuivi } from "@/components/app/contact-suivi";
 import { IdentityDoc } from "@/components/app/identity-doc";
 import { LearnerAccess } from "@/components/app/learner-access";
 import { apiFetch, ApiError, contactName, type Contact, type FileRecord } from "@/lib/api";
@@ -24,6 +25,15 @@ export default async function ContactPage({ params }: PageProps<"/stagiaires/[co
     if (error instanceof ApiError && error.status === 404) notFound();
     throw error;
   }
+
+  // L'équipe, pour pouvoir assigner un rappel à quelqu'un.
+  const { membres } = await apiFetch<{
+    membres: { id: string; firstName: string; lastName: string; email: string }[] | null;
+  }>("/v1/equipe").catch(() => ({ membres: null }));
+  const equipe = (membres ?? []).map((membre) => ({
+    id: membre.id,
+    nom: [membre.firstName, membre.lastName].filter(Boolean).join(" ") || membre.email,
+  }));
 
   // Les dossiers où l'apprenant figure : c'est par là qu'on remonte à sa
   // formation, et c'est la question qu'on se pose en ouvrant une fiche.
@@ -67,6 +77,10 @@ export default async function ContactPage({ params }: PageProps<"/stagiaires/[co
         )}
 
         <ContactForm contact={contact} />
+
+        {/* Ce qu'on a dit, ce qu'on doit faire, ce qu'on a reçu. Les trois
+            choses qu'on ouvre le plus souvent sur une fiche. */}
+        <ContactSuivi contactId={contactId} membres={equipe} />
 
         {contact.kind === "learner" && !contact.anonymized && (
           <>

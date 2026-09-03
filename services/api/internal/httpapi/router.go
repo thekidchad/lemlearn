@@ -169,6 +169,19 @@ func NewRouter(deps Deps) http.Handler {
 
 					// Pièce d'identité : elle ne transite jamais par l'API,
 					// et son lien de lecture vit une minute.
+					// Le suivi d'une fiche : ce qu'on a dit, ce qu'on doit
+					// faire, ce qu'on a reçu.
+					r.Get("/{contactID}/suivi", handleSuivi(deps))
+					r.Post("/{contactID}/notes", handleAddNote(deps))
+					r.Delete("/{contactID}/notes/{noteID}", handleDeleteNote(deps))
+					r.Post("/{contactID}/rappels", handleAddRappel(deps))
+					r.Patch("/{contactID}/rappels/{rappelID}", handleCloseRappel(deps))
+					r.Delete("/{contactID}/rappels/{rappelID}", handleDeleteRappel(deps))
+					r.Post("/{contactID}/pieces", handlePreparePiece(deps))
+					r.Put("/{contactID}/pieces", handleAttachPiece(deps))
+					r.Get("/{contactID}/pieces/{pieceID}", handlePieceURL(deps))
+					r.Delete("/{contactID}/pieces/{pieceID}", handleDeletePiece(deps))
+
 					r.Post("/{contactID}/piece-identite", handlePrepareIdentityDoc(deps))
 					r.Put("/{contactID}/piece-identite", handleAttachIdentityDoc(deps))
 					r.Get("/{contactID}/piece-identite", handleIdentityDocURL(deps))

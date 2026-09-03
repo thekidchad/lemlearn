@@ -25,6 +25,28 @@ export function CoursePublish({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Le geste le plus fréquent d'un catalogue : une même formation revient en
+  // version courte, en intensif, en intra-entreprise. La réécrire à chaque fois
+  // fait diverger les mentions obligatoires.
+  const dupliquer = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/courses/${courseId}/copie`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const body = (await response.json()) as { course?: { id: string }; error?: string };
+      if (!response.ok || !body.course) throw new Error(body.error ?? "duplication refusée");
+      router.push(`/catalogue/${body.course.id}`);
+      router.refresh();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "duplication refusée");
+      setBusy(false);
+    }
+  };
+
   const basculer = async () => {
     setError(null);
     setBusy(true);
@@ -54,6 +76,15 @@ export function CoursePublish({
         >
           {published ? "Publiée" : "Brouillon"}
         </span>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={busy}
+          onClick={dupliquer}
+          title="Recopie la formation et ses modules, en brouillon."
+        >
+          Dupliquer
+        </button>
         <button type="button" className="btn-secondary" disabled={busy} onClick={basculer}>
           {busy
             ? "…"

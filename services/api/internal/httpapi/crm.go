@@ -8,25 +8,28 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/lemlearn/api/internal/crm"
+	"github.com/lemlearn/api/internal/platform/audit"
 	"github.com/lemlearn/api/internal/platform/ddb"
 )
 
 // handleCreateContact enregistre un apprenant, une entreprise ou un financeur.
 func handleCreateContact(deps Deps) http.HandlerFunc {
 	type request struct {
-		Kind        crm.Kind    `json:"kind"`
-		FirstName   string      `json:"firstName"`
-		LastName    string      `json:"lastName"`
-		BirthDate   string      `json:"birthDate"`
-		BirthPlace  string      `json:"birthPlace"`
-		CompanyName string      `json:"companyName"`
-		SIRET       string      `json:"siret"`
-		LegalForm   string      `json:"legalForm"`
-		Email       string      `json:"email"`
-		Phone       string      `json:"phone"`
-		Position    string      `json:"position"`
-		Notes       string      `json:"notes"`
-		Address     crm.Address `json:"address"`
+		Kind            crm.Kind    `json:"kind"`
+		FirstName       string      `json:"firstName"`
+		LastName        string      `json:"lastName"`
+		BirthDate       string      `json:"birthDate"`
+		BirthPlace      string      `json:"birthPlace"`
+		CompanyName     string      `json:"companyName"`
+		SIRET           string      `json:"siret"`
+		LegalForm       string      `json:"legalForm"`
+		Email           string      `json:"email"`
+		Phone           string      `json:"phone"`
+		Position        string      `json:"position"`
+		Notes           string      `json:"notes"`
+		MarketingSource string      `json:"marketingSource"`
+		ConvertedOn     string      `json:"convertedOn"`
+		Address         crm.Address `json:"address"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +52,8 @@ func handleCreateContact(deps Deps) http.HandlerFunc {
 		contact.Phone = body.Phone
 		contact.Position = body.Position
 		contact.Notes = body.Notes
+		contact.MarketingSource = body.MarketingSource
+		contact.ConvertedOn = body.ConvertedOn
 		contact.Address = body.Address
 
 		created, err := deps.CRM.CreateContact(r.Context(), contact)
@@ -257,18 +262,20 @@ func respondNotFound(w http.ResponseWriter, err error, message string) {
 // changement de numéro de téléphone.
 func handleUpdateContact(deps Deps) http.HandlerFunc {
 	type request struct {
-		FirstName   *string      `json:"firstName"`
-		LastName    *string      `json:"lastName"`
-		BirthDate   *string      `json:"birthDate"`
-		BirthPlace  *string      `json:"birthPlace"`
-		CompanyName *string      `json:"companyName"`
-		SIRET       *string      `json:"siret"`
-		LegalForm   *string      `json:"legalForm"`
-		Email       *string      `json:"email"`
-		Phone       *string      `json:"phone"`
-		Position    *string      `json:"position"`
-		Notes       *string      `json:"notes"`
-		Address     *crm.Address `json:"address"`
+		FirstName       *string      `json:"firstName"`
+		LastName        *string      `json:"lastName"`
+		BirthDate       *string      `json:"birthDate"`
+		BirthPlace      *string      `json:"birthPlace"`
+		CompanyName     *string      `json:"companyName"`
+		SIRET           *string      `json:"siret"`
+		LegalForm       *string      `json:"legalForm"`
+		Email           *string      `json:"email"`
+		Phone           *string      `json:"phone"`
+		Position        *string      `json:"position"`
+		Notes           *string      `json:"notes"`
+		MarketingSource *string      `json:"marketingSource"`
+		ConvertedOn     *string      `json:"convertedOn"`
+		Address         *crm.Address `json:"address"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -307,6 +314,8 @@ func handleUpdateContact(deps Deps) http.HandlerFunc {
 		set(&contact.Phone, body.Phone)
 		set(&contact.Position, body.Position)
 		set(&contact.Notes, body.Notes)
+		set(&contact.MarketingSource, body.MarketingSource)
+		set(&contact.ConvertedOn, body.ConvertedOn)
 		if body.Address != nil {
 			contact.Address = *body.Address
 		}
@@ -416,5 +425,39 @@ func handleDeleteIdentityDoc(deps Deps) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, contact)
+	}
+}
+
+// handleImportContacts reprend un portefeuille depuis un tableur.
+//
+// Le fichier arrive en corps brut plutôt qu'en formulaire multipart : il n'y a
+// qu'un fichier, et un multipart obligerait à assembler des frontières pour
+// rien. La nature des fiches vient de l'adresse, pas du fichier — un même
+// tableur sert selon le cas à des stagiaires ou à des entreprises.
+func handleImportContacts(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+
+		kind := crm.Kind(r.URL.Query().Get("kind"))
+		if kind == "" {
+			kind = crm.KindLearner
+		}
+
+		resultat, err := deps.CRM.ImportContacts(r.Context(), session.OrgID, kind, r.Body)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		if _, err := deps.Identity.AuditOrg(r.Context(), session.OrgID,
+			audit.ActionFileCreated, actorFrom(r, session.UserID),
+			map[string]any{
+				"import": string(kind), "importes": resultat.Importes,
+				"refusees": len(resultat.Refusees),
+			}); err != nil {
+			deps.Log.Error("journal de l'import", "err", err)
+		}
+
+		writeJSON(w, http.StatusOK, resultat)
 	}
 }

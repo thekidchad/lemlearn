@@ -160,6 +160,9 @@ func NewRouter(deps Deps) http.Handler {
 				r.Route("/contacts", func(r chi.Router) {
 					r.Get("/", handleListContacts(deps))
 					r.Post("/", handleCreateContact(deps))
+					// La reprise d'un portefeuille : ce qui décide d'un
+					// changement de logiciel.
+					r.Post("/import", handleImportContacts(deps))
 					r.Get("/{contactID}", handleGetContact(deps))
 					r.Patch("/{contactID}", handleUpdateContact(deps))
 					r.Post("/{contactID}/anonymize", handleAnonymize(deps))
@@ -252,6 +255,7 @@ func NewRouter(deps Deps) http.Handler {
 					r.Post("/{courseID}/visuel", handlePrepareCover(deps))
 					r.Put("/{courseID}/visuel", handleAttachCover(deps))
 					r.Put("/{courseID}/publication", handlePublishCourse(deps))
+					r.Post("/{courseID}/copie", handleDuplicateCourse(deps))
 					r.Post("/{courseID}/modules", handleAddModule(deps))
 					r.Patch("/{courseID}/modules/{moduleID}", handleUpdateModule(deps))
 				})

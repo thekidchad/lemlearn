@@ -200,3 +200,24 @@ func handleUpdateCourse(deps Deps) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, map[string]any{"course": saved})
 	}
 }
+
+// handleDuplicateCourse recopie une formation et ses modules.
+func handleDuplicateCourse(deps Deps) http.HandlerFunc {
+	type request struct {
+		Title string `json:"title"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		var body request
+		if !decodeJSON(w, r, &body) {
+			return
+		}
+		copie, err := deps.Catalog.DuplicateCourse(r.Context(), session.OrgID,
+			chi.URLParam(r, "courseID"), body.Title)
+		if err != nil {
+			respondNotFound(w, err, "formation introuvable")
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"course": copie})
+	}
+}

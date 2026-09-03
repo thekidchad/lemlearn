@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ContactsImport } from "@/components/app/contacts-import";
 import { ContactsTable } from "@/components/app/contacts-table";
 import { CreatePanel, Field, Select } from "@/components/app/form";
 import { createContact } from "@/app/actions/crm";
@@ -60,7 +61,7 @@ export async function Repertoire({ nature }: { nature: Nature }) {
 
   return (
     <>
-      <header className="flex h-14 items-center gap-1 border-b border-line px-6">
+      <header className="relative flex h-14 items-center gap-1 border-b border-line px-6">
         <h1 className="mr-3 text-sm font-medium">{courant.titre}</h1>
         {(Object.keys(NATURES) as Nature[]).map((clef) => (
           <Link
@@ -79,7 +80,8 @@ export async function Repertoire({ nature }: { nature: Nature }) {
         <span className="ml-auto font-mono text-2xs text-ink-3" data-numeric>
           {rows.length}
         </span>
-        <div className={equipe ? "hidden" : "ml-3"}>
+        <div className={equipe ? "hidden" : "ml-3 flex items-center gap-2"}>
+          <ContactsImport kind={nature} />
           <CreatePanel label="Nouveau" title={courant.singulier} action={createContact}>
             <Select
               label="Nature"
@@ -114,6 +116,12 @@ export async function Repertoire({ nature }: { nature: Nature }) {
               <Field label="Lieu de naissance" name="birthPlace" />
             </div>
             <Field label="SIRET" name="siret" />
+            <Field
+              label="Source"
+              name="marketingSource"
+              placeholder="Salon, recommandation, site…"
+              hint="D'où vient la personne. Sans elle, on ne sait pas ce qui remplit le carnet."
+            />
             <Field label="Adresse" name="line1" />
             <div className="grid grid-cols-2 gap-3">
               <Field label="Code postal" name="postalCode" />

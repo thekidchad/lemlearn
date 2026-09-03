@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lemlearn/api/internal/platform/audit"
@@ -306,4 +307,62 @@ func (s *Service) UpdateCourse(
 		return Course{}, err
 	}
 	return course, nil
+}
+
+// DuplicateCourse recopie une formation et ses modules.
+//
+// C'est le geste le plus fréquent d'un catalogue : une même formation revient
+// en version courte, en intensif, en intra-entreprise. La réécrire à chaque
+// fois fait diverger les mentions obligatoires, qu'on ne relit jamais deux
+// fois avec la même attention.
+//
+// La copie part en brouillon, quoi qu'il arrive : publier automatiquement un
+// duplicata mettrait au catalogue une formation dont le titre est encore
+// « (copie) ».
+func (s *Service) DuplicateCourse(ctx context.Context, orgID, courseID, titre string) (Course, error) {
+	source, err := s.GetCourse(ctx, orgID, courseID)
+	if err != nil {
+		return Course{}, err
+	}
+	modules, err := s.ListModules(ctx, orgID, courseID)
+	if err != nil {
+		return Course{}, err
+	}
+
+	now := s.now()
+	if strings.TrimSpace(titre) == "" {
+		titre = source.Title + " (copie)"
+	}
+
+	copie := NewCourse(orgID, titre, now)
+	copie.Goal, copie.Objectives = source.Goal, source.Objectives
+	copie.Prerequisites, copie.Audience = source.Prerequisites, source.Audience
+	copie.Means, copie.Assessment = source.Means, source.Assessment
+	copie.Sanction, copie.Accessibility = source.Sanction, source.Accessibility
+	copie.DurationHours, copie.PriceHT = source.DurationHours, source.PriceHT
+	copie.Tags = source.Tags
+	copie.ObjectiveType, copie.CertificationCode = source.ObjectiveType, source.CertificationCode
+	copie.PositioningQuizID, copie.FinalQuizID = source.PositioningQuizID, source.FinalQuizID
+	// Le visuel n'est pas recopié : deux formations au même sujet portant la
+	// même image se confondent dans la liste, et c'est justement le moment de
+	// leur en donner deux.
+	copie.Published = false
+
+	created, err := s.CreateCourse(ctx, copie)
+	if err != nil {
+		return Course{}, err
+	}
+
+	// Les modules suivent, avec leur vidéo : le fichier n'est pas dupliqué,
+	// seule la fiche du module pointe vers le même asset.
+	for _, module := range modules {
+		clone := NewModule(orgID, created.ID, module.Title, module.Position, now)
+		clone.Summary = module.Summary
+		clone.DurationMs, clone.MinCoveragePercent = module.DurationMs, module.MinCoveragePercent
+		clone.AssetID, clone.QuizID = module.AssetID, module.QuizID
+		if _, err := s.AddModule(ctx, clone); err != nil {
+			return created, err
+		}
+	}
+	return created, nil
 }

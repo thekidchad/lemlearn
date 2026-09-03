@@ -223,6 +223,9 @@ export interface Contact {
   position?: string;
   notes?: string;
   anonymized?: boolean;
+  /** D'où vient la personne, et le jour où elle est devenue cliente. */
+  marketingSource?: string;
+  convertedOn?: string;
   identityDocKey?: string;
   address?: { line1?: string; postalCode?: string; city?: string; country?: string };
 }

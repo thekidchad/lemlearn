@@ -48,6 +48,12 @@ export function ContactForm({
           <>
             <Field label="Raison sociale" name="companyName" value={contact.companyName} />
             <Field label="SIRET" name="siret" value={contact.siret} />
+            <Field
+              label="Source"
+              name="marketingSource"
+              value={contact.marketingSource}
+              hint="D'où vient la personne : salon, recommandation, site."
+            />
             <Field label="Interlocuteur — prénom" name="firstName" value={contact.firstName} />
             <Field label="Interlocuteur — nom" name="lastName" value={contact.lastName} />
             <Field label="Fonction" name="position" value={contact.position} />

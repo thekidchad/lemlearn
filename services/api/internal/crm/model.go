@@ -132,6 +132,15 @@ type Contact struct {
 	Position string  `dynamodbav:"position,omitempty" json:"position,omitempty"`
 	Notes    string  `dynamodbav:"notes,omitempty" json:"notes,omitempty"`
 
+	// MarketingSource dit d'où vient la personne : salon, recommandation,
+	// site, campagne. Sans elle, on ne sait pas ce qui remplit le carnet, et
+	// on continue de payer ce qui n'apporte rien.
+	MarketingSource string `dynamodbav:"marketingSource,omitempty" json:"marketingSource,omitempty"`
+	// ConvertedOn est le jour où le prospect est devenu client. Il ne se
+	// déduit pas de la date de création : une fiche se saisit souvent des
+	// semaines avant que quoi que ce soit ne soit signé.
+	ConvertedOn string `dynamodbav:"convertedOn,omitempty" json:"convertedOn,omitempty"`
+
 	// IdentityDocKey est la clé S3 de la pièce d'identité, dans le
 	// compartiment chiffré. Jamais d'URL ici : seulement une clé, résolue en
 	// URL présignée de soixante secondes au moment de l'affichage.

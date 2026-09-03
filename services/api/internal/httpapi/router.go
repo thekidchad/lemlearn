@@ -27,6 +27,7 @@ import (
 	"github.com/lemlearn/api/internal/export"
 	"github.com/lemlearn/api/internal/followup"
 	"github.com/lemlearn/api/internal/identity"
+	"github.com/lemlearn/api/internal/invoicing"
 	"github.com/lemlearn/api/internal/learning"
 	"github.com/lemlearn/api/internal/library"
 	"github.com/lemlearn/api/internal/platform/doc"
@@ -51,6 +52,9 @@ type Deps struct {
 	Video      *video.Service
 	FollowUp   *followup.Service
 	Billing    *billing.Service
+	// Invoicing porte les factures de l'organisme à ses clients. À ne pas
+	// confondre avec Billing, qui est notre abonnement à nous.
+	Invoicing *invoicing.Service
 	// Mailer sert les courriels qui n'appartiennent à aucun domaine : ceux de
 	// la signature partent du service de signature, ceux de la relance à
 	// froid du sien.
@@ -284,6 +288,20 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/{quizID}", handleGetQuizVersions(deps))
 					r.Get("/{quizID}/resultats", handleQuizResults(deps))
 					r.Post("/{quizID}/versions/{version}/publish", handlePublishQuiz(deps))
+				})
+
+				// La facturation. Un brouillon se modifie et se supprime ; une
+				// facture émise, ni l'un ni l'autre.
+				r.Route("/factures", func(r chi.Router) {
+					r.Get("/", handleListFactures(deps))
+					r.Post("/", handleCreateFacture(deps))
+					r.Get("/{factureID}", handleGetFacture(deps))
+					r.Patch("/{factureID}", handleUpdateFacture(deps))
+					r.Delete("/{factureID}", handleDeleteFacture(deps))
+					r.Post("/{factureID}/emission", handleIssueFacture(deps))
+					r.Post("/{factureID}/paiement", handlePayFacture(deps))
+					r.Post("/{factureID}/avoir", handleCreditNote(deps))
+					r.Get("/{factureID}/pdf", handleFacturePDF(deps))
 				})
 
 				r.Route("/files", func(r chi.Router) {

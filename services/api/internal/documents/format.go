@@ -37,6 +37,16 @@ func formatHours(hours float64) string {
 // formatEUR rend un montant en euros avec espace insécable fine comme
 // séparateur de milliers et virgule décimale, conformément à l'usage français.
 func formatEUR(amount float64) string {
+	// Le signe est mis de côté avant tout calcul. Sans cela, les centimes
+	// d'un montant négatif ressortent négatifs — « 1 008,-50 € » — et le
+	// groupement des milliers place une espace juste après le moins. Un avoir
+	// ne porte que des montants négatifs : c'est le cas normal, pas un cas
+	// limite.
+	negatif := amount < 0
+	if negatif {
+		amount = -amount
+	}
+
 	whole := int64(amount)
 	cents := int64((amount-float64(whole))*100 + 0.5)
 	if cents == 100 {
@@ -52,7 +62,13 @@ func formatEUR(amount float64) string {
 		}
 		grouped.WriteRune(r)
 	}
-	return fmt.Sprintf("%s,%02d €", grouped.String(), cents)
+	signe := ""
+	if negatif && (whole != 0 || cents != 0) {
+		// Le moins typographique, pas le trait d'union : c'est celui qu'un
+		// lecteur de PDF rend à la bonne chasse.
+		signe = "−"
+	}
+	return fmt.Sprintf("%s%s,%02d €", signe, grouped.String(), cents)
 }
 
 // trimFloat affiche un nombre sans zéro décimal inutile, virgule à la française.

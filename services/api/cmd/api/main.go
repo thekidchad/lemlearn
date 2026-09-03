@@ -34,6 +34,7 @@ import (
 	"github.com/lemlearn/api/internal/followup"
 	"github.com/lemlearn/api/internal/httpapi"
 	"github.com/lemlearn/api/internal/identity"
+	"github.com/lemlearn/api/internal/invoicing"
 	"github.com/lemlearn/api/internal/learning"
 	"github.com/lemlearn/api/internal/library"
 	"github.com/lemlearn/api/internal/platform/blob"
@@ -98,6 +99,9 @@ func main() {
 			}
 		}
 		deps.Catalog = catalog.NewService(db, nil)
+		// La facturation de l'organisme à ses clients. À ne pas confondre avec
+		// billing, qui est notre propre abonnement.
+		deps.Invoicing = invoicing.NewService(db, deps.CRM, deps.Identity, nil)
 		deps.Learning = learning.NewService(db, deps.Catalog, nil)
 		deps.Attendance = attendance.NewService(db, deps.Catalog, nil)
 		deps.Video = buildVideo(context.Background(), cfg, db, log)

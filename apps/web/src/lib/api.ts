@@ -169,7 +169,14 @@ export interface Me {
     lastName: string;
     role: Role;
   };
-  org: { id: string; name: string; plan: string; qualiopiCertified: boolean };
+  org: {
+    id: string;
+    name: string;
+    plan: string;
+    qualiopiCertified: boolean;
+    /** Exonération de l'article 261-4-4° a du CGI : la facture ne porte alors aucune taxe. */
+    vatExempt?: boolean;
+  };
   brand: Brand;
   impersonatedBy: string;
   /**

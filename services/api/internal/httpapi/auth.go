@@ -318,6 +318,10 @@ func handleMe(deps Deps) http.HandlerFunc {
 			"org": map[string]any{
 				"id": org.ID, "name": org.Name, "plan": org.Plan,
 				"qualiopiCertified": org.QualiopiCertified,
+				// Le régime de TVA voyage avec la session : la facturation en
+				// dépend à chaque ligne, et le déduire à l'écran donnerait deux
+				// vérités là où il n'en faut qu'une.
+				"vatExempt": org.VATExempt,
 			},
 			// Ce qui manque à l'identité juridique voyage avec la session :
 			// l'avertissement doit être là dès le premier écran, et le

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttribuerFormation } from "@/components/app/attribuer-formation";
 import { ContactForm } from "@/components/app/contact-form";
 import { ContactSuivi } from "@/components/app/contact-suivi";
 import { IdentityDoc } from "@/components/app/identity-doc";
@@ -15,6 +16,14 @@ const KINDS: Record<string, string> = {
   funder: "Financeur",
 };
 
+interface Formation {
+  id: string;
+  title: string;
+  durationHours: number;
+  priceHT: number;
+  published: boolean;
+}
+
 export default async function ContactPage({ params }: PageProps<"/stagiaires/[contactId]">) {
   const { contactId } = await params;
 
@@ -25,6 +34,17 @@ export default async function ContactPage({ params }: PageProps<"/stagiaires/[co
     if (error instanceof ApiError && error.status === 404) notFound();
     throw error;
   }
+
+  // Le catalogue et les intitulés du bilan : l'attribution d'une formation a
+  // besoin des deux, et les charger ici évite deux appels depuis le navigateur
+  // au moment où l'on ouvre le panneau.
+  const [{ courses }, typologies] = await Promise.all([
+    apiFetch<{ courses: Formation[] | null }>("/v1/courses").catch(() => ({ courses: null })),
+    apiFetch<{ stagiaires: { code: string; label: string }[] }>(
+      "/v1/organisme/typologies",
+    ).catch(() => ({ stagiaires: [] })),
+  ]);
+  const formations = courses ?? [];
 
   // L'équipe, pour pouvoir assigner un rappel à quelqu'un.
   const { membres } = await apiFetch<{
@@ -74,6 +94,16 @@ export default async function ContactPage({ params }: PageProps<"/stagiaires/[co
             les effacer priverait l&apos;organisme de la preuve d&apos;une
             formation réellement dispensée.
           </p>
+        )}
+
+        {/* Le geste qu'on vient faire après avoir créé la fiche. Il vivait
+            dans Sessions, c'est-à-dire là où personne ne le cherchait. */}
+        {contact.kind === "learner" && (
+          <AttribuerFormation
+            contactId={contactId}
+            formations={formations}
+            stagiaires={typologies.stagiaires}
+          />
         )}
 
         <ContactForm contact={contact} />

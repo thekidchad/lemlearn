@@ -178,6 +178,11 @@ func NewRouter(deps Deps) http.Handler {
 					// et son lien de lecture vit une minute.
 					// Le suivi d'une fiche : ce qu'on a dit, ce qu'on doit
 					// faire, ce qu'on a reçu.
+					// Attribuer une formation : le geste métier, en une route.
+					// Il n'existait que sous la forme de ses trois actes
+					// techniques, dispersés sur trois écrans.
+					r.Post("/{contactID}/inscription", handleAttribuerFormation(deps))
+
 					r.Get("/{contactID}/suivi", handleSuivi(deps))
 					r.Post("/{contactID}/notes", handleAddNote(deps))
 					r.Delete("/{contactID}/notes/{noteID}", handleDeleteNote(deps))

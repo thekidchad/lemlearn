@@ -357,6 +357,7 @@ func NewRouter(deps Deps) http.Handler {
 					r.Get("/journal", handleAdminJournal(deps))
 
 					r.Get("/orgs/{orgID}/contacts/{contactID}", handleAdminContact(deps))
+					r.Get("/orgs/{orgID}/contacts/{contactID}/pieces/{pieceID}", handleAdminPieceURL(deps))
 					r.Post("/orgs/{orgID}/contacts/{contactID}/impersonate", handleImpersonateContact(deps))
 					r.Post("/orgs/{orgID}/dossiers/{fileID}/export", handleAdminExport(deps))
 

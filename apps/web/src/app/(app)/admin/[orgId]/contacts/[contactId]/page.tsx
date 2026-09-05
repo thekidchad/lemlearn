@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdminSuivi } from "@/components/app/admin-suivi";
 import { ContactActions } from "@/components/app/contact-actions";
 import { apiFetch, ApiError, contactName, type Contact, type FileRecord } from "@/lib/api";
 
@@ -11,6 +12,13 @@ interface Fiche {
   org: { id: string; name: string; plan: string };
   compte?: { email: string; role: string; disabled: boolean };
   dossiers: FileRecord[] | null;
+  notes?: { id: string; body: string; author: string; createdAt: string }[] | null;
+  rappels?:
+    | { id: string; title: string; dueOn: string; assigneeName?: string; doneAt?: string }[]
+    | null;
+  pieces?:
+    | { id: string; name: string; sizeBytes?: number; author: string; createdAt: string }[]
+    | null;
   inscriptions?: {
     sessionId: string;
     sessionTitle?: string;
@@ -163,6 +171,17 @@ export default async function FichePage({
               )}
             </section>
           )}
+
+          {/* Ce que le client a noté, ce qu'il doit faire, ce qu'il a reçu.
+              C'est ce qu'on cherche quand il appelle en disant « je vous ai
+              envoyé l'attestation ». */}
+          <AdminSuivi
+            orgId={org.id}
+            contactId={contact.id}
+            notes={fiche.notes ?? []}
+            rappels={fiche.rappels ?? []}
+            pieces={fiche.pieces ?? []}
+          />
 
           <section className="surface-card overflow-hidden">
             <h2 className="border-b border-line px-5 py-3 text-sm font-medium">Dossiers</h2>

@@ -102,6 +102,19 @@ func handleAdminContact(deps Deps) http.HandlerFunc {
 			response["inscriptions"] = inscriptions
 		}
 
+		// Le suivi : notes, rappels, pièces jointes. L'équipe voit ce que voit
+		// le client — c'est précisément ce qu'on cherche quand il appelle en
+		// disant « je vous ai envoyé l'attestation ».
+		if notes, err := deps.CRM.ListNotes(r.Context(), orgID, contactID); err == nil {
+			response["notes"] = list(notes)
+		}
+		if rappels, err := deps.CRM.ListRappels(r.Context(), orgID, contactID); err == nil {
+			response["rappels"] = list(rappels)
+		}
+		if pieces, err := deps.CRM.ListPieces(r.Context(), orgID, contactID); err == nil {
+			response["pieces"] = list(pieces)
+		}
+
 		session, _ := sessionFrom(r)
 		if _, err := deps.Identity.AuditOrg(r.Context(), orgID, audit.ActionImpersonated,
 			actorFrom(r, session.UserID),
@@ -111,5 +124,33 @@ func handleAdminContact(deps Deps) http.HandlerFunc {
 		}
 
 		writeJSON(w, http.StatusOK, response)
+	}
+}
+
+// handleAdminPieceURL rend à l'équipe un lien de lecture sur une pièce jointe.
+//
+// La lecture est journalisée chez le client, comme l'ouverture de sa fiche :
+// ouvrir une attestation employeur déposée chez quelqu'un est un accès à une
+// donnée personnelle, et un accès se raconte. Le lien vit deux minutes.
+func handleAdminPieceURL(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionFrom(r)
+		orgID := chi.URLParam(r, "orgID")
+
+		url, err := deps.CRM.PieceURL(r.Context(), orgID,
+			chi.URLParam(r, "contactID"), chi.URLParam(r, "pieceID"))
+		if err != nil {
+			respondNotFound(w, err, "pièce introuvable")
+			return
+		}
+
+		if _, err := deps.Identity.AuditOrg(r.Context(), orgID, audit.ActionImpersonated,
+			actorFrom(r, session.UserID),
+			map[string]any{"consultation": "pièce jointe", "piece": chi.URLParam(r, "pieceID")},
+		); err != nil {
+			deps.Log.Error("journal de la consultation", "err", err)
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{"url": url})
 	}
 }

@@ -153,6 +153,12 @@ export class ComputeStack extends Stack {
     props.assetsBucket.grantDelete(apiFn, "brand/*");
     props.assetsBucket.grantPut(apiFn, "covers/*");
     props.assetsBucket.grantDelete(apiFn, "covers/*");
+    // Les photos de profil vivent dans le même compartiment mais sous un
+    // préfixe qui n'est pas ouvert au public : elles se lisent par lien signé,
+    // ce qui suppose de pouvoir les lire depuis la fonction.
+    props.assetsBucket.grantPut(apiFn, "photos/*");
+    props.assetsBucket.grantDelete(apiFn, "photos/*");
+    props.assetsBucket.grantRead(apiFn, "photos/*");
     // Lecture des logos : ils sont incorporés aux PDF plutôt que référencés,
     // pour qu'un document scellé ne dépende pas d'une image qu'un lecteur
     // irait chercher sur le réseau des années plus tard.

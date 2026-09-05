@@ -106,6 +106,16 @@ func NewRouter(deps Deps) http.Handler {
 			r.Use(requireAuth(deps))
 
 			r.Get("/me", handleMe(deps))
+
+			// Le compte, vu par celui à qui il appartient. Chacun des trois
+			// espaces y mène : l'organisme, l'équipe et le stagiaire.
+			r.Route("/profil", func(r chi.Router) {
+				r.Get("/", handleProfil(deps))
+				r.Patch("/", handleUpdateProfil(deps))
+				r.Post("/mot-de-passe", handleChangePassword(deps))
+				r.Post("/photo", handlePreparePhoto(deps))
+				r.Put("/photo", handleAttachPhoto(deps))
+			})
 			// Quitter une impersonation. La route vit ici et non sous la garde
 			// super-admin : le temps de l'impersonation, la session porte le
 			// rôle du client, et la garde refuserait la sortie.

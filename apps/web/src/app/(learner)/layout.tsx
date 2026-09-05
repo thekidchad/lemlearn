@@ -92,6 +92,12 @@ export default async function LearnerLayout({ children }: LayoutProps<"/">) {
             </span>
             Mes informations
           </Link>
+          <Link href="/apprenant/profil" className="nav-item">
+            <span aria-hidden className="w-4 text-center text-ink-3">
+              ☺
+            </span>
+            Mon compte
+          </Link>
           {staff && (
             <Link href="/pipeline" className="nav-item">
               <span aria-hidden className="w-4 text-center text-ink-3">
@@ -109,10 +115,25 @@ export default async function LearnerLayout({ children }: LayoutProps<"/">) {
               <LeaveImpersonation />
             </p>
           )}
-          <p className="truncate text-xs font-medium">{me.org.name}</p>
-          <p className="truncate text-2xs text-ink-3">
-            {me.user.firstName} {me.user.lastName}
-          </p>
+          <Link
+            href="/apprenant/profil"
+            className="flex items-center gap-2 rounded-md p-1 transition-colors duration-[120ms] hover:bg-surface-2"
+          >
+            {me.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={me.photoUrl} alt="" className="size-7 shrink-0 rounded-md object-cover" />
+            ) : (
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-dim text-2xs font-medium text-accent-ink">
+                {`${me.user.firstName.charAt(0)}${me.user.lastName.charAt(0)}`.toUpperCase()}
+              </span>
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-medium">
+                {me.user.firstName} {me.user.lastName}
+              </span>
+              <span className="block truncate text-2xs text-ink-3">{me.org.name}</span>
+            </span>
+          </Link>
           <div className="mt-2.5 flex items-center gap-2">
             <ThemeSwitch current={theme} />
             <div className="flex-1">

@@ -315,6 +315,9 @@ func handleMe(deps Deps) http.HandlerFunc {
 
 		writeJSON(w, http.StatusOK, map[string]any{
 			"user": user.Public(),
+			// La photo suit la session : la coque l'affiche sur chaque page, et
+			// la chercher séparément ferait un appel de plus par écran.
+			"photoUrl": photoURL(deps, user),
 			"org": map[string]any{
 				"id": org.ID, "name": org.Name, "plan": org.Plan,
 				"qualiopiCertified": org.QualiopiCertified,

@@ -13,12 +13,27 @@ import type { Brand } from "@/lib/api";
  * plutôt qu'un logo emprunté. Deux lettres justes valent mieux qu'une marque
  * qui n'est pas la sienne, et l'organisme peut ouvrir son compte sans avoir
  * de fichier sous la main.
+ *
+ * Avec un logo, le nom n'est pas répété à côté : un logo porte presque
+ * toujours le nom de la maison — c'est ce qui en fait un logo — et l'écrire
+ * une seconde fois l'affichait en double, puis débordait de la colonne.
  */
 export function OrgBrand({ brand, className }: { brand: Brand; className?: string }) {
+  if (brand.logoUrl) {
+    return (
+      <span className={`inline-flex min-w-0 items-center ${className ?? ""}`}>
+        <OrgMark brand={brand} />
+      </span>
+    );
+  }
+
   return (
     <span className={`inline-flex min-w-0 items-center gap-2.5 ${className ?? ""}`}>
       <OrgMark brand={brand} />
-      <span className="truncate text-[0.9375rem] font-semibold tracking-[-0.045em] text-ink">
+      {/* min-w-0 sur l'élément lui-même : sans lui, un élément de flex ne
+          descend pas sous sa largeur de contenu, et « truncate » ne tronque
+          rien — le nom sort de la colonne au lieu de se couper. */}
+      <span className="min-w-0 truncate text-[0.9375rem] font-semibold tracking-[-0.045em] text-ink">
         {brand.name}
       </span>
     </span>

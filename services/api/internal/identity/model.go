@@ -187,6 +187,13 @@ type User struct {
 	// PasswordHash est au format PHC ($argon2id$…). Il n'est jamais renvoyé
 	// par l'API : voir Public().
 	PasswordHash string     `dynamodbav:"passwordHash"`
+
+	// PhotoKey est la photo de profil.
+	//
+	// Elle vit dans le compartiment des ressources, mais sous un préfixe qui
+	// n'est pas ouvert au public : un logo est fait pour être vu de tous, le
+	// visage d'une personne non. Elle est servie par lien signé d'une heure.
+	PhotoKey string `dynamodbav:"photoKey,omitempty"`
 	Disabled     bool       `dynamodbav:"disabled"`
 	LastLoginAt  *time.Time `dynamodbav:"lastLoginAt,omitempty"`
 }

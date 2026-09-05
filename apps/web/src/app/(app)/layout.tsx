@@ -44,6 +44,7 @@ const groups: { title?: string; items: { href: string; label: string; glyph: str
   {
     title: "Compte",
     items: [
+      { href: "/profil", label: "Mon compte", glyph: "☺" },
       { href: "/organisme", label: "Votre organisme", glyph: "◉" },
       { href: "/equipe", label: "Équipe", glyph: "◍" },
       { href: "/factures", label: "Factures", glyph: "€" },
@@ -67,6 +68,7 @@ const teamGroup = {
 const teamTools = {
   title: "Outillage",
   items: [
+    { href: "/profil", label: "Mon compte", glyph: "☺" },
     { href: "/admin", label: "Tableau de bord", glyph: "◰" },
     { href: "/admin/journal", label: "Journal", glyph: "✎" },
     { href: "/admin/gabarits", label: "Gabarits", glyph: "❏" },
@@ -184,17 +186,31 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </p>
           )}
 
-          <div className="flex items-center gap-2">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-dim text-2xs font-medium text-accent-ink">
-              {initials(me.user.firstName, me.user.lastName)}
-            </span>
+          {/* La pastille du compte mène au compte : c'est là qu'on la
+              cherche, et elle n'était cliquable nulle part. */}
+          <Link
+            href="/profil"
+            className="flex items-center gap-2 rounded-md p-1 transition-colors duration-[120ms] hover:bg-surface-2"
+          >
+            {me.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={me.photoUrl}
+                alt=""
+                className="size-7 shrink-0 rounded-md object-cover"
+              />
+            ) : (
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-dim text-2xs font-medium text-accent-ink">
+                {initials(me.user.firstName, me.user.lastName)}
+              </span>
+            )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium">{me.org.name}</p>
-              <p className="truncate text-2xs text-ink-3">
+              <p className="truncate text-xs font-medium">
                 {me.user.firstName} {me.user.lastName}
               </p>
+              <p className="truncate text-2xs text-ink-3">{me.org.name}</p>
             </div>
-          </div>
+          </Link>
 
           <div className="mt-2.5 flex items-center gap-2">
             <ThemeSwitch current={theme} />

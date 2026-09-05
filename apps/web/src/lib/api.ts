@@ -179,6 +179,8 @@ export interface Me {
   };
   brand: Brand;
   impersonatedBy: string;
+  /** La photo de profil, si le compte en a posé une. */
+  photoUrl?: string;
   /**
    * Ce qui manque à l'identité juridique de l'organisme.
    *
